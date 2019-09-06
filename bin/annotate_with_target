@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import shutil
 import subprocess
 from annotation.command import Command
 
@@ -16,10 +17,19 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    input_file = os.path.join(args.workdir, "input.vcf")
+    regions_file = os.path.join(args.workdir, "regions.bed")
+    assert not os.path.isfile(input_file)
+    assert not os.path.isfile(regions_file)
+
+    # Copy input files to avoid modifying them in place
+    shutil.copy(args.vcf, input_file)
+    shutil.copy(args.regions, regions_file)
+
     Command.create_from_vcf(
         args.workdir,
-        args.vcf,
-        input_regions=args.regions,
+        input_file,
+        input_regions=regions_file,
         convert_only=False,
         target=args.target,
         target_env=None,
