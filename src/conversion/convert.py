@@ -1,18 +1,20 @@
 from __future__ import print_function
+import re
 from exporters import SeqPilotExporter, HGVScExporter
+
+RE_SEQPILOT = re.compile(".*Transcript.*\tc. HGVS|.*c. HGVS.*\tTranscript")
 
 
 def _is_seqpilot_format(input):
-    fd = open(input, "r")
-    header_line = None
-    while not header_line:
-        try:
-            header_line = next(fd).strip()
-        except StopIteration:
-            raise RuntimeError("File %s is empty." % input)
-    fd.close()
+    with open(input, "r") as fd:
+        header_line = None
+        while not header_line:
+            try:
+                header_line = next(fd).strip()
+            except StopIteration:
+                raise RuntimeError("File %s is empty." % input)
 
-    if header_line.startswith("Index\tGene\tTranscript"):
+    if RE_SEQPILOT.match(header_line):
         return True
     else:
         return False
