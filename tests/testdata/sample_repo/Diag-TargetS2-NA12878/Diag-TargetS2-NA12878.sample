@@ -1,0 +1,33 @@
+{
+    "index": "TAAGGCGA-AAGGAGTA", 
+    "lane": "1", 
+    "stats": {
+        "one_mismatch_index_pct": 3.93, 
+        "reads": 1903774, 
+        "mean_qual_score": 35.58, 
+        "q30_bases_pct": 89.52, 
+        "perfect_index_reads_pct": 96.07
+    }, 
+    "sequencer_id": "M01334", 
+    "flowcell_id": "000000000-AKMWL", 
+    "reads": [
+        {
+            "path": "NA12878-KREFT-v01-KIT-CuCaV1_S2_L001_R1_001.fastq.gz", 
+            "md5": "e515dcb046deefac002064cab543b1ed", 
+            "size": 73489423
+        }, 
+        {
+            "path": "NA12878-KREFT-v01-KIT-CuCaV1_S2_L001_R2_001.fastq.gz", 
+            "md5": "3d33de39a10031e708fe7e92c145963b", 
+            "size": 79614738
+        }
+    ], 
+    "project": "Diag-TargetS2", 
+    "project_date": "2015-07-08", 
+    "flowcell": null, 
+    "sample_id": "NA12878", 
+    "capturekit": "CuCaV1", 
+    "sequence_date": "2015-07-09", 
+    "taqman": "Diag-TargetS2-NA12878.taqman", 
+    "name": "Diag-TargetS2-NA12878"
+}

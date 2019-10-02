@@ -1,0 +1,3 @@
+#!/bin/bash
+
+echo -en "\nPreprocess" | tee -a $DUMMY_FILE

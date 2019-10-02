@@ -1,0 +1,8 @@
+{
+    "Diag-TargetS2-NA12878": {
+        "vcf": "Diag-TargetS2-NA12878/Diag-TargetS2-NA12878.final.vcf",
+        "sample_config": "Diag-TargetS2-NA12878/Diag-TargetS2-NA12878.sample",
+        "capturekit": "CuCaV1",
+        "type": "single"
+    }
+ }

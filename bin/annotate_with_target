@@ -1,0 +1,30 @@
+#!/usr/bin/env python
+
+import os
+import subprocess
+from annotation.command import Command
+
+if __name__ == "__main__":
+
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Run annotation with target")
+    parser.add_argument("--workdir", required=True, dest="workdir")
+    parser.add_argument("--vcf", required=True, dest="vcf")
+    parser.add_argument("--regions", required=False, dest="regions")
+    parser.add_argument("--target", required=True, dest="target")
+
+    args = parser.parse_args()
+
+    Command.create_from_vcf(
+        args.workdir,
+        args.vcf,
+        input_regions=args.regions,
+        convert_only=False,
+        target=args.target,
+        target_env=None,
+    )
+
+    cmd = os.path.join(args.workdir, "cmd.sh")
+    os.chmod(cmd, 0x544)
+    subprocess.check_call("bash -c " + cmd, shell=True)

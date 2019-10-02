@@ -1,0 +1,20 @@
+---
+variables:
+  BRANCH: $CI_COMMIT_REF_NAME
+  CONTAINER_NAME: anno-$CI_PIPELINE_ID
+
+stages:
+  - build
+  - test
+
+run_pytest:
+  stage: test
+  script:
+    - make test
+  after_script:
+    - make cleanup
+
+build:
+  stage: build
+  script:
+    - make build

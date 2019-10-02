@@ -1,0 +1,20 @@
+##fileformat=VCFv4.1
+##contig=<ID=13>
+##FILTER=<ID=PASS,Description="All filters passed">
+##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth (reads with MQ=255 or with bad mates are filtered)">
+##FORMAT=<ID=GQ,Number=1,Type=Float,Description="Genotype Quality">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Normalized, Phred-scaled likelihoods for genotypes as defined in the VCF specification">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	brca_decomposed
+13	32890607	SNP	G	T	5000.0	PASS	.	GT:AD:DP:GQ:PL	0/1:107,80:187:99:2048,0,2917
+13	32890630	INS	T	TC	5000.0	PASS	.	GT:AD:DP:GQ:PL	0/1:107,80:187:99:2048,0,2917
+13	32890645	DEL	GAC	G	5000.0	PASS	.	GT:AD:DP:GQ:PL	0/1:107,80:187:99:2048,0,2917
+13	32890666	SNP,SNP	T	A	5000.0	PASS	.	GT:AD:DP:GQ:PL	./1:0,80:187:99:2048,0,2917
+13	32890666	SNP,SNP	T	C	5000.0	PASS	.	GT:AD:DP:GQ:PL	1/.:0,107:187:99:2048,2048,2917
+13	32893218	SNP,INS	A	ATTT	5000.0	PASS	.	GT:AD:DP:GQ:PL	./1:0,80:187:99:2048,2048,2917
+13	32893218	SNP,INS	A	T	5000.0	PASS	.	GT:AD:DP:GQ:PL	1/.:0,107:187:99:2048,0,2917
+13	32893405	DEL,SNP	A	G	5000.0	PASS	.	GT:AD:DP:GQ:PL	1/.:0,107:187:99:2048,2048,2917
+13	32893405	DEL,SNP	ACT	A	5000.0	PASS	.	GT:AD:DP:GQ:PL	./1:0,80:187:99:2048,0,2917
+13	32900280	DEL,INS	T	TAA	5000.0	PASS	.	GT:AD:DP:GQ:PL	./1:0,107:187:99:2048,2048,2917
+17	46805705	DEL,INS	G	A	5000.0	PASS	.	GT:AD:DP:GQ:PL	1/.:0,80:187:99:2048,0,2917
