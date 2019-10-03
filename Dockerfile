@@ -9,6 +9,7 @@ RUN echo 'Acquire::ForceIPv4 "true";' | tee /etc/apt/apt.conf.d/99force-ipv4
 # Install as much as reasonable in one go to reduce image size
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
+    autoconf \
     gawk \
     gnupg2 \
     python \

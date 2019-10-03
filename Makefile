@@ -108,6 +108,9 @@ cleanup:
 	-v $(shell pwd):/anno \
 	$(IMAGE_NAME) git clean -xdf --exclude .vscode
 
+localclean:
+	rm -rf thirdparty/ data/
+
 shell:
 	docker exec -it $(CONTAINER_NAME) bash
 
