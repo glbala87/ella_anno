@@ -10,6 +10,7 @@ RUN echo 'Acquire::ForceIPv4 "true";' | tee /etc/apt/apt.conf.d/99force-ipv4
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     autoconf \
+    pkg-config \
     gawk \
     gnupg2 \
     python \
@@ -36,6 +37,13 @@ RUN apt-get update && \
     zlib1g-dev \
     libbz2-dev \
     liblzma-dev \
+    libarchive-extract-perl \
+    libarchive-zip-perl \
+    libdbi-perl \
+    libjson-perl \
+    libmodule-build-perl \
+    libperlio-gzip-perl \
+    libset-intervaltree-perl \
     postgresql \
     postgresql-common \
     postgresql-client && \
