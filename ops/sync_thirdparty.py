@@ -18,6 +18,7 @@ thirdparty_packages = {
         "version": "1.9",
         "sha256": "e04b877057e8b3b8425d957f057b42f0e8509173621d3eccaedd0da607d9929a",
         "filename": "htslib-VERSION.tar.bz2",
+        "url_prefix": "releases/download/VERSION",
         "src_dir": "htslib-VERSION",
         "installation": [
             "autoheader",
@@ -57,10 +58,11 @@ thirdparty_packages = {
         "filename": "VERSION.tar.gz",
         "src_dir": "ensembl-vep-release-VERSION",
         "sha256": "ec793425218b36f58f5aebc2dbbe6f161458423d26099a13296dcd3b8fae2447",
-        "install": ["perl INSTALL.pl -a c -l -n -y GRCh37 "],
+        "installation": ["perl INSTALL.pl -a cf -l -n -s homo_sapiens_merged -y GRCh37 -c /anno/data/VEP/cache"],
     },
 }
 TOUCHFILE = "SETUP_COMPLETE"
+args = None
 
 
 def main():
@@ -77,6 +79,7 @@ def main():
     )
     parser.add_argument("--verbose", action="store_true", help="be extra chatty")
     parser.add_argument("--debug", action="store_true", help="run in debug mode")
+    global args
     args = parser.parse_args()
 
     if args.debug:
@@ -95,7 +98,7 @@ def main():
         pkg_dir = pkg["src_dir"].replace("VERSION", pkg["version"])
         if args.verbose:
             print(f"Fetching {pkg_name}")
-        github_fetch_package(pkg, args.directory, args.verbose, args.debug)
+        github_fetch_package(pkg, args.directory)
 
         if args.verbose:
             print(f"Compiling / packaging {pkg_name}")
@@ -132,12 +135,13 @@ def main():
             break
 
 
-def github_fetch_package(pkg, dest, verbose=False, debug=False):
+def github_fetch_package(pkg, dest):
     """downloads a release archive from github"""
 
     release_file = pkg["filename"].replace("VERSION", pkg["version"])
-    if os.path.isfile(release_file):
-        if is_valid_download(release_file, pkg["sha256"]):
+    release_filepath = os.path.join(args.directory, release_file)
+    if os.path.isfile(release_filepath):
+        if is_valid_download(release_filepath, pkg["sha256"]):
             print("Re-using existing package")
             return
         else:
@@ -152,7 +156,7 @@ def github_fetch_package(pkg, dest, verbose=False, debug=False):
     full_url = f"{release_url}/{release_file}"
 
     subprocess.run(["wget", full_url], cwd=dest, check=True)
-    if not is_valid_download(release_file, pkg["sha256"]):
+    if not is_valid_download(release_filepath, pkg["sha256"]):
         raise Exception(
             f"Checksum mismatch on {release_file}. Expected {pkg['sha256']}, but got {hash_file(release_file)}"
         )
