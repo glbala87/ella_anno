@@ -81,9 +81,6 @@ restart: stop
 kill:
 	docker rm -f -v $(CONTAINER_NAME) || :
 
-unpack_lfs:
-	python unpack_lfs.py
-
 update_seqrepo:
 	docker run --rm \
 	--name $(CONTAINER_NAME) \
@@ -126,4 +123,3 @@ check-release-tag:
 
 release: check-release-tag
 	git archive -o anno-$(RELEASE_TAG)-src.tar $(RELEASE_TAG)
-
