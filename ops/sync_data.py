@@ -26,7 +26,10 @@ datasets = OrderedDict(
             {
                 "description": "gnomaAD variant database",
                 "version": "2.0.2",
-                "actions": ["scripts/download_gnomad.sh -r VERSION GNOMAD_OPTS"],
+                "actions": [
+                    "scripts/download_gnomad.sh -r VERSION GNOMAD_OPTS",
+                    "scripts/gnome_process_exomes.sh -r VERSION GNOMAD",
+                ],
             },
         ),
         ("clinvar", {"description": "clinvar variant database", "version": "20190628", "actions": []}),

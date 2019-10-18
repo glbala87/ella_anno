@@ -14,11 +14,11 @@
 set -eu -o pipefail
 
 THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-BIN_DIR="$(basename $THIS_DIR)/bin"
-DATA_DIR="$(basename $THIS_DIR)/data"
-FASTA_DIR=$DATA_DIR/FASTA
-GNOMAD_DATA_DIR=$DATA_DIR/variantDBs/gnomAD
-GNOMAD_RAW_DIR=$GNOMAD_DATA_DIR/raw
+BIN_DIR="$(dirname $THIS_DIR)/bin"
+DATA_DIR="$(dirname $THIS_DIR)/data"
+FASTA_DIR="$DATA_DIR/FASTA"
+GNOMAD_DATA_DIR="$DATA_DIR/variantDBs/gnomAD"
+GNOMAD_RAW_DIR="$(dirname $THIS_DIR)/rawdata/gnomAD"
 
 usage() {
     if [[ ! -z $1 ]]; then
@@ -49,7 +49,7 @@ normalize_chrom() {
     chrom="$1"
     input_file="$2"
     output_file="$3"
-    "$TABIX" -p vcf -h "$input_file" "$chrom" \
+    "$TABIX" -p vcf -h "$input_file" $chrom \
         | "$VT" rminfo - -t GQ_HIST_ALT,DP_HIST_ALT,AB_HIST_ALT,GQ_HIST_ALL,DP_HIST_ALL,AB_HIST_ALL,CSQ \
         | "$VT" decompose -s - \
         | "$VT" normalize -r "${REFERENCE}" -n - \
@@ -94,7 +94,7 @@ else
 fi
 
 if [[ -f "$BIN_DIR/bgzip" ]]; then
-    BGZIP=$"BIN_DIR/bgzip"
+    BGZIP="$BIN_DIR/bgzip"
 else
     bail "Unable to find bgzip in $BIN_DIR"
 fi
@@ -111,7 +111,7 @@ for i in {1..22} X Y; do
     done
 
     norm_fn="$GNOMAD_RAW_DIR/gnomad.exomes.r${GNOMADVERSION}.chr${i}.norm.vcf"
-    EXOME_BY_CHR+=(norm_fn)
+    EXOME_BY_CHR+=($norm_fn)
     normalize_chrom $i $EXOME_INPUT $norm_fn &
 done
 wait
@@ -130,7 +130,7 @@ done
 $BGZIP "$EXOME_OUTPUT"
 
 #index
-$TABIX -p vcf "${EXOME_OUTPUT}.bgz"
+$TABIX -p vcf "${EXOME_OUTPUT}.gz"
 
 # cleanup only after everything has succeeded
-rm -rf $GNOMAD_RAW_DIR
+echo rm -rf $GNOMAD_RAW_DIR
