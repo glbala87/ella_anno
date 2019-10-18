@@ -1,4 +1,5 @@
 *.pyc
 thirdparty/
 data/
+rawdata/
 .vscode/
