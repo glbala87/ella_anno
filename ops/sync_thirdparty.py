@@ -20,13 +20,7 @@ thirdparty_packages = {
         "filename": "htslib-VERSION.tar.bz2",
         "url_prefix": "releases/download/VERSION",
         "src_dir": "htslib-VERSION",
-        "installation": [
-            "autoheader",
-            "autoconf",
-            "./configure",
-            "make",
-            "make install"
-        ],
+        "installation": ["autoheader", "autoconf", "./configure", "make", "make install"],
     },
     "bedtools": {
         "url": "https://github.com/arq5x/bedtools2",
@@ -66,6 +60,8 @@ args = None
 
 
 def main():
+    global args
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--directory",
@@ -74,12 +70,9 @@ def main():
         help="directory to extract the thirdparty packages into",
     )
     parser.add_argument("--package", "-p", help="install only a specific package")
-    parser.add_argument(
-        "--clean", action="store_true", help="clean up intermediate files"
-    )
+    parser.add_argument("--clean", action="store_true", help="clean up intermediate files")
     parser.add_argument("--verbose", action="store_true", help="be extra chatty")
     parser.add_argument("--debug", action="store_true", help="run in debug mode")
-    global args
     args = parser.parse_args()
 
     if args.debug:
@@ -126,9 +119,7 @@ def main():
         # the packaged src_dir sometimes includes the current version number
         # we don't want that in the path, so rename it to non-versioned
         if "VERSION" in pkg["src_dir"]:
-            generic_dir = os.path.join(
-                args.directory, pkg["src_dir"].replace("-VERSION", "")
-            )
+            generic_dir = os.path.join(args.directory, pkg["src_dir"].replace("-VERSION", ""))
             os.rename(compile_dir, generic_dir)
 
         if args.debug:
@@ -147,12 +138,8 @@ def github_fetch_package(pkg, dest):
         else:
             print("Removing partially downloaded ")
 
-    default_url_prefix = (
-        pkg["url_prefix"] if pkg.get("url_prefix") else "releases/download/vVERSION"
-    )
-    release_url = f'{pkg["url"]}/{default_url_prefix}'.replace(
-        "VERSION", pkg["version"]
-    )
+    default_url_prefix = pkg["url_prefix"] if pkg.get("url_prefix") else "releases/download/vVERSION"
+    release_url = f'{pkg["url"]}/{default_url_prefix}'.replace("VERSION", pkg["version"])
     full_url = f"{release_url}/{release_file}"
 
     subprocess.run(["wget", full_url], cwd=dest, check=True)
