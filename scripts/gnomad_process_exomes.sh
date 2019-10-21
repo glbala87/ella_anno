@@ -26,7 +26,7 @@ usage() {
     fi
     echo
     echo "Usage:"
-    echo "    $0 -f ~/path/to/human_g1k_v37_decoy.fasta -r 2.0.2"
+    echo "    $0 -r GNOMAD_REVISION"
     echo
     exit 1
 }
@@ -99,13 +99,21 @@ else
     bail "Unable to find bgzip in $BIN_DIR"
 fi
 
-MAX_PCNT=${MAX_PCNT:-$(grep -c processor /proc/cpuinfo)}
+# memory intensive, can easily use 10GB per normalize_chrom call
+# Make sure swap is also enabled or can risk OOM killing by the kernel
+SWAP_ON=$(swapon --list 2>&1)
+if [[ $SWAP_ON -eq 0 ]]; then
+    echo " *** WARNING *** Swap does not appear to be enabled. Processes are likely to be killed by the kernel"
+fi
+MEM_MAX_PCNT=$(grep -P '(Mem|Swap)Total' /proc/meminfo | perl -lane 'if ($F[2] eq "kB"){$sum += $F[1] / 1024/1024;}elsif ($F[2] eq "mB"){$sum += $F[1]/1024}elsif ($F[2] eq "B"){$sum += $F[1]/1024/1024/1024}}{print int($sum/10)')
+CPU_MAX_PCNT=$(grep -c processor /proc/cpuinfo)
+MAX_PCNT=${MAX_PCNT:-$MEM_MAX_PCNT}
 EXOME_INPUT="$GNOMAD_RAW_DIR/gnomad.exomes.r${GNOMADVERSION}.sites.vcf.bgz"
-EXOME_OUTPUT="$GNOMAD_DATA_DIR/gnomad.exomes.r${GNOMADVERSION}.norm.vcf"
+EXOME_OUTPUT="$GNOMAD_DATA_DIR/gnomad.exomes.r${GNOMADVERSION}.norm.vcf.bgz"
 declare -a EXOME_BY_CHR
-# processing each chromosome in parallel due to large memory usage and long time taken by vt
+# processing chromosomes in parallel, but not too parallel
+START_HR=$(date +'%b %d %H')
 for i in {1..22} X Y; do
-    # don't kill CPU with too many jobs
     while [[ $(pcnt) -ge $MAX_PCNT ]]; do
         sleep 15
     done
@@ -116,21 +124,25 @@ for i in {1..22} X Y; do
 done
 wait
 
-# merge by appending instead of vt-concatenate due to large memory required by vt-concatenate
+FIN_HR=$(date +'%b %d %H')
+# fail on err causes script to exit if no matches are found, so we temporarily disable that
+set +e
+OOM_CNT=$(grep -Pc "($START_HR|$FIN_HR).+?oom_reaper.+?\(vt\)" /var/log/syslog)
+set -e
+if [[ $OOM_CNT -gt 0 ]]; then
+    echo " *** WARNING *** found ${OOM_CNT} reaped vt processes, output may be incomplete"
+fi
+
 mkdir -p $GNOMAD_DATA_DIR
-for input_chr in "${EXOME_BY_CHR[@]}"; do
-    if [[ ! -e $EXOME_OUTPUT ]]; then
-        cp $input_chr $EXOME_OUTPUT
-    else
-        "$VT" view $input_chr >> $EXOME_OUTPUT
-    fi
-done
+log "Zipping ${EXOME_OUTPUT}"
+# skip header on all but first file for pipe to bgzip
+(cat "${EXOME_BY_CHR[0]}"; grep -hv '^#' "${EXOME_BY_CHR[@]:1}") | $BGZIP --threads ${MAX_ZIP_PCT:-$CPU_MAX_PCNT}> $EXOME_OUTPUT
 
-#bgzip
-$BGZIP "$EXOME_OUTPUT"
-
-#index
-$TABIX -p vcf "${EXOME_OUTPUT}.gz"
+log "Indexing ${EXOME_OUTPUT}"
+$TABIX -p vcf "${EXOME_OUTPUT}"
 
 # cleanup only after everything has succeeded
-echo rm -rf $GNOMAD_RAW_DIR
+log "Removing intermediate files"
+rm -rf $GNOMAD_RAW_DIR
+
+log "Finished processing gnomAD exome data"
