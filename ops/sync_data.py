@@ -28,7 +28,7 @@ datasets = OrderedDict(
                 "version": "2.0.2",
                 "actions": [
                     "scripts/download_gnomad.sh -r VERSION GNOMAD_OPTS",
-                    "scripts/gnome_process_exomes.sh -r VERSION GNOMAD",
+                    "scripts/gnomad_process_exomes.sh -r VERSION GNOMAD",
                 ],
             },
         ),
