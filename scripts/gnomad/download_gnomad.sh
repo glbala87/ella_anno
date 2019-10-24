@@ -5,7 +5,8 @@
 # gnomAD keeps changing file name formats. This version is configured for the 2.0.2 release
 
 THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-DATA_DIR=$(dirname $THIS_DIR)/rawdata/gnomAD
+ROOT_DIR=$(dirname "$(dirname $THIS_DIR)")
+DATA_DIR=$ROOT_DIR/rawdata/gnomAD
 
 usage() {
     if [[ ! -z $1 ]]; then

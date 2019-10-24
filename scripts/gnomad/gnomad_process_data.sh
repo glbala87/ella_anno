@@ -10,11 +10,12 @@
 set -e -o pipefail
 
 THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-BIN_DIR="$(dirname $THIS_DIR)/bin"
-DATA_DIR="$(dirname $THIS_DIR)/data"
-FASTA_DIR="$DATA_DIR/FASTA"
-GNOMAD_DATA_DIR="$DATA_DIR/variantDBs/gnomAD"
-GNOMAD_RAW_DIR="$(dirname $THIS_DIR)/rawdata/gnomAD"
+ROOT_DIR=$(dirname "$(dirname $THIS_DIR)")
+BIN_DIR=$ROOT_DIR/bin
+DATA_DIR=$ROOT_DIR/data
+FASTA_DIR=$DATA_DIR/FASTA
+GNOMAD_DATA_DIR=$DATA_DIR/variantDBs/gnomAD
+GNOMAD_RAW_DIR=$ROOT_DIR/rawdata/gnomAD
 
 usage() {
     if [[ ! -z "$1" ]]; then
