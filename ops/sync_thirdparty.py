@@ -20,7 +20,7 @@ thirdparty_packages = {
         "filename": "htslib-VERSION.tar.bz2",
         "url_prefix": "releases/download/VERSION",
         "src_dir": "htslib-VERSION",
-        "installation": ["autoheader", "autoconf", "./configure", "make", "make install"],
+        "installation": ["autoheader", "autoconf", "./configure", "make"],
     },
     "bedtools": {
         "url": "https://github.com/arq5x/bedtools2",
