@@ -22,13 +22,29 @@ datasets = OrderedDict(
             },
         ),
         (
+            "refgene",
+            {
+                "description": "refGene database for slicing gnomAD data",
+                "version": "hg19",
+                "hash": {},
+                "destination": "refGene",
+                "actions": [
+                    "wget http://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/refGene.txt.gz",
+                    "zcat refGene.txt.gz | cut -f 3,5,6 | sed 's/chr//g' | sort -k1,1V -k2,2n | uniq > refgene_VERSION.bed",
+                    "mysql --user=genome --host=genome-mysql.cse.ucsc.edu -A -e 'select chrom, size from VERSION.chromInfo' > data/VERSION.genome",
+                    "bedtools slop -i refgene_VERSION.bed -g VERSION.genome -b 10000 > refgene_VERSION_slop_10k.bed",
+                    "rm refGene.txt.gz",
+                ],
+            },
+        ),
+        (
             "gnomad",
             {
                 "description": "gnomaAD variant database",
                 "version": "2.0.2",
                 "actions": [
-                    "scripts/download_gnomad.sh -r VERSION GNOMAD_OPTS",
-                    "scripts/gnomad_process_data.sh -r VERSION GNOMAD",
+                    "scripts/download_gnomad.sh -r VERSION GNOMAD_DL_OPTS",
+                    "scripts/gnomad_process_data.sh -r VERSION GNOMAD_DATA_OPTS",
                 ],
             },
         ),
