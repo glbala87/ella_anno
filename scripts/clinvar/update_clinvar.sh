@@ -1,11 +1,6 @@
 #!/bin/bash
 
-# ClinVar is officially updated on first Thursday each month
-# We run this script by a cron job two days after first Thursday(first/second Saturday) each month
-#  0 0 3-9 * * [ "$(date '+\%a')" = "Sat" ] && /path/to/repo/amg/src/clinvar/clinvar_update.sh > /path/to/repo/amg/src/clinvar/clinvar_update.log 2>&1
-# numpy is required, can use a virutalenv ('db-update' in this script) or install numpy system wide
-
-set -e
+set -e -o pipefail
 
 THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 ROOT_DIR=$(dirname "$(dirname $THIS_DIR)")

@@ -1,0 +1,16 @@
+submitter_map = dict()
+submitter_map["Illumina Clinical Services Laboratory,Illumina"] = "Illumina"
+submitter_map["Evidence-based Network for the Interpretation of Germline Mutant Alleles (ENIGMA)"] = "ENIGMA"
+submitter_map["Breast Cancer Information Core (BIC) (BRCA2)"] = "BIC (BRCA2)"
+submitter_map["Breast Cancer Information Core (BIC) (BRCA1)"] = "BIC (BRCA1)"
+submitter_map["Consortium of Investigators of Modifiers of BRCA1/2 (CIMBA), c/o University of Cambridge"] = "CIMBA"
+submitter_map["Sharing Clinical Reports Project (SCRP)"] = "SCRP"
+submitter_map["Emory Genetics Laboratory,Emory University"] = "Emory Genetics Lab"
+submitter_map["Counsyl,"] = "Counsyl"
+submitter_map[
+    "Laboratory for Molecular Medicine,Partners HealthCare Personalized Medicine"
+] = "Laboratory for Molecular Medicine"
+submitter_map["Genetic Services Laboratory, University of Chicago"] = "Genetic Services Laboratory, Chicago"
+submitter_map["Tuberous sclerosis database (TSC2)"] = "TSC2"
+submitter_map["LDLR-LOVD, British Heart Foundation"] = "LDLR-LOVD"
+submitter_map["ARUP Institute,ARUP Laboratories"] = "ARUP"
