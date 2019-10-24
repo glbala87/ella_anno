@@ -43,8 +43,8 @@ datasets = OrderedDict(
                 "description": "gnomaAD variant database",
                 "version": "2.0.2",
                 "actions": [
-                    "scripts/download_gnomad.sh -r VERSION GNOMAD_DL_OPTS",
-                    "scripts/gnomad_process_data.sh -r VERSION GNOMAD_DATA_OPTS",
+                    "scripts/gnomad/download_gnomad.sh -r VERSION GNOMAD_DL_OPTS",
+                    "scripts/gnomad/gnomad_process_data.sh -r VERSION GNOMAD_DATA_OPTS",
                 ],
             },
         ),
