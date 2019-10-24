@@ -46,14 +46,6 @@ pcnt() {
     echo $((CNT - 1))
 }
 
-syslog_min_time() {
-    if [[ -z $1 ]]; then
-        date +'%b %d %H'
-    else
-        date -d "$1" +'%b %d %H'
-    fi
-}
-
 normalize_exome_chrom() {
     chrom="$1"
     input_file="$2"
