@@ -63,6 +63,7 @@ normalize_exome_chrom() {
         | "$VT" decompose -s - \
         | "$VT" normalize -r "${REFERENCE}" -n - \
         > "$output_file"
+    log "Finished processing exome chromosome $chrom"
 }
 
 normalize_genome_chrom() {
@@ -74,6 +75,7 @@ normalize_genome_chrom() {
         | "$VT" decompose -s - \
         | "$VT" normalize -r "${REFERENCE}" -n - \
         > "$output_file"
+    log "Finished processing genome file $input_file"
 }
 
 while getopts ":v:b:h" opt; do
