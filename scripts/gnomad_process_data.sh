@@ -22,11 +22,11 @@ usage() {
     fi
     echo
     echo "Usage:"
-    echo "    $0 -r GNOMAD_REVISION -p /path/to/gene_panel.bed"
+    echo "    $0 -v GNOMAD_VERSION [ -b /path/to/gene_regions.bed ]"
     echo
     echo "Options:"
-    echo "  -r | --gnomad-revision     gnomAD version. currently validated for 2.0.2"
-    echo "  -p | --gene-panel          path to bed/list of gene regions to slice genome data on"
+    echo "  -v      gnomAD version. currently validated for 2.0.2"
+    echo "  -b      path to bedfile of gene regions to slice genome data on (optional)"
     echo
     exit 1
 }
@@ -58,7 +58,7 @@ normalize_exome_chrom() {
     input_file="$2"
     output_file="$3"
     "$TABIX" -p vcf -h "$input_file" $chrom \
-        | "$VT" rminfo - -t GQ_HIST_ALT,DP_HIST_ALT,AB_HIST_ALT,GQ_HIST_ALL,DP_HIST_ALL,AB_HIST_ALL,CSQ \
+        | perl -F'\t' -wlane 'if (substr($F[0], 0, 1) eq "#"){print join("\t", @F)}else{print join("\t", @F[0..6], join(";", (grep { ! /^(GQ_HIST_ALT|DP_HIST_ALT|AB_HIST_ALT|GQ_HIST_ALL|DP_HIST_ALL|AB_HIST_ALL|CSQ)=/ } (split ";", $F[7]))))}' \
         | "$VT" decompose -s - \
         | "$VT" normalize -r "${REFERENCE}" -n - \
         > "$output_file"
@@ -67,28 +67,30 @@ normalize_exome_chrom() {
 normalize_genome_chrom() {
     input_file="$1"
     output_file="$2"
-    "$VT" rminfo "$input_file" -t GQ_HIST_ALT,DP_HIST_ALT,AB_HIST_ALT,GQ_HIST_ALL,DP_HIST_ALL,AB_HIST_ALL,CSQ -I "${GENE_PANEL}" \
+    bed_opt="$3"
+    "$TABIX" -h $bed_opt "$input_file" \
+        | perl -F'\t' -wlane 'if (substr($F[0], 0, 1) eq "#"){print join("\t", @F)}else{print join("\t", @F[0..6], join(";", (grep { ! /^(GQ_HIST_ALT|DP_HIST_ALT|AB_HIST_ALT|GQ_HIST_ALL|DP_HIST_ALL|AB_HIST_ALL|CSQ)=/ } (split ";", $F[7]))))}' \
         | "$VT" decompose -s - \
         | "$VT" normalize -r "${REFERENCE}" -n - \
         > "$output_file"
 }
 
-while [ $# -gt 0 ]; do
-    key="$1"
-    case "$key" in
-        -r|--gnomad-revision)
-            GNOMADVERSION="$2"
-            shift 2
+while getopts ":v:b:h" opt; do
+    case "${opt}" in
+        v)
+            GNOMAD_VERSION="$OPTARG"
             ;;
-        -g|--gene-panel)
-            GENE_PANEL="$2"
-            shift 2
+        b)
+            BED_REGIONS="$OPTARG"
             ;;
-        -h|--help)
+        h)
             usage
             ;;
-        *)
-            break
+        \?)
+            usage "Invalid option: $OPTARG"
+            ;;
+        :)
+            usage "Missing argument for $OPTARG"
             ;;
     esac
 done
@@ -98,14 +100,14 @@ if [[ ! -f "$REFERENCE" ]]; then
     usage "Error! Unable to find reference genome: '$REFERENCE', check it was synced correctly"
 fi
 
-if [ -z "$GNOMADVERSION" ]; then
-    usage "Error! gnomAD revision missing."
+if [[ -z "$GNOMAD_VERSION" ]]; then
+    usage "Error! gnomAD version missing."
 fi
 
-if [[ -z "$GENE_PANEL" ]]; then
-    usage "Error! No gene panel specified"
-elif [[ ! -f "$GENE_PANEL" ]]; then
-  usage "Error! Unable to find gene panel: $GENE_PANEL"
+if [[ -z "$BED_REGIONS" ]]; then
+    echo "Warning: no bed file specified. Genomic output will be very large"
+elif [[ ! -f "$BED_REGIONS" ]]; then
+    usage "Error! Unable to find bed file: $BED_REGIONS"
 fi
 
 if [[ -f "$BIN_DIR/tabix" ]]; then
@@ -128,85 +130,61 @@ fi
 
 # memory intensive, can easily use 10GB per normalize_exome_chrom call
 # Make sure swap is also enabled or can risk OOM killing by the kernel
-SWAP_ON=$(swapon --show | wc -l)
-if [[ $SWAP_ON -eq 0 ]]; then
-    echo " *** WARNING *** Swap does not appear to be enabled. Processes are likely to be killed by the kernel"
-fi
-MEM_MAX_PCNT=$(grep -P '(Mem|Swap)Total' /proc/meminfo | perl -lane 'if ($F[2] eq "kB"){$sum += $F[1] / 1024/1024;}elsif ($F[2] eq "mB"){$sum += $F[1]/1024}elsif ($F[2] eq "B"){$sum += $F[1]/1024/1024/1024}}{print int($sum/10)')
+# SWAP_ON=$(swapon --show | wc -l)
+# if [[ $SWAP_ON -eq 0 ]]; then
+#     echo " *** WARNING *** Swap does not appear to be enabled. Processes are likely to be killed by the kernel"
+# fi
+# MEM_MAX_PCNT=$(grep -P '(Mem|Swap)Total' /proc/meminfo | perl -lane 'if ($F[2] eq "kB"){$sum += $F[1] / 1024/1024;}elsif ($F[2] eq "mB"){$sum += $F[1]/1024}elsif ($F[2] eq "B"){$sum += $F[1]/1024/1024/1024}}{print int($sum/10)')
 CPU_MAX_PCNT=$(grep -c processor /proc/cpuinfo)
-MAX_PCNT=${MAX_PCNT:-$MEM_MAX_PCNT}
+MAX_PCNT=${MAX_PCNT:-$CPU_MAX_PCNT}
 
 # start processing exome megafile
-EXOME_INPUT="$GNOMAD_RAW_DIR/gnomad.exomes.r${GNOMADVERSION}.sites.vcf.bgz"
-EXOME_OUTPUT="$GNOMAD_DATA_DIR/gnomad.exomes.r${GNOMADVERSION}.norm.vcf.gz"
+EXOME_INPUT="$GNOMAD_RAW_DIR/gnomad.exomes.r${GNOMAD_VERSION}.sites.vcf.bgz"
+EXOME_OUTPUT="$GNOMAD_DATA_DIR/gnomad.exomes.r${GNOMAD_VERSION}.norm.vcf.gz"
 declare -a EXOME_BY_CHR
 # processing chromosomes in parallel, but not too parallel
-START_HR=$(date +'%b %d %H')
-START_ISO=$(date --iso-8601=hours)
 for i in {1..22} X Y; do
     while [[ $(pcnt) -ge $MAX_PCNT ]]; do
         sleep 15
     done
 
-    norm_fn="$GNOMAD_RAW_DIR/gnomad.exomes.r${GNOMADVERSION}.chr${i}.norm.vcf"
+    log "Processing exome chromosome $i"
+    norm_fn="$GNOMAD_RAW_DIR/gnomad.exomes.r${GNOMAD_VERSION}.chr${i}.norm.vcf"
     EXOME_BY_CHR+=($norm_fn)
-    log "normalize_exome_chrom $i $EXOME_INPUT $norm_fn &"
+    normalize_exome_chrom $i $EXOME_INPUT $norm_fn &
+    echo $EXOME_INPUT > /dev/null
 done
 
 # start processing genome chromosome files
-GENOME_OUTPUT="$GNOMAD_DATA_DIR/gnomad.genomes.r${GNOMADVERSION}.norm.vcf.gz"
+
+GENOME_OUTPUT="$GNOMAD_DATA_DIR/gnomad.genomes.r${GNOMAD_VERSION}.norm.vcf.gz"
 declare -a GENOME_BY_CHR
 for j in {1..22} X; do
     while [[ $(pcnt) -ge $MAX_PCNT ]]; do
         sleep 15
     done
 
-    raw_fn="$GNOMAD_RAW_DIR/gnomad.genomes.r${GNOMADVERSION}.sites.chr${j}.vcf.bgz"
-    norm_fn="$GNOMAD_RAW_DIR/gnomad.genomes.r${GNOMADVERSION}.chr${j}.norm.vcf"
+    log "Processing genome chromosome $j"
+    raw_fn="$GNOMAD_RAW_DIR/gnomad.genomes.r${GNOMAD_VERSION}.sites.chr${j}.vcf.bgz"
+    norm_fn="$GNOMAD_RAW_DIR/gnomad.genomes.r${GNOMAD_VERSION}.chr${j}.norm.vcf"
+    if [[ -z $BED_REGIONS ]]; then
+        bed_opt=""
+    else
+        bed_opt="-R $BED_REGIONS"
+    fi
     GENOME_BY_CHR+=($norm_fn)
-    normalize_genome_chrom $raw_fn $norm_fn &
+    normalize_genome_chrom $raw_fn $norm_fn "$bed_opt" &
 done
 wait
-
-# a probably overcomplicated grep regex builder to check for oom killings
-FIN_HR=$(syslog_min_time)
-OOM_PATTERN="^"
-if [[ "$FIN_HR" == "$START_HR" ]]; then
-    OOM_PATTERN+="$START_HR"
-else
-    OOM_PATTERN+="($START_HR"
-    NUM_HOURS=1
-    NEXT_HR=$(syslog_min_time "+${NUM_HOURS}hours")
-    while [[ "$NEXT_HR" != "$FIN_HR" ]]; do
-        OOM_PATTERN+="|NEXT_HR"
-        NUM_HOURS=$((NUM_HOURS + 1))
-        NEXT_HR=$(syslog_min_time "${START_ISO} +${NUM_HOURS}hours")
-        # safety killswitch, it should really never ever ever take this long to process gnomAD data
-        # and if it does, oom errors are prob the least concern
-        if [[ $NUM_HOURS -gt 20 ]]; then
-            break
-        fi
-    done
-    OOM_PATTERN+="|FIN_HR)"
-fi
-OOM_PATTERN+=".+?oom_reaper.+?\(vt\)"
-
-# fail on err causes script to exit if no matches are found, so we temporarily disable that
-set +e
-OOM_CNT=$(grep -Pc "$OOM_PATTERN" /var/log/syslog)
-set -e
-if [[ $OOM_CNT -gt 0 ]]; then
-    echo " *** WARNING *** found ${OOM_CNT} reaped vt processes, output may be incomplete"
-fi
 
 # zip and index exome data
 mkdir -p $GNOMAD_DATA_DIR
 log "Zipping ${EXOME_OUTPUT}"
 # skip header on all but first file for pipe to bgzip
-# (cat "${EXOME_BY_CHR[0]}"; grep -hv '^#' "${EXOME_BY_CHR[@]:1}") | $BGZIP --threads ${MAX_ZIP_PCT:-$CPU_MAX_PCNT}> $EXOME_OUTPUT
+(cat "${EXOME_BY_CHR[0]}"; grep -hv '^#' "${EXOME_BY_CHR[@]:1}") | $BGZIP --threads ${MAX_ZIP_PCT:-$CPU_MAX_PCNT}> $EXOME_OUTPUT
 
 log "Indexing ${EXOME_OUTPUT}"
-# $TABIX -p vcf "${EXOME_OUTPUT}"
+$TABIX -p vcf "${EXOME_OUTPUT}"
 
 # zip and index genome data
 log "Zipping ${GENOME_OUTPUT}"
