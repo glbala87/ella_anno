@@ -54,7 +54,8 @@ normalize_exome_chrom() {
         | perl -F'\t' -wlane 'if (substr($F[0], 0, 1) eq "#"){print join("\t", @F)}else{print join("\t", @F[0..6], join(";", (grep { ! /^(GQ_HIST_ALT|DP_HIST_ALT|AB_HIST_ALT|GQ_HIST_ALL|DP_HIST_ALL|AB_HIST_ALL|CSQ)=/ } (split ";", $F[7]))))}' \
         | "$VT" decompose -s - \
         | "$VT" normalize -r "${REFERENCE}" -n - \
-        > "$output_file"
+        > "$output_file" \
+        || bail "Error processing chrom ${chrom} of $input_file, return code: $?"
     log "Finished processing exome chromosome $chrom"
 }
 
@@ -66,7 +67,8 @@ normalize_genome_chrom() {
         | perl -F'\t' -wlane 'if (substr($F[0], 0, 1) eq "#"){print join("\t", @F)}else{print join("\t", @F[0..6], join(";", (grep { ! /^(GQ_HIST_ALT|DP_HIST_ALT|AB_HIST_ALT|GQ_HIST_ALL|DP_HIST_ALL|AB_HIST_ALL|CSQ)=/ } (split ";", $F[7]))))}' \
         | "$VT" decompose -s - \
         | "$VT" normalize -r "${REFERENCE}" -n - \
-        > "$output_file"
+        > "$output_file" \
+        || bail "Error processing ${input_file}, return code: $?"
     log "Finished processing genome file $input_file"
 }
 
@@ -146,7 +148,11 @@ for i in {1..22} X Y; do
     log "Processing exome chromosome $i"
     norm_fn="$GNOMAD_RAW_DIR/gnomad.exomes.r${GNOMAD_VERSION}.chr${i}.norm.vcf"
     EXOME_BY_CHR+=($norm_fn)
-    normalize_exome_chrom $i $EXOME_INPUT $norm_fn &
+    if [[ -f $norm_fn ]]; then
+        log "skipping existing file $norm_fn"
+    else
+        normalize_exome_chrom $i $EXOME_INPUT $norm_fn &
+    fi
     echo $EXOME_INPUT > /dev/null
 done
 
@@ -168,7 +174,11 @@ for j in {1..22} X; do
         bed_opt="-R $BED_REGIONS"
     fi
     GENOME_BY_CHR+=($norm_fn)
-    normalize_genome_chrom $raw_fn $norm_fn "$bed_opt" &
+    if [[ -f $norm_fn ]]; then
+        log "skipping existing file $norm_fn"
+    else
+        normalize_genome_chrom $raw_fn $norm_fn "$bed_opt" &
+    fi
 done
 wait
 
