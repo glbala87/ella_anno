@@ -98,7 +98,7 @@ def main():
 
         if os.path.isdir(pkg_dir):
             if os.path.exists(os.path.join(pkg_dir, "SETUP_COMPLETE")):
-                print("")
+                print(f"Package {pkg_name} already synced")
         else:
             subprocess.run(["tar", "xvf", pkg_artifact], cwd=args.directory, check=True)
 
