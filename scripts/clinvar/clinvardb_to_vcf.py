@@ -93,7 +93,7 @@ ALT_TRANSLATIONS = {
 
 def read_genome(filename):
     "Read genome data using pyfaidx.Fasta"
-    genome = Fasta(filename, as_raw=True)
+    genome = Fasta(filename, as_raw=True, rebuild=False)
     return genome
 
 
@@ -139,6 +139,10 @@ def process_results(xml, genome_file, archive=True):
             try:
                 vcf_positions = get_vcf_positions(genome, allele)
             except Exception as e:
+                if type(e) != AssertionError:
+                    import pdb
+
+                    pdb.set_trace()
                 if variant_id in clinvar_vcf_positions:
                     clinvar_position = clinvar_vcf_positions[variant_id]
                     position_warnings[clinvar_position] += ["WARN_FAILED_TO_CALCULATE_POSITION"]
@@ -414,11 +418,18 @@ def fetch_variation_data(ids, archive_file=None):
 
 def run_job(ids, genome_file, write_archive, archive_file):
     """Wrapper for running a forked job. Used to get properly formatted exceptions from child process in main process."""
-    try:
-        xml = fetch_variation_data(ids, archive_file)
-        return process_results(xml, genome_file, write_archive)
-    except Exception as e:
-        raise Exception("".join(traceback.format_exception(*sys.exc_info())))
+    retry_errs = [urllib2.IncompleteRead]
+    n = 0
+    while n < MAX_RETRIES:
+        try:
+            xml = fetch_variation_data(ids, archive_file)
+            return process_results(xml, genome_file, write_archive)
+        except Exception as e:
+            if type(e) in retry_errs:
+                logging.warning("{}. Retrying. ({} retries)".format(str(e), n))
+                n += 1
+                continue
+            raise Exception("".join(traceback.format_exception(*sys.exc_info())))
 
 
 def parse_clinvar_file(vcf_file, archive=True):
