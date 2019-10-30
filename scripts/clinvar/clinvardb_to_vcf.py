@@ -41,6 +41,7 @@ Requirements (command line tools):
 """
 
 import urllib2
+import httplib
 import multiprocessing
 import time
 import re
@@ -418,7 +419,7 @@ def fetch_variation_data(ids, archive_file=None):
 
 def run_job(ids, genome_file, write_archive, archive_file):
     """Wrapper for running a forked job. Used to get properly formatted exceptions from child process in main process."""
-    retry_errs = [urllib2.IncompleteRead]
+    retry_errs = [httplib.IncompleteRead]
     n = 0
     while n < MAX_RETRIES:
         try:
