@@ -140,10 +140,6 @@ def process_results(xml, genome_file, archive=True):
             try:
                 vcf_positions = get_vcf_positions(genome, allele)
             except Exception as e:
-                if type(e) != AssertionError:
-                    import pdb
-
-                    pdb.set_trace()
                 if variant_id in clinvar_vcf_positions:
                     clinvar_position = clinvar_vcf_positions[variant_id]
                     position_warnings[clinvar_position] += ["WARN_FAILED_TO_CALCULATE_POSITION"]
