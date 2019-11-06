@@ -1,4 +1,4 @@
-FROM debian:latest
+FROM debian:buster-20191014
 ENV DEBIAN_FRONTEND noninteractive
 ENV LANGUAGE C.UTF-8
 ENV LANG C.UTF-8
@@ -31,6 +31,7 @@ RUN apt-get update && \
     watch \
     vim \
     python3-dev \
+    python3-pip \
     rsync \
     wget \
     git \
@@ -44,6 +45,7 @@ RUN apt-get update && \
     libmodule-build-perl \
     libperlio-gzip-perl \
     libset-intervaltree-perl \
+    default-mysql-client \
     postgresql \
     postgresql-common \
     postgresql-client && \
@@ -74,7 +76,7 @@ ENV TARGETS /targets
 ENV TARGETS_OUT /targets-out
 ENV SAMPLES /samples
 ENV PATH /anno/bin:$TARGETS/targets:$PATH
-ENV PERL5LIB /anno/thirdparty/vep/lib/:/anno/thirdparty/vcftools/lib
+ENV PERL5LIB /anno/thirdparty/ensembl-vep-release/lib/:/anno/thirdparty/vcftools/lib
 ENV WORKFOLDER /tmp/annowork
 ENV HGVS_SEQREPO_DIR /anno/data/seqrepo/2017-11-18
 
@@ -83,4 +85,4 @@ COPY . /anno
 WORKDIR /anno
 
 # Set supervisor as default cmd
-CMD /bin/bash -c "python unpack_lfs.py && supervisord -c /anno/ops/supervisor.cfg"
+CMD /bin/bash -c "python3 unpack_lfs.py && supervisord -c /anno/ops/supervisor.cfg"
