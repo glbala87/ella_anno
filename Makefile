@@ -121,5 +121,8 @@ check-release-tag:
 	git rev-parse --verify "refs/tags/$(RELEASE_TAG)^{tag}"
 	git ls-remote --exit-code --tags origin "refs/tags/$(RELEASE_TAG)"
 
-release: check-release-tag
-	git archive -o anno-$(RELEASE_TAG)-src.tar $(RELEASE_TAG)
+release: # check-release-tag
+	[ -e thirdparty.tar.gz ] || tar cvzf thirdparty.tar.gz thirdparty/
+	[ -e data.tar ] || tar cvf data.tar data/
+	tar cvf --exclude="thirdparty/" --exclude="data/" --exclude="anno-*-src.tar" anno-$(RELEASE_TAG)-src.tar .
+	# git archive -o anno-$(RELEASE_TAG)-src.tar $(RELEASE_TAG)
