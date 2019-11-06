@@ -10,8 +10,9 @@
 # Also handles multiple start/stop cycles (í.e. using supervisorctl to stop/start). We only run initdb once.
 # Creating root user fails the second time, but the script continues.
 
-if [ "$1" =  "init" ]
-then
+PG_BIN=/usr/lib/postgresql/11/bin
+
+if [ "$1" =  "init" ]; then
     echo "Init of Postgres cluster in $PGDATA"
 
     mkdir -p $PGDATA
@@ -21,15 +22,23 @@ then
        echo "The database data dir already exists."
     else
         echo "Creating database cluster in $PGDATA"
-        gosu postgres /usr/lib/postgresql/9.6/bin/initdb
+        gosu postgres $PG_BIN/initdb
     fi
 
-    gosu postgres /usr/lib/postgresql/9.6/bin/postgres --single -jE <<-EOSQL
+    gosu postgres $PG_BIN/postgres --single -jE <<-EOSQL
        CREATE USER root WITH SUPERUSER PASSWORD 'omgenetics' ;
 EOSQL
 
 fi
 
+
+function wait_for_ready() {
+    timer=${1:-15}
+    until runuser -l postgres -c 'pg_isready' 2>/dev/null; do
+        >&2 echo "[$(date -d %Y-%m-%d\ %H:%M:%S)] Postgres is unavailable - sleeping for $timer seconds"
+        sleep $timer
+    done
+}
 
 function shutdown()
 {
@@ -49,9 +58,12 @@ fi
 # KILL goes directly to kernel, so it's useless here.
 trap shutdown HUP INT QUIT ABRT KILL ALRM TERM TSTP
 
-exec gosu postgres /usr/lib/postgresql/9.6/bin/postgres &
+exec gosu postgres $PG_BIN/postgres &
 
 if [ "$1" = "init" ]; then
+    # make sure postgres has started
+    wait_for_ready
+
     echo "Extracting database from dump"
     dropdb uta
     dropuser uta_admin
@@ -68,4 +80,3 @@ else
     echo "Postgres started"
     sleep infinity
 fi
-
