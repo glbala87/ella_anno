@@ -75,6 +75,7 @@ if [ "$1" = "init" ]; then
     psql -U uta_admin -d uta -c "REFRESH MATERIALIZED VIEW ${UTA_VERSION}.tx_exon_set_summary_mv;"
     psql -U uta_admin -d uta -c "REFRESH MATERIALIZED VIEW ${UTA_VERSION}.tx_def_summary_mv;"
     touch $PGDATA/pgready
+    rm /$UTA_VERSION.pgd.gz
     echo "Database ready"
 else
     echo "Postgres started"
