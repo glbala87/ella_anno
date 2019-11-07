@@ -124,5 +124,7 @@ check-release-tag:
 release: # check-release-tag
 	[ -e thirdparty.tar.gz ] || tar cvzf thirdparty.tar.gz thirdparty/
 	[ -e data.tar ] || tar cvf data.tar data/
-	tar cvf --exclude="thirdparty/" --exclude="data/" --exclude="anno-*-src.tar" anno-$(RELEASE_TAG)-src.tar .
+	mkdir -p release/
+	tar -C .. cvf --exclude="thirdparty" --exclude=".git*" --exclude="*data" --exclude="release" --include="thirdparty.tar" anno-$(RELEASE_TAG)-src.tar anno
+	mv ../anno-$(RELEASE_TAG)-src.tar release/
 	# git archive -o anno-$(RELEASE_TAG)-src.tar $(RELEASE_TAG)
