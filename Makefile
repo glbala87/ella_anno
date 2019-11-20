@@ -125,6 +125,5 @@ release: # check-release-tag
 	[ -e thirdparty.tar.gz ] || tar cvzf thirdparty.tar.gz thirdparty/
 	[ -e data.tar ] || tar cvf data.tar data/
 	mkdir -p release/
-	tar -C .. cvf --exclude="thirdparty" --exclude=".git*" --exclude="*data" --exclude="release" --include="thirdparty.tar" anno-$(RELEASE_TAG)-src.tar anno
-	mv ../anno-$(RELEASE_TAG)-src.tar release/
+	tar cvf release/anno-$(RELEASE_TAG)-src.tar --exclude=thirdparty --exclude=".git*" --exclude="*data" --exclude=release --exclude=.vscode ./
 	# git archive -o anno-$(RELEASE_TAG)-src.tar $(RELEASE_TAG)
