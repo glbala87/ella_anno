@@ -68,7 +68,7 @@ datasets = OrderedDict(
                 "version": "20190628",
                 "destination": "variantDBs/clinvar",
                 "generate": [
-                    "python scripts/clinvar/clinvardb_to_vcf.py -np $(($(grep -c processor /proc/cpuinfo || echo 1) * 2)) -o data/variantDBs/clinvar/clinvar_VERSION.vcf -g data/FASTA/human_g1k_v37_decoy.fasta.gz"
+                    "python scripts/clinvar/clinvardb_to_vcf.py -np $(($(grep -c processor /proc/cpuinfo || echo 1) * 2)) -o DATADIR/clinvar_VERSION.vcf -g data/FASTA/human_g1k_v37_decoy.fasta.gz"
                 ],
             },
         ),
