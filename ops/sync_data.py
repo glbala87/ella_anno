@@ -102,7 +102,7 @@ def main():
         metavar="/path/to/data/dir",
         type=Path,
         default=default_data_dir,
-        help="directory to write processed data to",
+        help="directory to write processed data to. Default: {}".format(default_data_dir),
     )
     parser.add_argument(
         "-rd",
@@ -110,7 +110,7 @@ def main():
         metavar="/path/to/rawdata/dir",
         type=Path,
         default=default_rawdata_dir,
-        help="directory to temporarily store unprocessed data in",
+        help="directory to temporarily store unprocessed data in. Default: {}".format(default_rawdata_dir),
     )
     parser.add_argument("--cleanup", action="store_true", help="clean up raw data after successful processing")
     parser.add_argument("--verbose", action="store_true", help="be extra chatty")

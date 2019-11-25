@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import os
+from pathlib import Path
 import subprocess
 
 thirdparty_packages = {
@@ -56,6 +57,8 @@ thirdparty_packages = {
     },
 }
 TOUCHFILE = "SETUP_COMPLETE"
+this_dir = Path(__file__).parent.absolute()
+default_dir = this_dir / "thirdparty"
 args = None
 
 
@@ -66,8 +69,8 @@ def main():
     parser.add_argument(
         "--directory",
         "-d",
-        default=os.path.join(os.getcwd(), "thirdparty"),
-        help="directory to extract the thirdparty packages into",
+        default=default_dir,
+        help="directory to extract the thirdparty packages into. Default: {}".format(default_dir),
     )
     parser.add_argument("--package", "-p", help="install only a specific package")
     parser.add_argument("--clean", action="store_true", help="clean up intermediate files")
