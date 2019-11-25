@@ -92,24 +92,26 @@ def main():
 
     for pkg_name, pkg in install_packages.items():
         pkg_artifact = pkg["filename"].replace("VERSION", pkg["version"])
-        pkg_dir = pkg["src_dir"].replace("VERSION", pkg["version"])
+        pkg_dir = args.directory / Path(pkg["src_dir"].replace("VERSION", pkg["version"]))
+
+        if pkg_dir.exists():
+            if (pkg_dir / TOUCHFILE).exists():
+                print(f"Package {pkg_name} already installed, skipping")
+                continue
+
         if args.verbose:
             print(f"Fetching {pkg_name}")
         github_fetch_package(pkg, args.directory)
 
         if args.verbose:
             print(f"Compiling / packaging {pkg_name}")
-
-        if os.path.isdir(pkg_dir):
-            if os.path.exists(os.path.join(pkg_dir, TOUCHFILE)):
-                print(f"Package {pkg_name} already synced")
         else:
             subprocess.run(["tar", "xvf", pkg_artifact], cwd=args.directory, check=True)
 
         if args.clean:
             os.remove(os.path.join(args.directory, pkg_artifact))
 
-        compile_dir = os.path.join(args.directory, pkg_dir)
+        compile_dir = args.directory / pkg_dir
         for step_num, step in enumerate(pkg["installation"]):
             if args.debug:
                 print(f"DEBUG - Step {step_num}: {step}\n")
@@ -123,8 +125,8 @@ def main():
         # the packaged src_dir sometimes includes the current version number
         # we don't want that in the path, so rename it to non-versioned
         if "VERSION" in pkg["src_dir"]:
-            generic_dir = os.path.join(args.directory, pkg["src_dir"].replace("-VERSION", ""))
-            os.rename(compile_dir, generic_dir)
+            generic_dir = args.directory / Path(pkg["src_dir"].replace("-VERSION", ""))
+            pkg_dir.rename(generic_dir)
 
         if args.debug:
             break
@@ -134,8 +136,8 @@ def github_fetch_package(pkg, dest):
     """downloads a release archive from github"""
 
     release_file = pkg["filename"].replace("VERSION", pkg["version"])
-    release_filepath = os.path.join(args.directory, release_file)
-    if os.path.isfile(release_filepath):
+    release_filepath = args.directory / release_file
+    if release_filepath.is_file():
         if is_valid_download(release_filepath, pkg["sha256"]):
             print("Re-using existing package")
             return
