@@ -16,6 +16,7 @@ this_dir = Path(__file__).parent.absolute()
 default_base_dir = this_dir.parent
 default_data_dir = default_base_dir / "data"
 default_rawdata_dir = default_base_dir / "rawdata"
+default_thirdparty_dir = default_base_dir / "thirdparty"
 datasets = OrderedDict(
     [
         (
@@ -31,6 +32,16 @@ datasets = OrderedDict(
                     "echo 'HASH_VALUE DATA_DIR/human_g1k_v37_decoy.fasta.gz' | HASH_TYPEsum -c",
                 ],
                 "generate": "download",
+            },
+        ),
+        (
+            "vep",
+            {
+                "description": "offline VEP cache",
+                "version": "98.2",
+                "destination": "VEP/cache",
+                "thirdparty-name": "ensembl-vep-release",
+                "generate": ["perl THIRDPARTY/INSTALL.pl -a cf -l -n -s homo_sapiens_merged -y GRCh37 -c DATA_DIR"],
             },
         ),
         (
@@ -99,7 +110,7 @@ def main():
     parser.add_argument(
         "-dd",
         "--data-dir",
-        metavar="/path/to/data/dir",
+        metavar="/path/to/anno/data/dir",
         type=Path,
         default=default_data_dir,
         help="directory to write processed data to. Default: {}".format(default_data_dir),
@@ -107,10 +118,18 @@ def main():
     parser.add_argument(
         "-rd",
         "--rawdata-dir",
-        metavar="/path/to/rawdata/dir",
+        metavar="/path/to/anno/rawdata",
         type=Path,
         default=default_rawdata_dir,
         help="directory to temporarily store unprocessed data in. Default: {}".format(default_rawdata_dir),
+    )
+    parser.add_argument(
+        "-tp",
+        "--thirdparty-dir",
+        metavar="/path/to/anno/thirdparty",
+        type=Path,
+        default=default_thirdparty_dir,
+        help="directory thirdparty packages are installed in. Default: {}".format(default_thirdparty_dir),
     )
     parser.add_argument("--cleanup", action="store_true", help="clean up raw data after successful processing")
     parser.add_argument("--verbose", action="store_true", help="be extra chatty")
@@ -133,7 +152,7 @@ def main():
             [
                 ("VERSION", dataset.get("version", "")),
                 ("DATA_DIR", str(data_dir)),
-                ("HASH_TYPE", dataset["hash"].get("type", "none")),
+                ("THIRDPARTY", args.thirdparty / dataset.get("thirdparty-name", dataset_name)),
             ]
         )
         if "hash" in dataset:

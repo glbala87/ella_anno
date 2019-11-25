@@ -53,7 +53,7 @@ thirdparty_packages = {
         "filename": "VERSION.tar.gz",
         "src_dir": "ensembl-vep-release-VERSION",
         "sha256": "ec793425218b36f58f5aebc2dbbe6f161458423d26099a13296dcd3b8fae2447",
-        "installation": ["perl INSTALL.pl -a cf -l -n -s homo_sapiens_merged -y GRCh37 -c /anno/data/VEP/cache"],
+        "installation": ["echo VEP data loaded with sync_data.py"],
     },
 }
 TOUCHFILE = "SETUP_COMPLETE"
