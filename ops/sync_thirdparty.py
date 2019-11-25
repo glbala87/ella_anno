@@ -58,7 +58,8 @@ thirdparty_packages = {
 }
 TOUCHFILE = "SETUP_COMPLETE"
 this_dir = Path(__file__).parent.absolute()
-default_dir = this_dir / "thirdparty"
+anno_root = this_dir.parent
+default_dir = anno_root / "thirdparty"
 args = None
 
 
@@ -100,7 +101,7 @@ def main():
             print(f"Compiling / packaging {pkg_name}")
 
         if os.path.isdir(pkg_dir):
-            if os.path.exists(os.path.join(pkg_dir, "SETUP_COMPLETE")):
+            if os.path.exists(os.path.join(pkg_dir, TOUCHFILE)):
                 print(f"Package {pkg_name} already synced")
         else:
             subprocess.run(["tar", "xvf", pkg_artifact], cwd=args.directory, check=True)
