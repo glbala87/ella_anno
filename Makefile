@@ -111,6 +111,45 @@ localclean:
 shell:
 	docker exec -it $(CONTAINER_NAME) bash
 
+download-data:
+	docker exec -it $(CONTAINER_NAME) \
+		python3 /anno/ops/sync_data.py --download
+
+download-package:
+	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to download')
+	docker exec -it $(CONTAINER_NAME) \
+		python3 /anno/ops/sync_data.py --download -d $(PKG_NAME)
+
+generate-data:
+	docker exec -it $(CONTAINER_NAME) \
+		python3 /anno/ops/sync_data.py --generate
+
+generate-package:
+	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to generate')
+	docker exec -it $(CONTAINER_NAME) \
+		python3 /anno/ops/sync_data.py --generate -d $(PKG_NAME)
+
+install-thirdparty:
+	docker run --rm -t \
+		-v $(PWD):/anno \
+		$(IMAGE_NAME) \
+		python3 /anno/ops/sync_thirdparty.py --clean
+
+install-thirdparty-package:
+	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to install')
+	docker run --rm -t \
+		-v $(PWD):/anno \
+		$(IMAGE_NAME) \
+		python3 /anno/ops/sync_thirdparty.py --clean -p $(PKG_NAME)
+
+tar-data:
+	tar cvf data.tar data/
+
+tar-thirdparty:
+	tar cvzf thirdparty.tar.gz thirdparty/
+
+tar-all: tar-thirdparty tar-data
+
 
 #---------------------------------------------
 # RELEASE
@@ -121,9 +160,7 @@ check-release-tag:
 	git rev-parse --verify "refs/tags/$(RELEASE_TAG)^{tag}"
 	git ls-remote --exit-code --tags origin "refs/tags/$(RELEASE_TAG)"
 
-release: # check-release-tag
-	[ -e thirdparty.tar.gz ] || tar cvzf thirdparty.tar.gz thirdparty/
-	[ -e data.tar ] || tar cvf data.tar data/
+release: tar-all check-release-tag
 	mkdir -p release/
 	tar cvf release/anno-$(RELEASE_TAG)-src.tar --exclude=thirdparty --exclude=".git*" --exclude="*data" --exclude=release --exclude=.vscode ./
 	# git archive -o anno-$(RELEASE_TAG)-src.tar $(RELEASE_TAG)
