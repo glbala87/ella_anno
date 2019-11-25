@@ -1,8 +1,8 @@
 FROM debian:buster-20191014
-ENV DEBIAN_FRONTEND noninteractive
-ENV LANGUAGE C.UTF-8
-ENV LANG C.UTF-8
-ENV LC_ALL C.UTF-8
+ENV DEBIAN_FRONTEND noninteractive \
+    LANGUAGE C.UTF-8 \
+    LANG C.UTF-8 \
+    LC_ALL C.UTF-8
 
 RUN echo 'Acquire::ForceIPv4 "true";' | tee /etc/apt/apt.conf.d/99force-ipv4
 
@@ -49,11 +49,9 @@ RUN apt-get update && \
     postgresql \
     postgresql-common \
     postgresql-client && \
-
     # Additional tools
     curl -SLk 'https://bootstrap.pypa.io/get-pip.py' | python && \
     curl -L https://github.com/tianon/gosu/releases/download/1.7/gosu-amd64 -o /usr/local/bin/gosu && chmod u+x /usr/local/bin/gosu && \
-
     # Cleanup
     cp -R /usr/share/locale/en\@* /tmp/ && rm -rf /usr/share/locale/* && mv /tmp/en\@* /usr/share/locale/ && \
     rm -rf /usr/share/doc/* /usr/share/man/* /usr/share/groff/* /usr/share/info/* /tmp/* /var/cache/apt/* /root/.cache
