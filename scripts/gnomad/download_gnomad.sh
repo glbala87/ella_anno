@@ -13,7 +13,7 @@ usage() {
         echo "$1"
     fi
     echo
-    echo USAGE:
+    echo "USAGE:"
     echo "    $0 < -r GNOMAD_REVISION > [ -s/--skip-md5 ] "
     echo
     exit 1
@@ -63,7 +63,7 @@ if [[ -z "$REVISION" ]]; then
   usage "Error! revision is missing, e.g. 2.0.2"
 fi
 
-GSUTIL=$(which gsutil 2>/dev/null)
+GSUTIL=$(which gsutil 2>/dev/null || echo)
 if [[ -z $GSUTIL ]]; then
     usage "Unable to find gsutil, make sure it is installed, in the PATH and try again"
 fi

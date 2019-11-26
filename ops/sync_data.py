@@ -30,8 +30,9 @@ datasets = OrderedDict(
                 "download": [
                     "wget ftp://gsapubftp-anonymous@ftp.broadinstitute.org/bundle/b37/human_g1k_v37_decoy.fasta.gz -O DATA_DIR/human_g1k_v37_decoy.fasta.gz",
                     "echo 'HASH_VALUE DATA_DIR/human_g1k_v37_decoy.fasta.gz' | HASH_TYPEsum -c",
+                    "zcat DATA_DIR/human_g1k_v37_decoy.fasta.gz | bgzip > DATA_DIR/human_g1k_v37_decoy.fasta.bgz",
+                    "mv DATA_DIR/human_g1k_v37_decoy.fasta.bgz DATA_DIR/human_g1k_v37_decoy.fasta.gz",
                 ],
-                "generate": "download",
             },
         ),
         (
@@ -54,8 +55,8 @@ datasets = OrderedDict(
                 "generate": [
                     "wget http://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/refGene.txt.gz",
                     "echo 'HASH_VALUE refGene.txt.gz' | HASH_TYPEsum -c",
-                    "zcat refGene.txt.gz | cut -f 3,5,6 | sed 's/chr//g' | sort -k1,1V -k2,2n | uniq > refgene_VERSION.bed",
-                    "mysql --user=genome --host=genome-mysql.cse.ucsc.edu -A -e 'select chrom, size from VERSION.chromInfo' > DATA_DIR/VERSION.genome",
+                    "zcat refGene.txt.gz | cut -f 3,5,6 | sed 's/chr//g' | sort -k1,1V -k2,2n | uniq | bedtools merge > refgene_VERSION.bed",
+                    "mysql --user=genome --host=genome-mysql.cse.ucsc.edu -A -e 'select chrom, size from VERSION.chromInfo' | sed 's/chr//g' > DATA_DIR/VERSION.genome",
                     "bedtools slop -i refgene_VERSION.bed -g DATA_DIR/VERSION.genome -b 10000 > DATA_DIR/refgene_VERSION_slop_10k.bed",
                 ],
             },
@@ -68,7 +69,7 @@ datasets = OrderedDict(
                 "destination": "variantDBs/gnomAD",
                 "generate": [
                     "BASE_DIR/scripts/gnomad/download_gnomad.sh -r VERSION -s",
-                    "BASE_DIR/scripts/gnomad/gnomad_process_data.sh -v VERSION",
+                    "BASE_DIR/scripts/gnomad/gnomad_process_data.sh -v VERSION -b BASE_DIR/data/refGene/refgene_hg19_slop_10k.bed",
                 ],
             },
         ),

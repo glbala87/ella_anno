@@ -3,6 +3,7 @@ ENV DEBIAN_FRONTEND noninteractive
 ENV LANGUAGE C.UTF-8
 ENV LANG C.UTF-8
 ENV LC_ALL C.UTF-8
+ENV PATH /anno/bin:$PATH
 
 COPY . /anno
 WORKDIR /anno
@@ -16,7 +17,7 @@ RUN apt-get update && \
         | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+    apt-get install -y \
         autoconf \
         bzip2 \
         curl \
@@ -25,6 +26,7 @@ RUN apt-get update && \
         g++ \
         gcc \
         google-cloud-sdk \
+        less \
         libarchive-extract-perl \
         libarchive-zip-perl \
         libbz2-dev \
@@ -38,6 +40,7 @@ RUN apt-get update && \
         make \
         mlocate \
         pkg-config \
+        procps \
         python \
         python-dev \
         python3 \
