@@ -117,16 +117,21 @@ download-data:
 
 download-package:
 	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to download')
-	docker exec -it $(CONTAINER_NAME) \
+	docker run --rm -t \
+		$(IMAGE_NAME) \
+		-v $(PWD):/anno \
 		python3 /anno/ops/sync_data.py --download -d $(PKG_NAME)
 
 generate-data:
-	docker exec -it $(CONTAINER_NAME) \
+	docker run --rm -t \
+		$(IMAGE_NAME) \
+		-v $(PWD):/anno \
 		python3 /anno/ops/sync_data.py --generate
 
 generate-package:
 	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to generate')
-	docker exec -it $(CONTAINER_NAME) \
+	docker run -t --rm $(CONTAINER_NAME) \
+		-v $(PWD):/anno \
 		python3 /anno/ops/sync_data.py --generate -d $(PKG_NAME)
 
 install-thirdparty:
