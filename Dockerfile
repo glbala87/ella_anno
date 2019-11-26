@@ -9,8 +9,6 @@ RUN echo 'Acquire::ForceIPv4 "true";' | tee /etc/apt/apt.conf.d/99force-ipv4
 # Install as much as reasonable in one go to reduce image size
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    autoconf \
-    pkg-config \
     gawk \
     gnupg2 \
     python \
@@ -31,21 +29,12 @@ RUN apt-get update && \
     watch \
     vim \
     python3-dev \
-    python3-pip \
     rsync \
     wget \
     git \
     zlib1g-dev \
     libbz2-dev \
     liblzma-dev \
-    libarchive-extract-perl \
-    libarchive-zip-perl \
-    libdbi-perl \
-    libjson-perl \
-    libmodule-build-perl \
-    libperlio-gzip-perl \
-    libset-intervaltree-perl \
-    default-mysql-client \
     postgresql \
     postgresql-common \
     postgresql-client && \
