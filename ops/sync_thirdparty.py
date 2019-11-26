@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 
 thirdparty_packages = {
     # "vcfanno": {
@@ -101,18 +102,25 @@ def main():
             pkg_dir = args.directory / Path(pkg["src_dir"])
             final_dir = pkg_dir
 
+        if args.verbose:
+            print(f"Using pkg_dir: {pkg_dir}", file=sys.stderr)
+            print(f"Using final_dir: {final_dir}\n", file=sys.stderr)
+
         pkg_touchfile = final_dir / TOUCHFILE
         if final_dir.exists():
             print(f"Found existing final_dir: {final_dir}")
             if pkg_touchfile.exists():
                 print(f"Package {pkg_name} already installed on {pkg_touchfile.read_text()}, skipping")
                 continue
+            else:
+                # assume failed install because no TOUCHFILE
+                shutil.rmtree(final_dir)
         elif pkg_dir.exists():
             # pkg_dir exists, but final_dir does not assume failed installation and remove
             shutil.rmtree(pkg_dir)
 
         if args.verbose:
-            print(f"Fetching {pkg_name}")
+            print(f"Fetching {pkg_name}...\n")
         github_fetch_package(pkg, args.directory)
 
         if args.verbose:
@@ -131,13 +139,13 @@ def main():
             if step_resp.returncode != 0:
                 raise Exception(f"Error installing package {pkg_name} on step: {step}")
 
-        # create a touchfile to mark that setup was successful
-        pkg_touchfile.write_text(f"{datetime.datetime.utcnow()}")
-
         # the packaged src_dir sometimes includes the current version number
         # we don't want that in the path, so rename it to non-versioned
         if final_dir != pkg_dir:
             pkg_dir.rename(final_dir)
+
+        # create a touchfile to mark that setup was successful
+        pkg_touchfile.write_text(f"{datetime.datetime.utcnow()}")
 
         if args.debug:
             break
