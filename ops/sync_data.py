@@ -67,8 +67,8 @@ datasets = OrderedDict(
                 "version": "2.0.2",
                 "destination": "variantDBs/gnomAD",
                 "generate": [
-                    "scripts/gnomad/download_gnomad.sh -r VERSION GNOMAD_DL_OPTS",
-                    "scripts/gnomad/gnomad_process_data.sh -r VERSION GNOMAD_DATA_OPTS",
+                    "BASE_DIR/scripts/gnomad/download_gnomad.sh -r VERSION -s",
+                    "BASE_DIR/scripts/gnomad/gnomad_process_data.sh -v VERSION",
                 ],
             },
         ),
@@ -79,7 +79,7 @@ datasets = OrderedDict(
                 "version": "20190628",
                 "destination": "variantDBs/clinvar",
                 "generate": [
-                    "python scripts/clinvar/clinvardb_to_vcf.py -np $(($(grep -c processor /proc/cpuinfo || echo 1) * 2)) -o DATADIR/clinvar_VERSION.vcf -g data/FASTA/human_g1k_v37_decoy.fasta.gz"
+                    "python BASE_DIR/scripts/clinvar/clinvardb_to_vcf.py -np $(($(grep -c processor /proc/cpuinfo || echo 1) * 2)) -o DATADIR/clinvar_VERSION.vcf -g data/FASTA/human_g1k_v37_decoy.fasta.gz"
                 ],
             },
         ),
@@ -145,13 +145,19 @@ def main():
     else:
         sync_datasets = datasets
 
+    errs = list()
     for dataset_name, dataset in sync_datasets.items():
         print("Syncing dataset {}".format(dataset_name))
         raw_dir = args.rawdata_dir.absolute() / dataset_name
         data_dir = args.data_dir.absolute() / dataset.get("destination", dataset_name)
         thirdparty_dir = args.thirdparty_dir.absolute() / dataset.get("thirdparty-name", dataset_name)
         evals = OrderedDict(
-            [("VERSION", dataset.get("version", "")), ("DATA_DIR", str(data_dir)), ("THIRDPARTY", str(thirdparty_dir))]
+            [
+                ("VERSION", dataset.get("version", "")),
+                ("DATA_DIR", str(data_dir)),
+                ("THIRDPARTY", str(thirdparty_dir)),
+                ("BASE_DIR", str(default_base_dir)),
+            ]
         )
         if "hash" in dataset:
             evals["HASH_TYPE"] = dataset["hash"]["type"]
@@ -160,7 +166,7 @@ def main():
         if args.generate:
             dataset_ready = data_dir / TOUCHFILE
             if dataset_ready.exists():
-                print(f"Dataset {dataset_name} already complete, skipping")
+                print(f"Dataset {dataset_name} already complete, skipping\n")
                 continue
             elif not data_dir.exists():
                 data_dir.mkdir(parents=True)
@@ -179,6 +185,7 @@ def main():
                 for var_name, val in evals.items():
                     if var_name in eval_step[-1]:
                         eval_step.append(eval_step[-1].replace(var_name, val))
+                step_cmd = eval_step[-1]
 
                 if args.debug:
                     print(f"DEBUG - step replacements: {eval_step}")
@@ -187,22 +194,39 @@ def main():
                 # otherwise, bail on error
                 num_retries = 0
                 max_retries = dataset.get("retries", 0)
+                step_success = False
                 while num_retries <= max_retries:
-                    step_resp = subprocess.run(eval_step[-1], shell=True, cwd=raw_dir)
+                    print(f"Running: {step_cmd}")
+                    step_resp = subprocess.run(step_cmd, shell=True, cwd=raw_dir, stderr=subprocess.PIPE)
                     if step_resp.returncode != 0:
+                        errs.append((dataset_name, step_cmd, step_resp.returncode, step_resp.stderr))
                         if num_retries >= max_retries:
-                            raise Exception(f"Error installing package {dataset_name} on step: {eval_step[-1]}")
+                            errs.append((dataset_name, "max retries exceeded without success"))
+                            break
                         else:
                             num_retries += 1
                     else:
+                        step_success = True
                         break
 
-            dataset_ready.write_text(f"{datetime.datetime.utcnow()}")
+                # if one step fails max retries, abort processing
+                if step_success is False:
+                    break
+
+            # only write if process finished successfully
+            if step_success is True:
+                dataset_ready.write_text(f"{datetime.datetime.utcnow()}")
 
             if args.cleanup:
                 shutil.rmtree(raw_dir)
         else:
             raise NotImplemented()
+
+    if errs:
+        print(f"Encountered errors with the following datasets:")
+        for err_entry in errs:
+            print(" --- ".join([str(x) for x in err_entry]))
+            print(" ---\n")
 
 
 ###
