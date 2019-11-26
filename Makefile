@@ -8,6 +8,8 @@ BUNDLE ?= /media/oyvinev/1E51A9957C59176F/vcpipe-bundle
 SENSITIVE_DB ?= /media/oyvinev/1E51A9957C59176F/vcpipe-bundle/fake-sensitive-db
 CONTAINER_NAME ?= anno-$(BRANCH)-$(USER)
 IMAGE_NAME = local/anno-$(BRANCH)
+BUILDER_CONTAINER_NAME ?= annobuilder-$(BRANCH)
+BUILDER_IMAGE_NAME = local/annobuilder-$(BRANCH)
 UTA_VERSION=uta_20180821
 .PHONY: help
 
@@ -49,6 +51,9 @@ any:
 
 build:
 	docker build -t $(IMAGE_NAME) $(BUILD_OPTS) .
+
+build-annobuilder:
+	docker build -t $(BUILDER_IMAGE_NAME) $(BUILD_OPTS) Dockerfile.annobuilder
 
 run:
 	docker run -d \
@@ -112,39 +117,42 @@ shell:
 	docker exec -it $(CONTAINER_NAME) bash
 
 download-data:
-	docker exec -it $(CONTAINER_NAME) \
+	docker run --rm -t \
+		-v $(PWD):/anno \
+		$(BUILDER_IMAGE_NAME) \
 		python3 /anno/ops/sync_data.py --download
 
 download-package:
 	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to download')
 	docker run --rm -t \
-		$(IMAGE_NAME) \
 		-v $(PWD):/anno \
+		$(BUILDER_IMAGE_NAME) \
 		python3 /anno/ops/sync_data.py --download -d $(PKG_NAME)
 
 generate-data:
 	docker run --rm -t \
-		$(IMAGE_NAME) \
 		-v $(PWD):/anno \
+		$(BUILDER_IMAGE_NAME) \
 		python3 /anno/ops/sync_data.py --generate
 
 generate-package:
 	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to generate')
-	docker run -t --rm $(CONTAINER_NAME) \
+	docker run -t --rm \
 		-v $(PWD):/anno \
+		$(BUILDER_IMAGE_NAME) \
 		python3 /anno/ops/sync_data.py --generate -d $(PKG_NAME)
 
 install-thirdparty:
 	docker run --rm -t \
 		-v $(PWD):/anno \
-		$(IMAGE_NAME) \
+		$(BUILDER_IMAGE_NAME) \
 		python3 /anno/ops/sync_thirdparty.py --clean
 
 install-thirdparty-package:
 	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to install')
 	docker run --rm -t \
 		-v $(PWD):/anno \
-		$(IMAGE_NAME) \
+		$(BUILDER_IMAGE_NAME) \
 		python3 /anno/ops/sync_thirdparty.py --clean -p $(PKG_NAME)
 
 tar-data:
