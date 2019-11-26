@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 
 import argparse
+import datetime
 import hashlib
 import os
 from pathlib import Path
+import shutil
 import subprocess
 
 thirdparty_packages = {
@@ -92,12 +94,22 @@ def main():
 
     for pkg_name, pkg in install_packages.items():
         pkg_artifact = pkg["filename"].replace("VERSION", pkg["version"])
-        pkg_dir = args.directory / Path(pkg["src_dir"].replace("VERSION", pkg["version"]))
+        if "VERSION" in pkg["src_dir"]:
+            pkg_dir = args.directory / Path(pkg["src_dir"].replace("VERSION", pkg["version"]))
+            final_dir = args.directory / Path(pkg["src_dir"].replace("-VERSION", ""))
+        else:
+            pkg_dir = args.directory / Path(pkg["src_dir"])
+            final_dir = pkg_dir
 
-        if pkg_dir.exists():
-            if (pkg_dir / TOUCHFILE).exists():
-                print(f"Package {pkg_name} already installed, skipping")
+        pkg_touchfile = final_dir / TOUCHFILE
+        if final_dir.exists():
+            print(f"Found existing final_dir: {final_dir}")
+            if pkg_touchfile.exists():
+                print(f"Package {pkg_name} already installed on {pkg_touchfile.read_text()}, skipping")
                 continue
+        elif pkg_dir.exists():
+            # pkg_dir exists, but final_dir does not assume failed installation and remove
+            shutil.rmtree(pkg_dir)
 
         if args.verbose:
             print(f"Fetching {pkg_name}")
@@ -120,13 +132,12 @@ def main():
                 raise Exception(f"Error installing package {pkg_name} on step: {step}")
 
         # create a touchfile to mark that setup was successful
-        subprocess.run(["touch", TOUCHFILE], cwd=compile_dir, check=True)
+        pkg_touchfile.write_text(f"{datetime.datetime.utcnow()}")
 
         # the packaged src_dir sometimes includes the current version number
         # we don't want that in the path, so rename it to non-versioned
-        if "VERSION" in pkg["src_dir"]:
-            generic_dir = args.directory / Path(pkg["src_dir"].replace("-VERSION", ""))
-            pkg_dir.rename(generic_dir)
+        if final_dir != pkg_dir:
+            pkg_dir.rename(final_dir)
 
         if args.debug:
             break

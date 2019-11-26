@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 import argparse
-import boto3
 from collections import OrderedDict
+import datetime
 import hashlib
 import os
 from pathlib import Path
@@ -95,6 +95,7 @@ datasets = OrderedDict(
         ("hgmd", {"description": "HGMD variant database (license required)", "version": "2019.2", "generate": []}),
     ]
 )
+TOUCHFILE = "DATA_READY"
 
 
 def main():
@@ -146,25 +147,26 @@ def main():
 
     for dataset_name, dataset in sync_datasets.items():
         print("Syncing dataset {}".format(dataset_name))
-        raw_dir = args.rawdata_dir / dataset_name
-        data_dir = args.data_dir / dataset.get("destination", dataset_name)
+        raw_dir = args.rawdata_dir.absolute() / dataset_name
+        data_dir = args.data_dir.absolute() / dataset.get("destination", dataset_name)
+        thirdparty_dir = args.thirdparty_dir.absolute() / dataset.get("thirdparty-name", dataset_name)
         evals = OrderedDict(
-            [
-                ("VERSION", dataset.get("version", "")),
-                ("DATA_DIR", str(data_dir)),
-                ("THIRDPARTY", args.thirdparty / dataset.get("thirdparty-name", dataset_name)),
-            ]
+            [("VERSION", dataset.get("version", "")), ("DATA_DIR", str(data_dir)), ("THIRDPARTY", str(thirdparty_dir))]
         )
         if "hash" in dataset:
             evals["HASH_TYPE"] = dataset["hash"]["type"]
             evals["HASH_VALUE"] = dataset["hash"]["value"]
 
         if args.generate:
+            dataset_ready = data_dir / TOUCHFILE
+            if dataset_ready.exists():
+                print(f"Dataset {dataset_name} already complete, skipping")
+                continue
+            elif not data_dir.exists():
+                data_dir.mkdir(parents=True)
+
             if not raw_dir.exists():
                 raw_dir.mkdir(parents=True)
-
-            if not data_dir.exists():
-                data_dir.mkdir(parents=True)
 
             if type(dataset["generate"]) is str and dataset["generate"] == "download":
                 dataset["generate"] = dataset["download"]
@@ -194,6 +196,8 @@ def main():
                             num_retries += 1
                     else:
                         break
+
+            dataset_ready.write_text(f"{datetime.datetime.utcnow()}")
 
             if args.cleanup:
                 shutil.rmtree(raw_dir)
