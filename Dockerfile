@@ -1,8 +1,8 @@
 FROM debian:buster-20191014
-ENV DEBIAN_FRONTEND noninteractive \
-    LANGUAGE C.UTF-8 \
-    LANG C.UTF-8 \
-    LC_ALL C.UTF-8
+ENV DEBIAN_FRONTEND noninteractive
+ENV LANGUAGE C.UTF-8
+ENV LANG C.UTF-8
+ENV LC_ALL C.UTF-8
 
 RUN echo 'Acquire::ForceIPv4 "true";' | tee /etc/apt/apt.conf.d/99force-ipv4
 

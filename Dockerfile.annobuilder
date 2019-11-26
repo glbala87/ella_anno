@@ -1,14 +1,14 @@
 FROM debian:buster-20191014
-ENV DEBIAN_FRONTEND noninteractive \
-    LANGUAGE C.UTF-8 \
-    LANG C.UTF-8 \
-    LC_ALL C.UTF-8
+ENV DEBIAN_FRONTEND noninteractive
+ENV LANGUAGE C.UTF-8
+ENV LANG C.UTF-8
+ENV LC_ALL C.UTF-8
 
 # add the google-cloud repo
-RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" \
+RUN apt-get update && \
+    apt-get install -y apt-transport-https apt-utils curl ca-certificates gnupg && \
+    echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" \
         | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && \
-    apt-get update && \
-    apt-get install apt-transport-https ca-certificates gnupg && \
     curl https://packages.cloud.google.com/apt/doc/apt-key.gpg \
         | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
 
@@ -17,7 +17,9 @@ RUN apt-get update && \
         autoconf \
         curl \
         default-mysql-client \
+        file \
         gcc \
+        google-cloud-sdk \
         libarchive-extract-perl \
         libarchive-zip-perl \
         libdbi-perl \
@@ -26,6 +28,7 @@ RUN apt-get update && \
         libperlio-gzip-perl \
         libset-intervaltree-perl \
         libwww-perl \
+        mlocate \
         pkg-config \
         python \
         python-dev \
@@ -33,4 +36,5 @@ RUN apt-get update && \
         python3-dev \
         python3-pip \
         rsync \
+        vim \
         wget
