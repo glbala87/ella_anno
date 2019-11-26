@@ -53,7 +53,7 @@ build:
 	docker build -t $(IMAGE_NAME) $(BUILD_OPTS) .
 
 build-annobuilder:
-	docker build -t $(BUILDER_IMAGE_NAME) $(BUILD_OPTS) Dockerfile.annobuilder
+	docker build -t $(BUILDER_IMAGE_NAME) $(BUILD_OPTS) -f Dockerfile.annobuilder .
 
 run:
 	docker run -d \
