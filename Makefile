@@ -8,8 +8,8 @@ BUNDLE ?= /media/oyvinev/1E51A9957C59176F/vcpipe-bundle
 SENSITIVE_DB ?= /media/oyvinev/1E51A9957C59176F/vcpipe-bundle/fake-sensitive-db
 CONTAINER_NAME ?= anno-$(BRANCH)-$(USER)
 IMAGE_NAME = local/anno-$(BRANCH)
-BUILDER_CONTAINER_NAME ?= annobuilder-$(BRANCH)
-BUILDER_IMAGE_NAME = local/annobuilder-$(BRANCH)
+ANNOBUILDER_CONTAINER_NAME ?= annobuilder-$(BRANCH)
+ANNOBUILDER_IMAGE_NAME = local/annobuilder-$(BRANCH)
 UTA_VERSION=uta_20180821
 .PHONY: help
 
@@ -53,7 +53,7 @@ build:
 	docker build -t $(IMAGE_NAME) $(BUILD_OPTS) .
 
 build-annobuilder:
-	docker build -t $(BUILDER_IMAGE_NAME) $(BUILD_OPTS) -f Dockerfile.annobuilder .
+	docker build -t $(ANNOBUILDER_IMAGE_NAME) $(ANNOBUILDER_BUILD_OPTS) -f Dockerfile.annobuilder .
 
 run:
 	docker run -d \
@@ -116,43 +116,54 @@ localclean:
 shell:
 	docker exec -it $(CONTAINER_NAME) bash
 
+builder:
+	docker run -td \
+		--restart=always \
+		--name $(ANNOBUILDER_CONTAINER_NAME) \
+		-v $(shell pwd):/anno \
+		$(ANNOBUILDER_IMAGE_NAME) \
+		sleep infinity
+
+builder-shell:
+	docker exec -it $(ANNOBUILDER_CONTAINER_NAME) /bin/bash
+
 download-data:
 	docker run --rm -t \
 		-v $(PWD):/anno \
-		$(BUILDER_IMAGE_NAME) \
+		$(ANNOBUILDER_IMAGE_NAME) \
 		python3 /anno/ops/sync_data.py --download
 
 download-package:
 	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to download')
 	docker run --rm -t \
 		-v $(PWD):/anno \
-		$(BUILDER_IMAGE_NAME) \
+		$(ANNOBUILDER_IMAGE_NAME) \
 		python3 /anno/ops/sync_data.py --download -d $(PKG_NAME)
 
 generate-data:
 	docker run --rm -t \
 		-v $(PWD):/anno \
-		$(BUILDER_IMAGE_NAME) \
+		$(ANNOBUILDER_IMAGE_NAME) \
 		python3 /anno/ops/sync_data.py --generate
 
 generate-package:
 	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to generate')
 	docker run -t --rm \
 		-v $(PWD):/anno \
-		$(BUILDER_IMAGE_NAME) \
+		$(ANNOBUILDER_IMAGE_NAME) \
 		python3 /anno/ops/sync_data.py --generate -d $(PKG_NAME)
 
 install-thirdparty:
 	docker run --rm -t \
 		-v $(PWD):/anno \
-		$(BUILDER_IMAGE_NAME) \
+		$(ANNOBUILDER_IMAGE_NAME) \
 		python3 /anno/ops/sync_thirdparty.py --clean
 
 install-thirdparty-package:
 	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to install')
 	docker run --rm -t \
 		-v $(PWD):/anno \
-		$(BUILDER_IMAGE_NAME) \
+		$(ANNOBUILDER_IMAGE_NAME) \
 		python3 /anno/ops/sync_thirdparty.py --clean -p $(PKG_NAME)
 
 tar-data:

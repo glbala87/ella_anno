@@ -25,6 +25,7 @@ RUN apt-get update && \
         file \
         g++ \
         gcc \
+        git \
         google-cloud-sdk \
         less \
         libarchive-extract-perl \
