@@ -407,8 +407,8 @@ def fetch_variation_data(ids, archive_file=None):
                 return xml
             except (urllib2.HTTPError, urllib2.URLError) as e:
                 logging.warning("{}. Retrying. ({} retries)".format(str(e), n))
-                time.sleep(1)
                 n += 1
+                time.sleep(1 * n)
 
         raise RuntimeError("Reached max retries for url: {}".format(url))
 
