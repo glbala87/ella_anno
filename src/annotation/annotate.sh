@@ -269,9 +269,9 @@ then
             --canonical \
             --protein \
             --biotype \
-            --gmaf \
-            --maf_1kg \
-            --maf_esp \
+            --af \
+            --af_1kg \
+            --af_esp \
             --pubmed \
             --symbol \
             --allow_non_variant \
