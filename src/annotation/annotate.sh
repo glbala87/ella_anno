@@ -282,7 +282,6 @@ then
             --failed=1 \
             --no_stats \
             --merged \
-            --shift_hgvs \
             -i $VCF \
             -o $OUTPUT_VCF &> $OUTPUT_LOG"
     echo $cmd > $OUTPUT_CMD
