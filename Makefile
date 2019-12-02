@@ -10,6 +10,8 @@ CONTAINER_NAME ?= anno-$(BRANCH)-$(USER)
 IMAGE_NAME = local/anno-$(BRANCH)
 ANNOBUILDER_CONTAINER_NAME ?= annobuilder-$(BRANCH)
 ANNOBUILDER_IMAGE_NAME = local/annobuilder-$(BRANCH)
+ANNOBUILDER_OPTS = -e ENTREZ_API_KEY=$(ENTREZ_API_KEY)
+TMP_DIR ?= /tmp
 UTA_VERSION=uta_20180821
 .PHONY: help
 
@@ -51,9 +53,6 @@ any:
 
 build:
 	docker build -t $(IMAGE_NAME) $(BUILD_OPTS) .
-
-build-annobuilder:
-	docker build -t $(ANNOBUILDER_IMAGE_NAME) $(ANNOBUILDER_BUILD_OPTS) -f Dockerfile.annobuilder .
 
 run:
 	docker run -d \
@@ -116,55 +115,64 @@ localclean:
 shell:
 	docker exec -it $(CONTAINER_NAME) bash
 
-builder:
+#---------------------------------------------------------------------
+# AnnoBuilder: generate / download processed datasets for anno
+#---------------------------------------------------------------------
+
+define annobuilder-template
+docker run --rm -t \
+	$(ANNOBUILDER_OPTS) \
+	-v $(TMP_DIR):/tmp \
+	-v $(PWD):/anno \
+	$(ANNOBUILDER_IMAGE_NAME) \
+	$(RUN_CMD)
+endef
+
+build-annobuilder:
+	docker build -t $(ANNOBUILDER_IMAGE_NAME) -f Dockerfile.annobuilder .
+
+annobuilder:
 	docker run -td \
 		--restart=always \
 		--name $(ANNOBUILDER_CONTAINER_NAME) \
+		$(ANNOBUILDER_OPTS) \
 		-v $(shell pwd):/anno \
 		$(ANNOBUILDER_IMAGE_NAME) \
 		sleep infinity
 
-builder-shell:
+annobuilder-shell:
 	docker exec -it $(ANNOBUILDER_CONTAINER_NAME) /bin/bash
 
+annobuilder-exec:
+	@$(call check_defined, RUN_CMD, 'Use RUN_CMD="python something.py opt1 ..." to specify command to run')
+	$(annobuilder-template)
+
 download-data:
-	docker run --rm -t \
-		-v $(PWD):/anno \
-		$(ANNOBUILDER_IMAGE_NAME) \
-		python3 /anno/ops/sync_data.py --download
+	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --download)
+	$(annobuilder-template)
 
 download-package:
 	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to download')
-	docker run --rm -t \
-		-v $(PWD):/anno \
-		$(ANNOBUILDER_IMAGE_NAME) \
-		python3 /anno/ops/sync_data.py --download -d $(PKG_NAME)
+	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --download -d $(PKG_NAME))
+	$(annobuilder-template)
 
 generate-data:
-	docker run --rm -t \
-		-v $(PWD):/anno \
-		$(ANNOBUILDER_IMAGE_NAME) \
-		python3 /anno/ops/sync_data.py --generate
+	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --generate)
+	$(annobuilder-template)
 
-generate-package:
+generate-data-package:
 	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to generate')
-	docker run -t --rm \
-		-v $(PWD):/anno \
-		$(ANNOBUILDER_IMAGE_NAME) \
-		python3 /anno/ops/sync_data.py --generate -d $(PKG_NAME)
+	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --generate -d $(PKG_NAME))
+	$(annobuilder-template)
 
 install-thirdparty:
-	docker run --rm -t \
-		-v $(PWD):/anno \
-		$(ANNOBUILDER_IMAGE_NAME) \
-		python3 /anno/ops/sync_thirdparty.py --clean
+	$(eval RUN_CMD := python3 /anno/ops/sync_thirdparty.py --clean)
+	$(annobuilder-template)
 
 install-thirdparty-package:
 	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to install')
-	docker run --rm -t \
-		-v $(PWD):/anno \
-		$(ANNOBUILDER_IMAGE_NAME) \
-		python3 /anno/ops/sync_thirdparty.py --clean -p $(PKG_NAME)
+	$(eval RUN_CMD := python3 /anno/ops/sync_thirdparty.py --clean -p $(PKG_NAME))
+	$(annobuilder-template)
 
 tar-data:
 	tar cvf data.tar data/
