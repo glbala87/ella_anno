@@ -27,11 +27,11 @@ datasets = OrderedDict(
                 "hash": {"type": "md5", "value": "dd05833f18c22cc501e3e31406d140b0"},
                 "destination": "FASTA",
                 "retries": 5,
-                "download": [
+                "generate": [
                     "wget ftp://gsapubftp-anonymous@ftp.broadinstitute.org/bundle/b37/human_g1k_v37_decoy.fasta.gz -O DATA_DIR/human_g1k_v37_decoy.fasta.gz",
                     "echo 'HASH_VALUE DATA_DIR/human_g1k_v37_decoy.fasta.gz' | HASH_TYPEsum -c",
-                    "zcat DATA_DIR/human_g1k_v37_decoy.fasta.gz | bgzip > DATA_DIR/human_g1k_v37_decoy.fasta.bgz",
-                    "mv DATA_DIR/human_g1k_v37_decoy.fasta.bgz DATA_DIR/human_g1k_v37_decoy.fasta.gz",
+                    "gunzip DATA_DIR/human_g1k_v37_decoy.fasta.gz",
+                    "bgzip DATA_DIR/human_g1k_v37_decoy.fasta -c > DATA_DIR/human_g1k_v37_decoy.fasta.gz",
                 ],
             },
         ),
@@ -80,7 +80,7 @@ datasets = OrderedDict(
                 "version": "20190628",
                 "destination": "variantDBs/clinvar",
                 "generate": [
-                    "python BASE_DIR/scripts/clinvar/clinvardb_to_vcf.py -np $(($(grep -c processor /proc/cpuinfo || echo 1) * 2)) -o DATADIR/clinvar_VERSION.vcf -g data/FASTA/human_g1k_v37_decoy.fasta.gz"
+                    "python BASE_DIR/scripts/clinvar/clinvardb_to_vcf.py -np $(($(grep -c processor /proc/cpuinfo || echo 1) * 2)) -o DATA_DIR/clinvar_VERSION.vcf -g BASE_DIR/data/FASTA/human_g1k_v37_decoy.fasta"
                 ],
             },
         ),
@@ -93,7 +93,7 @@ datasets = OrderedDict(
                 "generate": ["seqrepo -r DATA_DIR -v pull"],
             },
         ),
-        ("hgmd", {"description": "HGMD variant database (license required)", "version": "2019.2", "generate": []}),
+        # ("hgmd", {"description": "HGMD variant database (license required)", "version": "2019.2", "generate": []}),
     ]
 )
 TOUCHFILE = "DATA_READY"
@@ -200,8 +200,8 @@ def main():
                     print(f"Running: {step_cmd}")
                     step_resp = subprocess.run(step_cmd, shell=True, cwd=raw_dir, stderr=subprocess.PIPE)
                     if step_resp.returncode != 0:
-                        errs.append((dataset_name, step_cmd, step_resp.returncode, step_resp.stderr))
-                        if num_retries >= max_retries:
+                        errs.append((dataset_name, step_cmd, step_resp.returncode, step_resp.stderr.decode("utf-8")))
+                        if num_retries >= max_retries and max_retries > 0:
                             errs.append((dataset_name, "max retries exceeded without success"))
                             break
                         else:
