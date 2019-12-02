@@ -147,7 +147,7 @@ done
 
 # start processing genome chromosome files
 
-GENOME_OUTPUT="$GNOMAD_DATA_DIR/gnomad.genomes.r${GNOMAD_VERSION}.norm.vcf.gz"
+GENOME_OUTPUT="$GNOMAD_DATA_DIR/gnomad.genomes.r${GNOMAD_VERSION}.refgene.norm.vcf.gz"
 declare -a GENOME_BY_CHR
 for j in {1..22} X; do
     while [[ $(pcnt) -ge $MAX_PCNT ]]; do
