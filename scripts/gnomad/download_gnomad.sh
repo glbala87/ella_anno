@@ -6,7 +6,7 @@
 
 THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 ROOT_DIR=$(dirname "$(dirname $THIS_DIR)")
-DATA_DIR=$ROOT_DIR/rawdata/gnomAD
+DATA_DIR=$ROOT_DIR/rawdata/gnomad
 
 usage() {
     if [[ ! -z $1 ]]; then

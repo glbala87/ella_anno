@@ -11,11 +11,10 @@ set -e -o pipefail
 
 THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 ROOT_DIR=$(dirname "$(dirname $THIS_DIR)")
-BIN_DIR=$ROOT_DIR/bin
 DATA_DIR=$ROOT_DIR/data
 FASTA_DIR=$DATA_DIR/FASTA
 GNOMAD_DATA_DIR=$DATA_DIR/variantDBs/gnomAD
-GNOMAD_RAW_DIR=$ROOT_DIR/rawdata/gnomAD
+GNOMAD_RAW_DIR=$ROOT_DIR/rawdata/gnomad
 
 usage() {
     if [[ ! -z "$1" ]]; then
@@ -50,10 +49,11 @@ normalize_exome_chrom() {
     chrom="$1"
     input_file="$2"
     output_file="$3"
-    "$TABIX" -p vcf -h "$input_file" $chrom \
+    tabix -p vcf -h "$input_file" $chrom \
         | perl -F'\t' -wlane 'if (substr($F[0], 0, 1) eq "#"){print join("\t", @F)}else{print join("\t", @F[0..6], join(";", (grep { ! /^(GQ_HIST_ALT|DP_HIST_ALT|AB_HIST_ALT|GQ_HIST_ALL|DP_HIST_ALL|AB_HIST_ALL|CSQ)=/ } (split ";", $F[7]))))}' \
-        | "$VT" decompose -s - \
-        | "$VT" normalize -r "${REFERENCE}" -n - \
+        | vt decompose -s - \
+        | vt normalize -r "${REFERENCE}" -n - \
+        | vcf-sort -t ${TMP_DIR:-/tmp} \
         > "$output_file" \
         || bail "Error processing chrom ${chrom} of $input_file, return code: $?"
     log "Finished processing exome chromosome $chrom"
@@ -63,10 +63,11 @@ normalize_genome_chrom() {
     input_file="$1"
     output_file="$2"
     bed_opt="$3"
-    "$TABIX" -h $bed_opt "$input_file" \
+    tabix -h $bed_opt "$input_file" \
         | perl -F'\t' -wlane 'if (substr($F[0], 0, 1) eq "#"){print join("\t", @F)}else{print join("\t", @F[0..6], join(";", (grep { ! /^(GQ_HIST_ALT|DP_HIST_ALT|AB_HIST_ALT|GQ_HIST_ALL|DP_HIST_ALL|AB_HIST_ALL|CSQ)=/ } (split ";", $F[7]))))}' \
-        | "$VT" decompose -s - \
-        | "$VT" normalize -r "${REFERENCE}" -n - \
+        | vt decompose -s - \
+        | vt normalize -r "${REFERENCE}" -n -w 20000 - \
+        | vcf-sort -t ${TMP_DIR:-/tmp} \
         > "$output_file" \
         || bail "Error processing ${input_file}, return code: $?"
     log "Finished processing genome file $input_file"
@@ -107,23 +108,11 @@ elif [[ ! -f "$BED_REGIONS" ]]; then
     usage "Error! Unable to find bed file: $BED_REGIONS"
 fi
 
-if [[ -f "$BIN_DIR/tabix" ]]; then
-    TABIX="$BIN_DIR/tabix"
-else
-    bail "Unable to find tabix in $BIN_DIR"
-fi
-
-if [[ -f "$BIN_DIR/vt" ]]; then
-    VT="$BIN_DIR/vt"
-else
-    bail "Unable to find vt in $BIN_DIR"
-fi
-
-if [[ -f "$BIN_DIR/bgzip" ]]; then
-    BGZIP="$BIN_DIR/bgzip"
-else
-    bail "Unable to find bgzip in $BIN_DIR"
-fi
+for tool in tabix vt bgzip vcf-sort; do
+    if [[ -z $(which $tool 2>/dev/null) ]]; then
+        bail "Unable to find $tool in $PATH"
+    fi
+done
 
 # memory intensive, can easily use 10GB per normalize_exome_chrom call
 # Make sure swap is also enabled or can risk OOM killing by the kernel
@@ -186,20 +175,32 @@ wait
 mkdir -p $GNOMAD_DATA_DIR
 log "Zipping ${EXOME_OUTPUT}"
 # skip header on all but first file for pipe to bgzip
-(cat "${EXOME_BY_CHR[0]}"; grep -hv '^#' "${EXOME_BY_CHR[@]:1}") | $BGZIP --threads ${MAX_ZIP_PCT:-$CPU_MAX_PCNT}> $EXOME_OUTPUT
+if [[ ! -f $EXOME_OUTPUT ]]; then
+    (cat "${EXOME_BY_CHR[0]}"; grep -hv '^#' "${EXOME_BY_CHR[@]:1}") | bgzip --threads ${MAX_ZIP_PCT:-$CPU_MAX_PCNT}> $EXOME_OUTPUT
+else
+    echo "Merged gzipped exome data already existing, skipping"
+fi
 
 log "Indexing ${EXOME_OUTPUT}"
-$TABIX -p vcf "${EXOME_OUTPUT}"
+if [[ ! -f ${EXOME_OUTPUT}.tbi ]]; then
+    tabix -p vcf "${EXOME_OUTPUT}"
+else
+    echo "$EXOME_OUTPUT already indexed"
+fi
 
 # zip and index genome data
 log "Zipping ${GENOME_OUTPUT}"
-(cat "${GENOME_BY_CHR[0]}"; grep -hv '^#' "${GENOME_BY_CHR[@]:1}") | $BGZIP --threads ${MAX_ZIP_PCT:-$CPU_MAX_PCNT}> $GENOME_OUTPUT
+if [[ ! -f $GENOME_OUTPUT ]]; then
+    (cat "${GENOME_BY_CHR[0]}"; grep -hv '^#' "${GENOME_BY_CHR[@]:1}") | bgzip --threads ${MAX_ZIP_PCT:-$CPU_MAX_PCNT}> $GENOME_OUTPUT
+else
+    echo "Merged gzipped genome data already exists, skipping"
+fi
 
 log "Indexing ${GENOME_OUTPUT}"
-"$TABIX" -p vcf "${GENOME_OUTPUT}"
-
-# cleanup only after everything has succeeded
-log "Removing intermediate files"
-log "rm -rf $GNOMAD_RAW_DIR"
+if [[ ! -f ${GENOME_OUTPUT}.tbi ]]; then
+    tabix -p vcf "${GENOME_OUTPUT}"
+else
+    echo "$GENOME_OUTPUT already indexed"
+fi
 
 log "Finished processing gnomAD data"
