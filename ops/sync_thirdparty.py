@@ -51,12 +51,12 @@ thirdparty_packages = {
     },
     "vep": {
         "url": "https://github.com/Ensembl/ensembl-vep",
-        "version": "98.2",
+        "version": "98.3",
         "url_prefix": "archive/release",
         "filename": "VERSION.tar.gz",
         "src_dir": "ensembl-vep-release-VERSION",
         "sha256": "ec793425218b36f58f5aebc2dbbe6f161458423d26099a13296dcd3b8fae2447",
-        "installation": ["echo VEP data loaded with sync_data.py"],
+        "installation": ["perl INSTALL.pl -a a -s homo_sapiens_merged -y GRCh37"],
     },
 }
 TOUCHFILE = "SETUP_COMPLETE"

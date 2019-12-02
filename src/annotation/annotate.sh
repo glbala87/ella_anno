@@ -257,7 +257,6 @@ then
     handle_step_start "VEP"
     cmd="vep_offline \
             --fasta $FASTA \
-            -custom $ANNODATA/repeatMasker/repeatMasker_hg19.20150508.reformat.sorted.bed.gz \
             --force_overwrite \
             --sift=b \
             --polyphen=b \

@@ -39,7 +39,6 @@ datasets = OrderedDict(
             "vep",
             {
                 "description": "offline VEP cache",
-                "version": "98.2",
                 "destination": "VEP/cache",
                 "thirdparty-name": "ensembl-vep-release",
                 "generate": ["perl THIRDPARTY/INSTALL.pl -a cf -l -n -s homo_sapiens_merged -y GRCh37 -c DATA_DIR"],

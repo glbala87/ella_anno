@@ -9,35 +9,40 @@ RUN echo 'Acquire::ForceIPv4 "true";' | tee /etc/apt/apt.conf.d/99force-ipv4
 # Install as much as reasonable in one go to reduce image size
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
+    bash \
+    build-essential \
+    ca-certificates \
+    curl \
+    fontconfig \
     gawk \
+    gcc \
+    git \
     gnupg2 \
+    htop \
+    less \
+    libbz2-dev \
+    libdbi-perl \
+    libjson-perl \
+    liblzma-dev \
+    libperlio-gzip-perl \
+    libset-intervaltree-perl \
+    libwww-perl
+    make \
+    postgresql \
+    postgresql-common \
+    postgresql-client \
     python \
     python-dev \
     python-tk \
     python-numpy \
-    bash \
-    curl \
-    make \
-    build-essential \
-    gcc \
-    supervisor \
-    ca-certificates \
-    less \
-    sudo \
-    htop \
-    fontconfig \
-    watch \
-    vim \
     python3-dev \
     rsync \
+    supervisor \
+    sudo \
+    vim \
+    watch \
     wget \
-    git \
-    zlib1g-dev \
-    libbz2-dev \
-    liblzma-dev \
-    postgresql \
-    postgresql-common \
-    postgresql-client && \
+    zlib1g-dev && \
     # Additional tools
     curl -SLk 'https://bootstrap.pypa.io/get-pip.py' | python && \
     curl -L https://github.com/tianon/gosu/releases/download/1.7/gosu-amd64 -o /usr/local/bin/gosu && chmod u+x /usr/local/bin/gosu && \
@@ -65,7 +70,7 @@ ENV SAMPLES /samples
 ENV PATH /anno/bin:$TARGETS/targets:$PATH
 ENV PERL5LIB /anno/thirdparty/ensembl-vep-release/lib/:/anno/thirdparty/vcftools/lib
 ENV WORKFOLDER /tmp/annowork
-ENV HGVS_SEQREPO_DIR /anno/data/seqrepo/2017-11-18
+ENV HGVS_SEQREPO_DIR /anno/data/seqrepo/2019-06-20
 
 # See .dockerignore for files that are ignored
 COPY . /anno
