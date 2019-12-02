@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-python /anno/unpack_lfs.py
+python3 /anno/unpack_lfs.py
 
 /anno/ops/pg_startup &
 
