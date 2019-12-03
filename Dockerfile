@@ -26,7 +26,7 @@ RUN apt-get update && \
     liblzma-dev \
     libperlio-gzip-perl \
     libset-intervaltree-perl \
-    libwww-perl
+    libwww-perl \
     make \
     postgresql \
     postgresql-common \
