@@ -55,7 +55,7 @@ thirdparty_packages = {
         "url_prefix": "archive/release",
         "filename": "VERSION.tar.gz",
         "src_dir": "ensembl-vep-release-VERSION",
-        "sha256": "ec793425218b36f58f5aebc2dbbe6f161458423d26099a13296dcd3b8fae2447",
+        "sha256": "ef878d61071c37d35f00909c21cd7769175eb91b331e985413435dfab2474bd7",
         "installation": ["perl INSTALL.pl -a a -s homo_sapiens_merged -y GRCh37"],
     },
 }

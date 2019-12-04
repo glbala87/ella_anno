@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import time
 
 import pdb
 
@@ -205,6 +206,7 @@ def main():
                             break
                         else:
                             num_retries += 1
+                            time.sleep(1 * num_retries)
                     else:
                         step_success = True
                         break

@@ -11,6 +11,8 @@ IMAGE_NAME = local/anno-$(BRANCH)
 ANNOBUILDER_CONTAINER_NAME ?= annobuilder-$(BRANCH)
 ANNOBUILDER_IMAGE_NAME = local/annobuilder-$(BRANCH)
 ANNOBUILDER_OPTS = -e ENTREZ_API_KEY=$(ENTREZ_API_KEY)
+# Large tmp storage is needed for gnomAD data generation. Set this to somewhere with at least 50GB of space if not
+# available on /tmp's partition
 TMP_DIR ?= /tmp
 UTA_VERSION=uta_20180821
 .PHONY: help

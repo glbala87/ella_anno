@@ -45,6 +45,10 @@ pcnt() {
     echo $((CNT - 1))
 }
 
+check_tmp() {
+    df /tmp | perl -lane '$MIN_GB=50;next if ($. == 1);if ($F[3] < $MIN_GB * 1024*1024) { print STDERR " *** ERROR *** Insufficient disk space for sorting gnomAD genomic output, set TMP_DIR when running make commands"; exit 1}'
+}
+
 normalize_exome_chrom() {
     chrom="$1"
     input_file="$2"
@@ -166,6 +170,7 @@ for j in {1..22} X; do
     if [[ -f $norm_fn ]]; then
         log "skipping existing file $norm_fn"
     else
+        check_tmp || bail
         normalize_genome_chrom $raw_fn $norm_fn "$bed_opt" &
     fi
 done
