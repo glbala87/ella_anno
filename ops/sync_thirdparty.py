@@ -8,6 +8,8 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+from util import hash_file
+
 
 thirdparty_packages = {
     # "vcfanno": {
@@ -172,20 +174,6 @@ def github_fetch_package(pkg, dest):
         raise Exception(
             f"Checksum mismatch on {release_file}. Expected {pkg['sha256']}, but got {hash_file(release_file)}"
         )
-
-
-def hash_file(filename):
-    """returns sha256 checksum of the specified file"""
-    file_hash = hashlib.sha256()
-    with open(filename, "rb") as file:
-        for block in iter(lambda: file.read(4096), b""):
-            file_hash.update(block)
-    return file_hash.hexdigest()
-
-
-def is_valid_download(filename, checksum):
-    file_hash = hash_file(filename)
-    return file_hash == checksum
 
 
 ###

@@ -152,9 +152,10 @@ def main():
         raw_dir = args.rawdata_dir.absolute() / dataset_name
         data_dir = args.data_dir.absolute() / dataset.get("destination", dataset_name)
         thirdparty_dir = args.thirdparty_dir.absolute() / dataset.get("thirdparty-name", dataset_name)
+        dataset_version = dataset.get("version", "")
         evals = OrderedDict(
             [
-                ("VERSION", dataset.get("version", "")),
+                ("VERSION", dataset_version),
                 ("DATA_DIR", str(data_dir)),
                 ("THIRDPARTY", str(thirdparty_dir)),
                 ("BASE_DIR", str(default_base_dir)),
@@ -215,9 +216,14 @@ def main():
                 if step_success is False:
                     break
 
+            # generate md5s for each file
+            for fname in data_dir.rglob("*"):
+                pass
+
             # only write if process finished successfully
             if step_success is True:
-                dataset_ready.write_text(f"{datetime.datetime.utcnow()}")
+                dataset_ready.write_text(f"Generated: {datetime.datetime.utcnow()}\n")
+                dataset_ready.write_text(f"Version: {dataset_version}\n")
 
             if args.cleanup:
                 shutil.rmtree(raw_dir)
