@@ -9,6 +9,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import time
+from util import hash_file, hash_directory_async
 
 import pdb
 
@@ -80,7 +81,7 @@ datasets = OrderedDict(
                 "version": "20190628",
                 "destination": "variantDBs/clinvar",
                 "generate": [
-                    "python BASE_DIR/scripts/clinvar/clinvardb_to_vcf.py -np $(($(grep -c processor /proc/cpuinfo || echo 1) * 2)) -o DATA_DIR/clinvar_VERSION.vcf -g BASE_DIR/data/FASTA/human_g1k_v37_decoy.fasta"
+                    f"python BASE_DIR/scripts/clinvar/clinvardb_to_vcf.py -np {os.cpu_count() * 2} -o DATA_DIR/clinvar_VERSION.vcf -g BASE_DIR/data/FASTA/human_g1k_v37_decoy.fasta"
                 ],
             },
         ),
@@ -217,8 +218,11 @@ def main():
                     break
 
             # generate md5s for each file
-            for fname in data_dir.rglob("*"):
-                pass
+            md5sum_file = data_dir / "MD5SUM"
+            file_hashes = hash_directory_async(data_dir)
+            with md5sum_file.open("wt") as md5_output:
+                for file in sorted(file_hashes, key=lambda x: x.path):
+                    print(f"{file.hash}\t{file.path}", file=md5_output)
 
             # only write if process finished successfully
             if step_success is True:

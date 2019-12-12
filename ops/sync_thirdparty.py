@@ -159,7 +159,8 @@ def github_fetch_package(pkg, dest):
     release_file = pkg["filename"].replace("VERSION", pkg["version"])
     release_filepath = args.directory / release_file
     if release_filepath.is_file():
-        if is_valid_download(release_filepath, pkg["sha256"]):
+        this_hash = hash_file(release_filepath)
+        if this_hash == pkg["sha256"]:
             print("Re-using existing package")
             return
         else:
@@ -170,10 +171,9 @@ def github_fetch_package(pkg, dest):
     full_url = f"{release_url}/{release_file}"
 
     subprocess.run(["wget", full_url], cwd=dest, check=True)
-    if not is_valid_download(release_filepath, pkg["sha256"]):
-        raise Exception(
-            f"Checksum mismatch on {release_file}. Expected {pkg['sha256']}, but got {hash_file(release_file)}"
-        )
+    this_hash = hash_file(release_filepath)
+    if this_hash != pkg["sha256"]:
+        raise Exception(f"Checksum mismatch on {release_file}. Expected {pkg['sha256']}, but got {this_hash}")
 
 
 ###
