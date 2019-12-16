@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+from spaces import DataManager
 import time
 from util import hash_file, hash_directory_async
 
@@ -107,6 +108,7 @@ def main():
     action_args = parser.add_mutually_exclusive_group(required=True)
     action_args.add_argument("--download", action="store_true", help="download pre-processed datasets")
     action_args.add_argument("--generate", action="store_true", help="generate processed datasets")
+    action_args.add_argument("--upload", action="store_true", help="upload generated data to cloud storage")
     parser.add_argument(
         "-d", "--dataset", choices=list(datasets.keys()), help="download or generate a specific dataset"
     )
@@ -231,8 +233,13 @@ def main():
 
             if args.cleanup:
                 shutil.rmtree(raw_dir)
-        else:
+        elif args.download:
             raise NotImplemented()
+        elif args.upload:
+            mgr = DataManager()
+            mgr.upload_package(pkg_name, dataset_version, data_dir)
+        else:
+            raise Exception("This should never happen, what did you do?!")
 
     if errs:
         print(f"Encountered errors with the following datasets:")
