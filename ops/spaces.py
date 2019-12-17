@@ -3,11 +3,13 @@ from botocore.exceptions import ClientError
 from botocore.handlers import disable_signing
 import csv
 from collections import namedtuple
+from functools import partial
 import logging
 import multiprocessing
 from multiprocessing.pool import ThreadPool
 import os
 from pathlib import Path, PosixPath
+import subprocess
 import sys
 
 import pdb
@@ -18,7 +20,7 @@ SPACES_ENDPOINT = f"https://{SPACES_REGION}.digitaloceanspaces.com"
 SPACES_BUCKET = "ella-anno"
 ROOT_DIR = Path(__file__).absolute().parent.parent
 DATA_DIR = ROOT_DIR / "data"
-S3Object = type(boto3.resource("s3").Object("", ""))
+S3Object = "<class 'boto3.resources.factory.s3.Object'>"
 PackageFile = namedtuple("PackageFile", ["local", "remote"])
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -36,8 +38,8 @@ def s3_object_exists(s3_object):
 
 def files_match(pfile):
     return (
-        s3_object_exists(pfile.remote)
-        and pfile.local.exists()
+        pfile.local.exists()
+        and s3_object_exists(pfile.remote)
         and pfile.local.stat().st_size == pfile.remote.content_length
     )
 
@@ -119,15 +121,16 @@ class DataManager(object):
 
         return self._session
 
-    def upload_package(self, name, version, path):
+    def upload_package(self, name, version, path, show_progress=False):
         abs_path = path.absolute()
         key_base = f"{path}/{version}"
+        upload_func = partial(self._upload_file, show_progress=show_progress)
 
         # get a list of keys already in the bucket for this package version
         # checking for a key in the array is faster than running s3_object_exists for every file on new package uploads
         remote_keys = set([o.key for o in self.bucket.objects.filter(Prefix=key_base)])
-        package_files = []
         skip_count = 0
+        package_files = []
         if not path.exists():
             raise ValueError(f"Nothing exists at path: {path}")
         elif path.is_dir():
@@ -156,22 +159,56 @@ class DataManager(object):
         if package_files:
             logger.info(f"Uploading {len(package_files)} files for {name}")
             self.pool.map(
-                self._upload_file, sorted([p for p in package_files if not files_match(p)], key=lambda x: f"{x.local}")
+                upload_func, sorted([p for p in package_files if not files_match(p)], key=lambda x: f"{x.local}")
             )
         logger.info(f"Finished processing all files for {name}")
 
+    def download_package(self, name, version, path, show_progress=False):
+        abs_path = path.absolute()
+        key_base = f"{path}/{version}"
+        download_func = partial(self._download_file, show_progress=show_progress)
+
+        # check that the package version exists in the bucket and bail if not
+        data_ready = self.bucket.Object(f"{key_base}/DATA_READY")
+        if not s3_object_exists(data_ready):
+            raise Exception(f"Data for {name} version {version} incomplete or non-existent. Check ")
+
+        skip_count = 0
+        package_files = list()
+        for obj in self.bucket.objects.filter(Prefix=key_base):
+            package_file = PackageFile(
+                local=Path(obj.key.replace(f"/{version}/", "/")), remote=self.bucket.Object(obj.key)
+            )
+            if files_match(package_file):
+                skip_count += 1
+            else:
+                package_files.append(package_file)
+
+        if skip_count > 0:
+            logger.info(f"Skipping {skip_count} files already downloaded")
+
+        if package_files:
+            logger.info(f"Downloading {len(package_files)} files for {name} to {abs_path}")
+            self.pool.map(download_func, sorted(package_files))
+        logger.info(f"Finished downloading all files for {name}")
+
     def _upload_file(self, pfile, show_progress=False):
-        logging.info(f"Now uploading {pfile.local.name} to {pfile.remote.key}")
+        logging.debug(f"Uploading {pfile.local.name} to {pfile.remote.key}")
         cb = TransferProgress(pfile.local) if self._show_progress else None
         self.client.upload_fileobj(pfile.local.open("rb"), self.bucket.name, pfile.remote.key, Callback=cb)
         if cb:
             print()  # extra print to get past the \r in the TransferProgress callback
 
-    def download_package(self, name, version):
-        pass
+    def _download_file(self, pfile, show_progress=False):
+        logging.debug(f"Downloading {pfile.remote.key} to {pfile.local}")
+        cb = TransferProgress(pfile.remote) if self._show_progress else None
+        pfile.local.parent.mkdir(parents=True, exist_ok=True)
+        pfile.remote.download_fileobj(pfile.local.open("wb"), Callback=cb)
+        if cb:
+            print()  # extra print to get past the \r in the TransferProgress callback
 
-    def check_package(self, name, version):
-        pass
+    def check_package(self, name, path):
+        raise NotImplemented()
 
 
 class TransferProgress(object):
@@ -181,7 +218,8 @@ class TransferProgress(object):
         if type(file_obj) in (Path, PosixPath):
             self._filename = f"{file_obj.name}"
             self._size = file_obj.stat().st_size
-        elif type(file_obj) is S3Object:
+        # hacky workaround because boto3 is too cool for importable classes
+        elif str(type(file_obj)) == S3Object:
             self._filename = file_obj.key
             self._size = file_obj.content_length
         else:

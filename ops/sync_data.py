@@ -237,11 +237,13 @@ def main():
 
             if args.cleanup:
                 shutil.rmtree(raw_dir)
-        elif args.download:
-            raise NotImplemented()
-        elif args.upload:
+        elif args.download or args.upload:
             mgr = DataManager()
-            mgr.upload_package(dataset_name, dataset_version, data_dir.relative_to(default_base_dir))
+            cmd_args = [dataset_name, dataset_version, data_dir.relative_to(default_base_dir)]
+            if args.download:
+                mgr.download_package(*cmd_args)
+            else:
+                mgr.upload_package(*cmd_args)
         else:
             raise Exception("This should never happen, what did you do?!")
 
