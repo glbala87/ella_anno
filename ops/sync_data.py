@@ -5,10 +5,12 @@ from collections import OrderedDict
 import datetime
 import hashlib
 import os
+import logging
 from pathlib import Path
 import shutil
 import subprocess
 from spaces import DataManager
+from sync_thirdparty import thirdparty_packages
 import time
 from util import hash_file, hash_directory_async
 
@@ -43,6 +45,7 @@ datasets = OrderedDict(
             {
                 "description": "offline VEP cache",
                 "destination": "VEP/cache",
+                "version": thirdparty_packages["vep"]["version"],
                 "thirdparty-name": "ensembl-vep-release",
                 "generate": ["perl THIRDPARTY/INSTALL.pl -a cf -l -n -s homo_sapiens_merged -y GRCh37 -c DATA_DIR"],
             },
@@ -90,15 +93,20 @@ datasets = OrderedDict(
             "seqrepo",
             {
                 "description": "biocommons seqrepo data",
-                "version": "latest",
+                "version": "2019-06-20",
                 "destination": "seqrepo",
-                "generate": ["seqrepo -r DATA_DIR -v pull"],
+                "generate": [
+                    "seqrepo -r DATA_DIR -v pull",
+                    "[[ -d DATA_DIR/VERSION ]] || (echo downloaded version does not match; exit 1)",
+                ],
             },
         ),
         # ("hgmd", {"description": "HGMD variant database (license required)", "version": "2019.2", "generate": []}),
     ]
 )
 TOUCHFILE = "DATA_READY"
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
 
 
 def main():
@@ -151,7 +159,7 @@ def main():
 
     errs = list()
     for dataset_name, dataset in sync_datasets.items():
-        print("Syncing dataset {}".format(dataset_name))
+        logger.info(f"Syncing dataset {dataset_name}")
         raw_dir = args.rawdata_dir.absolute() / dataset_name
         data_dir = args.data_dir.absolute() / dataset.get("destination", dataset_name)
         thirdparty_dir = args.thirdparty_dir.absolute() / dataset.get("thirdparty-name", dataset_name)
@@ -171,7 +179,7 @@ def main():
         if args.generate:
             dataset_ready = data_dir / TOUCHFILE
             if dataset_ready.exists():
-                print(f"Dataset {dataset_name} already complete, skipping\n")
+                logger.info(f"Dataset {dataset_name} already complete, skipping\n")
                 continue
             elif not data_dir.exists():
                 data_dir.mkdir(parents=True)
@@ -183,17 +191,13 @@ def main():
                 dataset["generate"] = dataset["download"]
 
             for step_num, step in enumerate(dataset["generate"]):
-                if args.debug:
-                    print(f"DEBUG - Step {step_num}: {step}\n")
-
+                logger.debug(f"DEBUG - Step {step_num}: {step}\n")
                 eval_step = [step]
                 for var_name, val in evals.items():
                     if var_name in eval_step[-1]:
                         eval_step.append(eval_step[-1].replace(var_name, val))
                 step_cmd = eval_step[-1]
-
-                if args.debug:
-                    print(f"DEBUG - step replacements: {eval_step}")
+                logger.debug(f"DEBUG - step replacements: {eval_step}")
 
                 # if dataset allows retries (e.g., Broad's crappy FTP server), retry until max reached
                 # otherwise, bail on error
@@ -201,7 +205,7 @@ def main():
                 max_retries = dataset.get("retries", 0)
                 step_success = False
                 while num_retries <= max_retries:
-                    print(f"Running: {step_cmd}")
+                    logger.info(f"Running: {step_cmd}")
                     step_resp = subprocess.run(step_cmd, shell=True, cwd=raw_dir, stderr=subprocess.PIPE)
                     if step_resp.returncode != 0:
                         errs.append((dataset_name, step_cmd, step_resp.returncode, step_resp.stderr.decode("utf-8")))
@@ -237,12 +241,12 @@ def main():
             raise NotImplemented()
         elif args.upload:
             mgr = DataManager()
-            mgr.upload_package(pkg_name, dataset_version, data_dir)
+            mgr.upload_package(dataset_name, dataset_version, data_dir.relative_to(default_base_dir))
         else:
             raise Exception("This should never happen, what did you do?!")
 
     if errs:
-        print(f"Encountered errors with the following datasets:")
+        logger.error(f"Encountered errors with the following datasets:")
         for err_entry in errs:
             print(" --- ".join([str(x) for x in err_entry]))
             print(" ---\n")

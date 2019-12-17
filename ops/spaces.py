@@ -3,10 +3,14 @@ from botocore.exceptions import ClientError
 from botocore.handlers import disable_signing
 import csv
 from collections import namedtuple
+import logging
+import multiprocessing
+from multiprocessing.pool import ThreadPool
 import os
 from pathlib import Path, PosixPath
 import sys
-import threading
+
+import pdb
 
 
 SPACES_REGION = "fra1"
@@ -16,6 +20,8 @@ ROOT_DIR = Path(__file__).absolute().parent.parent
 DATA_DIR = ROOT_DIR / "data"
 S3Object = type(boto3.resource("s3").Object("", ""))
 PackageFile = namedtuple("PackageFile", ["local", "remote"])
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
 
 
 def s3_object_exists(s3_object):
@@ -28,8 +34,12 @@ def s3_object_exists(s3_object):
     return True
 
 
-def files_match(local_obj, remote_obj):
-    return s3_object_exists(remote_obj) and local_obj.exists() and local_obj.stat().st_size == remote_obj.content_length
+def files_match(pfile):
+    return (
+        s3_object_exists(pfile.remote)
+        and pfile.local.exists()
+        and pfile.local.stat().st_size == pfile.remote.content_length
+    )
 
 
 class DataManager(object):
@@ -37,12 +47,28 @@ class DataManager(object):
     _client = None
     _s3 = None
     _session = None
+    _pool = None
+    _max_threads = None
+    _show_progress = False
 
     def __init__(self, access_key=None, access_secret=None, **kwargs):
         self.access_key = os.environ.get("SPACES_KEY", access_key)
         self.access_secret = os.environ.get("SPACES_SECRET", access_secret)
         self.region = kwargs.get("region_name", SPACES_REGION)
         self.endpoint = kwargs.get("endpoint_url", SPACES_ENDPOINT)
+
+        for key, val in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, val)
+            else:
+                logger.warning(f"can't set unexpected kwarg in DataManager: {key}={val}")
+
+    @property
+    def pool(self):
+        if self._pool is None:
+            self._pool = ThreadPool(processes=self._max_threads)
+
+        return self._pool
 
     @property
     def client(self):
@@ -95,9 +121,13 @@ class DataManager(object):
 
     def upload_package(self, name, version, path):
         abs_path = path.absolute()
-        key_base = f"data/{name}/{version}"
+        key_base = f"{path}/{version}"
 
+        # get a list of keys already in the bucket for this package version
+        # checking for a key in the array is faster than running s3_object_exists for every file on new package uploads
+        remote_keys = set([o.key for o in self.bucket.objects.filter(Prefix=key_base)])
         package_files = []
+        skip_count = 0
         if not path.exists():
             raise ValueError(f"Nothing exists at path: {path}")
         elif path.is_dir():
@@ -112,19 +142,30 @@ class DataManager(object):
                 else:
                     file_key = f"{file_obj.absolute().relative_to(abs_path)}"
                 spaces_key = f"{key_base}/{file_key}"
-                package_files.append(PackageFile(local=file_obj, remote=self.bucket.Object(spaces_key)))
+                package_file = PackageFile(local=file_obj, remote=self.bucket.Object(spaces_key))
+                if package_file.remote.key in remote_keys and files_match(package_file):
+                    skip_count += 1
+                else:
+                    package_files.append(package_file)
         else:
             raise ValueError(f"path must be a directory, received non-dir: {path}")
 
-        for pfile in sorted(package_files, key=lambda x: f"{x.local}"):
-            if files_match(pfile.local, pfile.remote):
-                print(f"{pfile.local} already uploaded, skipping")
-            else:
-                print(f"Now uploading {pfile.local} to {pfile.remote.key}")
-                self.client.upload_fileobj(
-                    pfile.local.open("rb"), self.bucket.name, spaces_key, Callback=TransferProgress(pfile.local)
-                )
-                print()  # extra print to get past the \r in the TransferProgress callback
+        if skip_count > 0:
+            logger.info(f"Skipped {skip_count} files that had already been uploaded")
+
+        if package_files:
+            logger.info(f"Uploading {len(package_files)} files for {name}")
+            self.pool.map(
+                self._upload_file, sorted([p for p in package_files if not files_match(p)], key=lambda x: f"{x.local}")
+            )
+        logger.info(f"Finished processing all files for {name}")
+
+    def _upload_file(self, pfile, show_progress=False):
+        logging.info(f"Now uploading {pfile.local.name} to {pfile.remote.key}")
+        cb = TransferProgress(pfile.local) if self._show_progress else None
+        self.client.upload_fileobj(pfile.local.open("rb"), self.bucket.name, pfile.remote.key, Callback=cb)
+        if cb:
+            print()  # extra print to get past the \r in the TransferProgress callback
 
     def download_package(self, name, version):
         pass
@@ -148,11 +189,16 @@ class TransferProgress(object):
                 f"file_obj type must be one of: {S3Object}, {Path}, {PosixPath}, but got: {type(file_obj)}"
             )
         self._seen_so_far = 0
-        self._lock = threading.Lock()
+        self._lock = multiprocessing.Lock()
 
     def __call__(self, bytes_amount):
         # To simplify, assume this is hooked up to a single filename
         with self._lock:
             self._seen_so_far += bytes_amount
             percentage = (self._seen_so_far / self._size) * 100
-            print(f"\r{self._filename}  {self._seen_so_far} / {self._size}  ({percentage:.2f}%)", end="", flush=True)
+            print(
+                f"\r{self._filename}  {self._seen_so_far} / {self._size}  ({percentage:.2f}%)",
+                end="",
+                flush=True,
+                file=sys.stdout,
+            )

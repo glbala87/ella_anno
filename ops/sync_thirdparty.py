@@ -3,6 +3,7 @@
 import argparse
 import datetime
 import hashlib
+import logging
 import os
 from pathlib import Path
 import shutil
@@ -66,6 +67,8 @@ this_dir = Path(__file__).parent.absolute()
 anno_root = this_dir.parent
 default_dir = anno_root / "thirdparty"
 args = None
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
 
 
 def main():
@@ -78,7 +81,13 @@ def main():
         default=default_dir,
         help="directory to extract the thirdparty packages into. Default: {}".format(default_dir),
     )
-    parser.add_argument("--package", "-p", help="install only a specific package")
+    parser.add_argument(
+        "--package",
+        "-p",
+        metavar="PACKAGE_NAME",
+        choices=thirdparty_packages.keys(),
+        help=f"install one of: {', '.join(sorted(thirdparty_packages.keys()))}",
+    )
     parser.add_argument("--clean", action="store_true", help="clean up intermediate files")
     parser.add_argument("--verbose", action="store_true", help="be extra chatty")
     parser.add_argument("--debug", action="store_true", help="run in debug mode")
@@ -86,6 +95,7 @@ def main():
 
     if args.debug:
         setattr(args, "verbose", True)
+        logger.setLevel(logging.DEBUG)
 
     if not os.path.exists(args.directory):
         os.makedirs(args.directory)
@@ -105,14 +115,14 @@ def main():
             final_dir = pkg_dir
 
         if args.verbose:
-            print(f"Using pkg_dir: {pkg_dir}", file=sys.stderr)
-            print(f"Using final_dir: {final_dir}\n", file=sys.stderr)
+            logger.info(f"Using pkg_dir: {pkg_dir}", file=sys.stderr)
+            logger.info(f"Using final_dir: {final_dir}\n", file=sys.stderr)
 
         pkg_touchfile = final_dir / TOUCHFILE
         if final_dir.exists():
-            print(f"Found existing final_dir: {final_dir}")
+            logger.debug(f"Found existing final_dir: {final_dir}")
             if pkg_touchfile.exists():
-                print(f"Package {pkg_name} already installed on {pkg_touchfile.read_text()}, skipping")
+                logger.info(f"Package {pkg_name} already installed on {pkg_touchfile.read_text()}, skipping")
                 continue
             else:
                 # assume failed install because no TOUCHFILE
@@ -122,21 +132,19 @@ def main():
             shutil.rmtree(pkg_dir)
 
         if args.verbose:
-            print(f"Fetching {pkg_name}...\n")
+            logger.info(f"Fetching {pkg_name}...\n")
         github_fetch_package(pkg, args.directory)
 
         if args.verbose:
-            print(f"Compiling / packaging {pkg_name}")
-        else:
-            subprocess.run(["tar", "xvf", pkg_artifact], cwd=args.directory, check=True)
+            logger.info(f"Compiling / packaging {pkg_name}")
+        subprocess.run(["tar", "xvf", pkg_artifact], cwd=args.directory, check=True)
 
         if args.clean:
             os.remove(os.path.join(args.directory, pkg_artifact))
 
         compile_dir = args.directory / pkg_dir
         for step_num, step in enumerate(pkg["installation"]):
-            if args.debug:
-                print(f"DEBUG - Step {step_num}: {step}\n")
+            logger.debug(f"DEBUG - Step {step_num}: {step}\n")
             step_resp = subprocess.run(step, shell=True, cwd=compile_dir)
             if step_resp.returncode != 0:
                 raise Exception(f"Error installing package {pkg_name} on step: {step}")
@@ -153,27 +161,27 @@ def main():
             break
 
 
-def github_fetch_package(pkg, dest):
+def github_fetch_package(pkg, dest, hash="sha256"):
     """downloads a release archive from github"""
 
     release_file = pkg["filename"].replace("VERSION", pkg["version"])
     release_filepath = args.directory / release_file
     if release_filepath.is_file():
-        this_hash = hash_file(release_filepath)
-        if this_hash == pkg["sha256"]:
-            print("Re-using existing package")
+        this_hash = hash_file(release_filepath, hash_type=hash)
+        if this_hash == pkg[hash]:
+            logger.info("Re-using existing package")
             return
         else:
-            print("Removing partially downloaded ")
+            logger.info("Removing partially downloaded ")
 
     default_url_prefix = pkg["url_prefix"] if pkg.get("url_prefix") else "releases/download/vVERSION"
     release_url = f'{pkg["url"]}/{default_url_prefix}'.replace("VERSION", pkg["version"])
     full_url = f"{release_url}/{release_file}"
 
     subprocess.run(["wget", full_url], cwd=dest, check=True)
-    this_hash = hash_file(release_filepath)
-    if this_hash != pkg["sha256"]:
-        raise Exception(f"Checksum mismatch on {release_file}. Expected {pkg['sha256']}, but got {this_hash}")
+    this_hash = hash_file(release_filepath, hash_type=hash)
+    if this_hash != pkg[hash]:
+        raise Exception(f"Checksum mismatch on {release_file}. Expected {pkg[hash]}, but got {this_hash}")
 
 
 ###
