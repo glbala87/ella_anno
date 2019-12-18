@@ -54,7 +54,7 @@ any:
 	@true
 
 build:
-	docker build -t $(IMAGE_NAME) $(BUILD_OPTS) .
+	docker build -t $(IMAGE_NAME) $(BUILD_OPTS) --target prod .
 
 run:
 	docker run -d \
@@ -65,7 +65,7 @@ run:
 	--restart=always \
 	--name $(CONTAINER_NAME) \
 	-p $(API_PORT):6000 \
-	-v $(shell pwd):/anno \
+	-v $(shell pwd)/data:/anno/data \
 	-v $(TARGETS_FOLDER):/targets \
 	-v $(TARGETS_OUT):/targets-out \
 	-v $(SAMPLE_REPO):/samples \
@@ -102,7 +102,7 @@ update_seqrepo_internal:
 
 test:
 	docker run --rm -t \
-	-v $(shell pwd):/anno \
+	-v $(shell pwd)/data:/anno/data \
 	--name $(CONTAINER_NAME) \
 	$(IMAGE_NAME) /anno/ops/run_tests.sh
 
@@ -130,8 +130,11 @@ docker run --rm -t \
 	$(RUN_CMD)
 endef
 
+build-base:
+	docker build -t local/anno-base --target base .
+
 build-annobuilder:
-	docker build -t $(ANNOBUILDER_IMAGE_NAME) -f Dockerfile.annobuilder .
+	docker build -t $(ANNOBUILDER_IMAGE_NAME) --target builder .
 
 annobuilder:
 	docker run -td \

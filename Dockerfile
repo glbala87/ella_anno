@@ -1,80 +1,134 @@
-FROM debian:buster-20191014
-ENV DEBIAN_FRONTEND noninteractive
-ENV LANGUAGE C.UTF-8
-ENV LANG C.UTF-8
-ENV LC_ALL C.UTF-8
+FROM debian:buster-20191014 AS base
+LABEL maintainer="OUS AMG <ella-support@medisin.uio.no>"
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    LANGUAGE=C.UTF-8 \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    PATH=/anno/bin:$PATH
+
+COPY . /anno
+WORKDIR /anno
+
 
 RUN echo 'Acquire::ForceIPv4 "true";' | tee /etc/apt/apt.conf.d/99force-ipv4
 
-# Install as much as reasonable in one go to reduce image size
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    bash \
-    build-essential \
-    ca-certificates \
-    curl \
-    fontconfig \
-    gawk \
-    gcc \
-    git \
-    gnupg2 \
-    htop \
-    less \
-    libbz2-dev \
-    libdbi-perl \
-    libjson-perl \
-    liblzma-dev \
-    libperlio-gzip-perl \
-    libset-intervaltree-perl \
-    libwww-perl \
-    make \
-    postgresql \
-    postgresql-common \
-    postgresql-client \
-    python \
-    python-dev \
-    python-tk \
-    python-numpy \
-    python3-dev \
-    rsync \
-    supervisor \
-    sudo \
-    vim \
-    watch \
-    wget \
-    zlib1g-dev && \
-    # Additional tools
-    curl -SLk 'https://bootstrap.pypa.io/get-pip.py' | python && \
-    curl -L https://github.com/tianon/gosu/releases/download/1.7/gosu-amd64 -o /usr/local/bin/gosu && chmod u+x /usr/local/bin/gosu && \
+        bash \
+        build-essential \
+        bzip2 \
+        ca-certificates \
+        curl \
+        file \
+        fontconfig \
+        gawk \
+        gcc \
+        git \
+        gnupg2 \
+        htop \
+        less \
+        libarchive-extract-perl \
+        libarchive-zip-perl \
+        libbz2-dev \
+        libdbi-perl \
+        libjson-perl \
+        liblzma-dev \
+        libperlio-gzip-perl \
+        libset-intervaltree-perl \
+        libwww-perl \
+        make \
+        mlocate \
+        postgresql \
+        postgresql-client \
+        postgresql-common \
+        procps \
+        python \
+        python-dev \
+        python-numpy \
+        python-pip \
+        python-tk \
+        python3 \
+        python3-dev \
+        rsync \
+        sudo \
+        supervisor \
+        vim \
+        watch \
+        wget \
+        zlib1g-dev && \
+    echo "Cleanup:" && \
+    apt-get clean && \
+    apt-get autoclean && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm -rf /usr/share/doc/* /usr/share/man/* /usr/share/groff/* /usr/share/info/* /tmp/* /var/cache/apt/* /root/.cache
+
+RUN useradd -ms /bin/bash anno-user
+
+#####################
+# Builder - for installing thirdparty and generating / downloading data
+#####################
+
+FROM base AS builder
+
+# add the google-cloud repo
+RUN apt-get update && \
+    apt-get install -y apt-transport-https apt-utils curl ca-certificates gnupg && \
+    echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" \
+        | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && \
+    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg \
+        | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        autoconf \
+        default-mysql-client \
+        g++ \
+        google-cloud-sdk \
+        libmodule-build-perl \
+        pkg-config \
+        python3-pip
+
+RUN pip install -U setuptools wheel && pip install -r annobuilder-requirements.txt && pip3 install boto3==1.10.6
+
+# install thirdparty packages
+RUN python3 /anno/ops/sync_thirdparty.py --clean
+
+#####################
+# Production
+#####################
+
+FROM base AS prod
+COPY --from=builder /anno/thirdparty /anno/thirdparty
+COPY --from=builder /anno/bin /anno/bin
+
+RUN curl -L https://github.com/tianon/gosu/releases/download/1.7/gosu-amd64 -o /usr/local/bin/gosu && chmod u+x /usr/local/bin/gosu && \
     # Cleanup
     cp -R /usr/share/locale/en\@* /tmp/ && rm -rf /usr/share/locale/* && mv /tmp/en\@* /usr/share/locale/ && \
     rm -rf /usr/share/doc/* /usr/share/man/* /usr/share/groff/* /usr/share/info/* /tmp/* /var/cache/apt/* /root/.cache
 
 ADD pip-requirements /dist/requirements.txt
-RUN pip install -r /dist/requirements.txt
+RUN pip install -U setuptools wheel && pip install -r /dist/requirements.txt
 
 # Init UTA Postgres database
-ENV UTA_VERSION uta_20180821
-ENV PGDATA /pg_uta
-RUN wget http://dl.biocommons.org/uta/${UTA_VERSION}.pgd.gz
+ENV UTA_VERSION=uta_20180821 \
+    PGDATA=/pg_uta
+
+RUN wget http://dl.biocommons.org/uta/${UTA_VERSION}.pgd.gz -O /${UTA_VERSION}.pgd.gz
 COPY ops/pg_startup /usr/bin/pg_startup
 RUN /usr/bin/pg_startup init
 
-ENV UTA_DB_URL postgresql://uta_admin@localhost:5432/uta/${UTA_VERSION}
-ENV ANNO /anno
-ENV FASTA /anno/data/FASTA/human_g1k_v37_decoy.fasta
-ENV PYTHONPATH /anno/src
-ENV TARGETS /targets
-ENV TARGETS_OUT /targets-out
-ENV SAMPLES /samples
-ENV PATH /anno/bin:$TARGETS/targets:$PATH
-ENV PERL5LIB /anno/thirdparty/ensembl-vep-release/lib/:/anno/thirdparty/vcftools/lib
-ENV WORKFOLDER /tmp/annowork
-ENV HGVS_SEQREPO_DIR /anno/data/seqrepo/2019-06-20
-
-# See .dockerignore for files that are ignored
-COPY . /anno
-WORKDIR /anno
+ENV UTA_DB_URL=postgresql://uta_admin@localhost:5432/uta/${UTA_VERSION} \
+    ANNO=/anno \
+    FASTA=/anno/data/FASTA/human_g1k_v37_decoy.fasta \
+    PYTHONPATH=/anno/src \
+    TARGETS=/targets \
+    TARGETS_OUT=/targets-out \
+    SAMPLES=/samples \
+    PATH=/anno/bin:$TARGETS/targets:$PATH \
+    PERL5LIB=/anno/thirdparty/ensembl-vep-release/lib/:/anno/thirdparty/vcftools/lib \
+    WORKFOLDER=/tmp/annowork \
+    HGVS_SEQREPO_DIR=/anno/data/seqrepo/2019-06-20
 
 # Set supervisor as default cmd
 CMD /bin/bash -c "python3 unpack_lfs.py && supervisord -c /anno/ops/supervisor.cfg"
