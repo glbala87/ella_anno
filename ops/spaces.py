@@ -1,4 +1,5 @@
 import boto3
+from botocore.config import Config as BotoConfig
 from botocore.exceptions import ClientError
 from botocore.handlers import disable_signing
 import csv
@@ -24,6 +25,8 @@ S3Object = "<class 'boto3.resources.factory.s3.Object'>"
 PackageFile = namedtuple("PackageFile", ["local", "remote"])
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
+max_pool_conns = 10 * os.cpu_count()
+client_config = BotoConfig(max_pool_connections=max_pool_conns)
 
 
 def s3_object_exists(s3_object):
@@ -75,7 +78,7 @@ class DataManager(object):
     @property
     def client(self):
         if self._client is None:
-            self._client = self.session.client("s3", endpoint_url=self.endpoint)
+            self._client = self.session.client("s3", endpoint_url=self.endpoint, config=client_config)
 
         return self._client
 
@@ -92,7 +95,9 @@ class DataManager(object):
             if self.access_key is None or self.access_secret is None:
                 # no key/secret needed for downloading data, so if they're not found we can assume that
                 # Will instead crash on missing creds with session creation
-                self._s3 = boto3.resource("s3", region_name=self.region, endpoint_url=self.endpoint)
+                self._s3 = boto3.resource(
+                    "s3", region_name=self.region, endpoint_url=self.endpoint, config=client_config
+                )
                 # BUT attempting to sign without key/secret causes errors, so let's not do that
                 self._s3.meta.client.meta.events.register("choose-signer.s3.*", disable_signing)
             else:
@@ -206,9 +211,6 @@ class DataManager(object):
         pfile.remote.download_fileobj(pfile.local.open("wb"), Callback=cb)
         if cb:
             print()  # extra print to get past the \r in the TransferProgress callback
-
-    def check_package(self, name, path):
-        raise NotImplemented()
 
 
 class TransferProgress(object):
