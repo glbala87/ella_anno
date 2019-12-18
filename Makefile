@@ -158,11 +158,24 @@ download-package:
 	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --download -d $(PKG_NAME))
 	$(annobuilder-template)
 
+upload-data:
+	@$(call check_defined, DO_CREDS, 'Use DO_CREDS to specify a file containing SPACES_KEY and SPACES_SECRET')
+	$(eval ANNOBUILDER_OPTS += $(DO_CREDS))
+	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --upload)
+	$(annobuilder-template)
+
+upload-package:
+	@$(call check_defined, DO_CREDS, 'Use DO_CREDS to specify a file containing SPACES_KEY and SPACES_SECRET')
+	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to download')
+	$(eval ANNOBUILDER_OPTS += $(DO_CREDS))
+	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --upload -d $(PKG_NAME))
+	$(annobuilder-template)
+
 generate-data:
 	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --generate)
 	$(annobuilder-template)
 
-generate-data-package:
+generate-package:
 	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to generate')
 	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --generate -d $(PKG_NAME))
 	$(annobuilder-template)
@@ -171,7 +184,7 @@ install-thirdparty:
 	$(eval RUN_CMD := python3 /anno/ops/sync_thirdparty.py --clean)
 	$(annobuilder-template)
 
-install-thirdparty-package:
+install-package:
 	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to install')
 	$(eval RUN_CMD := python3 /anno/ops/sync_thirdparty.py --clean -p $(PKG_NAME))
 	$(annobuilder-template)
