@@ -242,6 +242,14 @@ def main():
             cmd_args = [dataset_name, dataset_version, data_dir.relative_to(default_base_dir)]
             if args.download:
                 mgr.download_package(*cmd_args)
+
+                logger.info("Validating downloaded data")
+                md5sum = data_dir / "MD5SUM"
+                if not md5sum.exists():
+                    logger.error(f"No MD5SUM file found for {dataset_name} at {md5sum}, cannot validate files")
+                    continue
+                subprocess.run(["md5sum", "-c", "MD5SUM"], cwd=data_dir, check=True)
+                logger.info(f"All files {dataset_name} files validated successfully")
             else:
                 mgr.upload_package(*cmd_args)
         else:
