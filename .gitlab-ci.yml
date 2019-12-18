@@ -10,6 +10,7 @@ stages:
 run_pytest:
   stage: test
   script:
+    - make download-data
     - make test
   after_script:
     - make cleanup
@@ -17,4 +18,5 @@ run_pytest:
 build:
   stage: build
   script:
+    - make build-annobuilder
     - make build
