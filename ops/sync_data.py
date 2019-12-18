@@ -82,7 +82,7 @@ datasets = OrderedDict(
             "clinvar",
             {
                 "description": "clinvar variant database",
-                "version": "20190628",
+                "version": "20191127",
                 "destination": "variantDBs/clinvar",
                 "generate": [
                     f"python BASE_DIR/scripts/clinvar/clinvardb_to_vcf.py -np {os.cpu_count() * 2} -o DATA_DIR/clinvar_VERSION.vcf -g BASE_DIR/data/FASTA/human_g1k_v37_decoy.fasta"

@@ -11,7 +11,7 @@ names=["GNOMAD_GENOMES__MULTIALLELIC", "GNOMAD_GENOMES__AC", "GNOMAD_GENOMES__AC
 ops=["flag", "first", "first", "first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first","first"]
 
 [[annotation]]
-file="variantDBs/clinvar/clinvar_20190628.vcf.gz"
+file="variantDBs/clinvar/clinvar_20191212.vcf.gz"
 fields=['CLINVARJSON']
 names=['CLINVARJSON']
 ops=['first']
