@@ -53,4 +53,4 @@ RUN apt-get update && \
         wget \
         zlib1g-dev
 
-RUN pip install -r annobuilder-requirements.txt
+RUN pip install -r annobuilder-requirements.txt && pip3 install boto3==1.10.6
