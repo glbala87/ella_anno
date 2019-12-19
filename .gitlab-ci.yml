@@ -31,7 +31,7 @@ run_pytest:
 
 build:
   stage: build
-    extends: .image-setup
+  extends: .image-setup
   script:
     - make build-annobuilder
     - make build
