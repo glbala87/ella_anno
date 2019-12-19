@@ -53,7 +53,7 @@ build:
   stage: build
   extends: .image-setup
   script:
-    - env | grep '^(CI\|GITLAB)_'
+    - env | grep -P '^(CI|GITLAB)_'
     - docker login -u tsnowlan -p $CI_REGISTRY_RW $CI_REGISTRY
     - export
     - docker build -t buildtest --target buildtest .
