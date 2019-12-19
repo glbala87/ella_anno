@@ -132,3 +132,6 @@ ENV UTA_DB_URL=postgresql://uta_admin@localhost:5432/uta/${UTA_VERSION} \
 
 # Set supervisor as default cmd
 CMD /bin/bash -c "python3 unpack_lfs.py && supervisord -c /anno/ops/supervisor.cfg"
+
+FROM base AS buildtest
+RUN echo I did something
