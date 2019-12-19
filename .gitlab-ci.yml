@@ -25,6 +25,8 @@ run_pytest:
 
 build:
   stage: build
+  before_script:
+    - apk add --update make
   script:
     - make build-annobuilder
     - make build
