@@ -3,6 +3,7 @@ variables:
   BRANCH: $CI_COMMIT_REF_NAME
   CONTAINER_NAME: anno-$CI_PIPELINE_ID
 
+image: docker:19.03.5
 services:
   - docker:19.03.5-dind
 
