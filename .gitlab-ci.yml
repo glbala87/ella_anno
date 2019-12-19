@@ -14,8 +14,15 @@ stages:
   - build
   - test
 
+.image-setup:
+  before_script:
+    - apk add --update make git
+
 run_pytest:
+  extends: .image-setup
   stage: test
+  before_script:
+    - apk add --update make git
   script:
     - make download-data
     - make test
@@ -24,8 +31,7 @@ run_pytest:
 
 build:
   stage: build
-  before_script:
-    - apk add --update make git
+    extends: .image-setup
   script:
     - make build-annobuilder
     - make build
