@@ -35,19 +35,19 @@ run_pytest:
   after_script:
     - make cleanup
 
-build2:
-  stage: build2
-  extends: .image-setup
-  script:
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - docker pull $CI_REGISTRY_IMAGE:prod-latest | cat || true
-    - docker pull $CI_REGISTRY_IMAGE:builder-latest | cat || true
-    - docker build --cache-from $CI_REGISTRY_IMAGE:builder-latest -t $BUILDER_IMAGE_NAME -t $CI_REGISTRY_IMAGE:builder-latest --target builder .
-    - docker build --cache-from $CI_REGISTRY_IMAGE:prod-latest -t $PROD_IMAGE_NAME -t $CI_REGISTRY_IMAGE:prod-latest --target prod .
-    - docker push $PROD_IMAGE_NAME
-    - docker push $CI_REGISTRY_IMAGE:prod-latest
-    - docker push $BUILDER_IMAGE_NAME
-    - docker push $CI_REGISTRY_IMAGE:builder-latest
+# build:
+#   stage: build
+#   extends: .image-setup
+#   script:
+#     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+#     - docker pull $CI_REGISTRY_IMAGE:prod-latest | cat || true
+#     - docker pull $CI_REGISTRY_IMAGE:builder-latest | cat || true
+#     - docker build --cache-from $CI_REGISTRY_IMAGE:builder-latest -t $BUILDER_IMAGE_NAME -t $CI_REGISTRY_IMAGE:builder-latest --target builder .
+#     - docker build --cache-from $CI_REGISTRY_IMAGE:prod-latest -t $PROD_IMAGE_NAME -t $CI_REGISTRY_IMAGE:prod-latest --target prod .
+#     - docker push $PROD_IMAGE_NAME
+#     - docker push $CI_REGISTRY_IMAGE:prod-latest
+#     - docker push $BUILDER_IMAGE_NAME
+#     - docker push $CI_REGISTRY_IMAGE:builder-latest
 
 build:
   stage: build
