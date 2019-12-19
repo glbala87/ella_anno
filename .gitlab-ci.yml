@@ -26,8 +26,6 @@ stages:
 run_pytest:
   extends: .image-setup
   stage: test
-  before_script:
-    -
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - docker pull $BUILDER_IMAGE_NAME
