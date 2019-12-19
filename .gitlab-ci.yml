@@ -54,5 +54,6 @@ build:
   extends: .image-setup
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
+    - export
     - docker build -t buildtest --target buildtest .
     - docker push buildtest

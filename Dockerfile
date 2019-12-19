@@ -1,6 +1,6 @@
 
 FROM debian:buster-20191014 AS buildtest
-RUN export
+RUN echo "in container:" && export
 
 FROM debian:buster-20191014 AS base
 LABEL maintainer="OUS AMG <ella-support@medisin.uio.no>"
