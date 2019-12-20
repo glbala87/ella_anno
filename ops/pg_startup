@@ -48,15 +48,17 @@ function shutdown()
 
 echo "Starting PostgreSQL"
 
-if [ -d /var/run/postgresql ]; then
-    chmod 2775 /var/run/postgresql
-else
-    install -d -m 2775 -o postgres -g postgres /var/run/postgresql
+if [[ -z $SINGULARITY_NAME ]]; then
+    if [ -d /var/run/postgresql ]; then
+        chmod 2775 /var/run/postgresql
+    else
+        install -d -m 2775 -o postgres -g postgres /var/run/postgresql
+    fi
 fi
 
 # Allow any signal which would kill a process to stop PostgreSQL using the 'shutdown' function
 # KILL goes directly to kernel, so it's useless here.
-trap shutdown HUP INT QUIT ABRT KILL ALRM TERM TSTP
+trap shutdown HUP INT QUIT ABRT ALRM TERM TSTP
 
 if [[ -z $SINGULARITY_NAME ]]; then
     exec gosu postgres $PG_BIN/postgres &

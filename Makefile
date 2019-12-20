@@ -14,6 +14,9 @@ ANNOBUILDER_OPTS = -e ENTREZ_API_KEY=$(ENTREZ_API_KEY)
 SINGULARITY_IMAGE_NAME = anno-$(BRANCH).sif
 SINGULARITY_SANDBOX_NAME = anno-$(BRANCH)/
 SINGULARITY_INSTANCE_NAME = anno-$(BRANCH)
+SINGULARITY_DATA_BASE = $(shell pwd)/singularity
+SINGULARITY_DEFAULTDATA = "$(SINGULARITY_DATA_BASE)/default"
+SINGULARITY_USERDATA = "$(SINGULARITY_DATA_BASE)/$(USER)"
 # Large tmp storage is needed for gnomAD data generation. Set this to somewhere with at least 50GB of space if not
 # available on /tmp's partition
 TMP_DIR ?= /tmp
@@ -204,22 +207,34 @@ tar-data:
 #---------------------------------------------------------------------
 
 singularity-build:
-	sudo singularity build --sandbox $(SINGULARITY_SANDBOX_NAME) docker-daemon://$(IMAGE_NAME):latest
-	sudo singularity exec -B $(shell pwd)/data:/anno/data $(SINGULARITY_SANDBOX_NAME) /anno/ops/pg_setup_singularity.sh
+	[ -e $(SINGULARITY_SANDBOX_NAME) ] || sudo singularity build --sandbox $(SINGULARITY_SANDBOX_NAME) docker-daemon://$(IMAGE_NAME):latest
+	mkdir -p singularity
+	sudo singularity exec \
+		-B $(shell pwd)/ops:/anno/ops \
+		-B $(shell pwd)/data:/anno/data \
+		-B $(shell pwd)/singularity:/anno/singularity \
+		$(SINGULARITY_SANDBOX_NAME) \
+		/anno/ops/pg_setup_singularity.sh
 	sudo singularity build $(SINGULARITY_IMAGE_NAME) $(SINGULARITY_SANDBOX_NAME)
-	@rm -rf $(SINGULARITY_SANDBOX_NAME)
+	@sudo rm -rf $(SINGULARITY_SANDBOX_NAME)
 
-
-singularity-start:
+singularity-start: uta-data
 	singularity instance start \
 		-B $(shell pwd)/data:/anno/data \
-		$(SINGULARITY_IMAGE_NAME) ella-anno
+		-B $(SINGULARITY_USERDATA)/pg_uta:/pg_uta \
+		-B $(SINGULARITY_USERDATA)/postgresql:/var/run/postgresql \
+		-B $(shell pwd)/ops:/anno/ops \
+		$(SINGULARITY_IMAGE_NAME) $(SINGULARITY_INSTANCE_NAME)
 
 singularity-stop:
-	singularity instance.stop $(SINGULARITY_INSTANCE_NAME)
+	singularity instance stop $(SINGULARITY_INSTANCE_NAME)
 
 singularity-shell:
 	singularity shell instance://$(SINGULARITY_INSTANCE_NAME)
+
+uta-data:
+	rsync -az $(SINGULARITY_DEFAULTDATA)/ $(SINGULARITY_USERDATA) --info=progress2
+	chmod -R 700 $(SINGULARITY_USERDATA)/pg_uta
 
 #---------------------------------------------
 # RELEASE

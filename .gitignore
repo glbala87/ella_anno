@@ -1,6 +1,13 @@
+__pycache__
 *.pyc
+
 thirdparty/
 data/
 rawdata/
 release/
+
+singularity/
+*.sif
+*.simg
+
 .vscode/
