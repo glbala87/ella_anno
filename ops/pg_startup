@@ -58,7 +58,11 @@ fi
 # KILL goes directly to kernel, so it's useless here.
 trap shutdown HUP INT QUIT ABRT KILL ALRM TERM TSTP
 
-exec gosu postgres $PG_BIN/postgres &
+if [[ -z $SINGULARITY_NAME ]]; then
+    exec gosu postgres $PG_BIN/postgres &
+else
+    $PG_BIN/postgres &
+fi
 
 if [ "$1" = "init" ]; then
     # make sure postgres has started

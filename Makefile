@@ -11,6 +11,9 @@ IMAGE_NAME = local/anno-$(BRANCH)
 ANNOBUILDER_CONTAINER_NAME ?= annobuilder-$(BRANCH)
 ANNOBUILDER_IMAGE_NAME = local/annobuilder-$(BRANCH)
 ANNOBUILDER_OPTS = -e ENTREZ_API_KEY=$(ENTREZ_API_KEY)
+SINGULARITY_IMAGE_NAME = anno-$(BRANCH).sif
+SINGULARITY_SANDBOX_NAME = anno-$(BRANCH)/
+SINGULARITY_INSTANCE_NAME = anno-$(BRANCH)
 # Large tmp storage is needed for gnomAD data generation. Set this to somewhere with at least 50GB of space if not
 # available on /tmp's partition
 TMP_DIR ?= /tmp
@@ -195,11 +198,28 @@ install-package:
 tar-data:
 	tar cvf data.tar data/
 
-tar-thirdparty:
-	tar cvzf thirdparty.tar.gz thirdparty/
 
-tar-all: tar-thirdparty tar-data
+#---------------------------------------------------------------------
+# SINGULARITY
+#---------------------------------------------------------------------
 
+singularity-build:
+	sudo singularity build --sandbox $(SINGULARITY_SANDBOX_NAME) docker-daemon://$(IMAGE_NAME):latest
+	sudo singularity exec -B $(shell pwd)/data:/anno/data $(SINGULARITY_SANDBOX_NAME) /anno/ops/pg_setup_singularity.sh
+	sudo singularity build $(SINGULARITY_IMAGE_NAME) $(SINGULARITY_SANDBOX_NAME)
+	@rm -rf $(SINGULARITY_SANDBOX_NAME)
+
+
+singularity-start:
+	singularity instance start \
+		-B $(shell pwd)/data:/anno/data \
+		$(SINGULARITY_IMAGE_NAME) ella-anno
+
+singularity-stop:
+	singularity instance.stop $(SINGULARITY_INSTANCE_NAME)
+
+singularity-shell:
+	singularity shell instance://$(SINGULARITY_INSTANCE_NAME)
 
 #---------------------------------------------
 # RELEASE
@@ -210,7 +230,13 @@ check-release-tag:
 	git rev-parse --verify "refs/tags/$(RELEASE_TAG)^{tag}"
 	git ls-remote --exit-code --tags origin "refs/tags/$(RELEASE_TAG)"
 
-release: tar-all check-release-tag
+release: tar-data check-release-tag
 	mkdir -p release/
-	tar cvf release/anno-$(RELEASE_TAG)-src.tar --exclude=thirdparty --exclude=".git*" --exclude="*data" --exclude=release --exclude=.vscode ./
-	# git archive -o anno-$(RELEASE_TAG)-src.tar $(RELEASE_TAG)
+	tar cvf release/anno-$(RELEASE_TAG)-src.tar \
+		--exclude=thirdparty \
+		--exclude=".git*" \
+		--exclude="*data" \
+		--exclude=release \
+		--exclude=.vscode \
+		--exclude="*.sif" \
+		./
