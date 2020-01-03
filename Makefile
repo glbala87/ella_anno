@@ -221,16 +221,20 @@ singularity-build:
 singularity-start: uta-data
 	singularity instance start \
 		-B $(shell pwd)/data:/anno/data \
+		-B $(shell mktemp -d):/anno/.cache \
 		-B $(SINGULARITY_USERDATA)/pg_uta:/pg_uta \
 		-B $(SINGULARITY_USERDATA)/postgresql:/var/run/postgresql \
 		-B $(shell pwd)/ops:/anno/ops \
 		$(SINGULARITY_IMAGE_NAME) $(SINGULARITY_INSTANCE_NAME)
 
+singularity-test:
+	PYTHONPATH= singularity exec instance://$(SINGULARITY_INSTANCE_NAME) /anno/ops/run_tests.sh
+
 singularity-stop:
 	singularity instance stop $(SINGULARITY_INSTANCE_NAME)
 
 singularity-shell:
-	singularity shell instance://$(SINGULARITY_INSTANCE_NAME)
+	PYTHONPATH= singularity shell instance://$(SINGULARITY_INSTANCE_NAME)
 
 uta-data:
 	rsync -az $(SINGULARITY_DEFAULTDATA)/ $(SINGULARITY_USERDATA) --info=progress2
