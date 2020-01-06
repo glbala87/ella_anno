@@ -1,0 +1,12 @@
+#!/bin/bash
+
+echo """
+Bootstrap: docker-daemon
+From: ${IMAGE_NAME}:latest
+IncludeCmd: yes
+
+%startscript
+    export PYTHONPATH=/anno/src
+    cd /anno
+    supervisord -c /anno/ops/supervisor.cfg
+"""
