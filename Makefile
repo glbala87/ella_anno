@@ -3,20 +3,30 @@ API_PORT ?= 6000-6100
 TARGETS_FOLDER ?= /home/oyvinev/repositories/anno-targets
 TARGETS_OUT ?= /media/oyvinev/Storage/anno-targets-out
 SAMPLE_REPO ?= /media/oyvinev/Storage/sample-repo
-#TARGET_DATA ?= /media/oyvinev/Storage/vcpipe-bundle/dev
+
+RELEASE_TAG ?= $(shell git tag -l --points-at HEAD)
+ifdef RELEASE_TAG
+ANNO_BUILD := anno-$(RELEASE_TAG)
+BUILDER_BUILD := annobuilder-$(RELEASE_TAG)
+else
+ANNO_BUILD = anno-$(BRANCH)
+BUILDER_BUILD = annobuilder-$(BRANCH)
+endif
+
 BUNDLE ?= /media/oyvinev/1E51A9957C59176F/vcpipe-bundle
 SENSITIVE_DB ?= /media/oyvinev/1E51A9957C59176F/vcpipe-bundle/fake-sensitive-db
-CONTAINER_NAME ?= anno-$(BRANCH)-$(USER)
-IMAGE_NAME = local/anno-$(BRANCH)
-ANNOBUILDER_CONTAINER_NAME ?= annobuilder-$(BRANCH)
-ANNOBUILDER_IMAGE_NAME = local/annobuilder-$(BRANCH)
+CONTAINER_NAME ?= $(ANNO_BUILD)-$(USER)
+IMAGE_NAME = local/$(ANNO_BUILD)
+ANNOBUILDER_CONTAINER_NAME ?= $(BUILDER_BUILD)
+ANNOBUILDER_IMAGE_NAME = local/$(BUILDER_BUILD)
 ANNOBUILDER_OPTS = -e ENTREZ_API_KEY=$(ENTREZ_API_KEY)
-SINGULARITY_IMAGE_NAME = anno-$(BRANCH).sif
-SINGULARITY_SANDBOX_NAME = anno-$(BRANCH)/
-SINGULARITY_INSTANCE_NAME = anno-$(BRANCH)
+SINGULARITY_IMAGE_NAME = $(ANNO_BUILD).sif
+SINGULARITY_SANDBOX_NAME = $(ANNO_BUILD)/
+SINGULARITY_INSTANCE_NAME = $(ANNO_BUILD)-$(USER)
 SINGULARITY_DATA_BASE = $(shell pwd)/singularity
 SINGULARITY_DEFAULTDATA = "$(SINGULARITY_DATA_BASE)/default"
 SINGULARITY_USERDATA = "$(SINGULARITY_DATA_BASE)/$(USER)"
+SINGULARITY_DEF_FILE = Singularity.$(ANNO_BUILD)
 # Large tmp storage is needed for gnomAD data generation. Set this to somewhere with at least 50GB of space if not
 # available on /tmp's partition
 TMP_DIR ?= /tmp
@@ -205,11 +215,13 @@ tar-data:
 #---------------------------------------------------------------------
 # SINGULARITY
 #---------------------------------------------------------------------
+.PHONY: singularity-test singularity-shell singularity-start singularity-stop
 
-singularity-build:
-	[ -e $(SINGULARITY_SANDBOX_NAME) ] || sudo singularity build --sandbox $(SINGULARITY_SANDBOX_NAME) docker-daemon://$(IMAGE_NAME):latest
+singularity-build: gen-singularityfile
+	[ -e $(SINGULARITY_SANDBOX_NAME) ] || sudo singularity build --sandbox $(SINGULARITY_SANDBOX_NAME) $(SINGULARITY_DEF_FILE)
 	mkdir -p singularity
 	sudo singularity exec \
+		--writable \
 		-B $(shell pwd)/ops:/anno/ops \
 		-B $(shell pwd)/data:/anno/data \
 		-B $(shell pwd)/singularity:/anno/singularity \
@@ -217,6 +229,9 @@ singularity-build:
 		/anno/ops/pg_setup_singularity.sh
 	sudo singularity build $(SINGULARITY_IMAGE_NAME) $(SINGULARITY_SANDBOX_NAME)
 	@sudo rm -rf $(SINGULARITY_SANDBOX_NAME)
+
+gen-singularityfile:
+	@IMAGE_NAME=$(IMAGE_NAME) bash Singularity_template > $(SINGULARITY_DEF_FILE)
 
 singularity-start: uta-data
 	singularity instance start \
@@ -237,8 +252,8 @@ singularity-shell:
 	PYTHONPATH= singularity shell instance://$(SINGULARITY_INSTANCE_NAME)
 
 uta-data:
-	rsync -az $(SINGULARITY_DEFAULTDATA)/ $(SINGULARITY_USERDATA) --info=progress2
-	chmod -R 700 $(SINGULARITY_USERDATA)/pg_uta
+	[ -d $(SINGULARITY_USERDATA) ] || rsync -az $(SINGULARITY_DEFAULTDATA)/ $(SINGULARITY_USERDATA) --info=progress2
+	@chmod -R 700 $(SINGULARITY_USERDATA)/pg_uta
 
 #---------------------------------------------
 # RELEASE

@@ -60,7 +60,7 @@ fi
 # KILL goes directly to kernel, so it's useless here.
 trap shutdown HUP INT QUIT ABRT ALRM TERM TSTP
 
-if [[ -z $SINGULARITY_NAME ]]; then
+if [[ -z $SINGULARITY_NAME ]] || [[ ! -z $PG_DATA_DUMP ]]; then
     exec gosu postgres $PG_BIN/postgres &
 else
     $PG_BIN/postgres &
