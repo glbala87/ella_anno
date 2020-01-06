@@ -172,7 +172,8 @@ def github_fetch_package(pkg, dest, hash="sha256"):
             logger.info("Re-using existing package")
             return
         else:
-            logger.info("Removing partially downloaded ")
+            logger.info("Removing partially downloaded package")
+            release_filepath.unlink()
 
     default_url_prefix = pkg["url_prefix"] if pkg.get("url_prefix") else "releases/download/vVERSION"
     release_url = f'{pkg["url"]}/{default_url_prefix}'.replace("VERSION", pkg["version"])
