@@ -8,6 +8,7 @@ RELEASE_TAG ?= $(shell git tag -l --points-at HEAD)
 ifdef RELEASE_TAG
 ANNO_BUILD := anno-$(RELEASE_TAG)
 BUILDER_BUILD := annobuilder-$(RELEASE_TAG)
+BUILD_OPTS += -t local/anno:$(RELEASE_TAG)
 else
 ANNO_BUILD = anno-$(BRANCH)
 BUILDER_BUILD = annobuilder-$(BRANCH)
@@ -239,7 +240,6 @@ singularity-start: uta-data
 		-B $(shell mktemp -d):/anno/.cache \
 		-B $(SINGULARITY_USERDATA)/pg_uta:/pg_uta \
 		-B $(SINGULARITY_USERDATA)/postgresql:/var/run/postgresql \
-		-B $(shell pwd)/ops:/anno/ops \
 		$(SINGULARITY_IMAGE_NAME) $(SINGULARITY_INSTANCE_NAME)
 
 singularity-test:
@@ -274,3 +274,10 @@ release: tar-data check-release-tag
 		--exclude=.vscode \
 		--exclude="*.sif" \
 		./
+
+singularity-release: check-release-tag tar-data singularity-build
+	mkdir -p release/
+	tar cvf release/anno-$(RELEASE_TAG)-singularity.tar \
+		Makefile \
+		$(SINGULARITY_IMAGE_NAME) \
+		singularity/
