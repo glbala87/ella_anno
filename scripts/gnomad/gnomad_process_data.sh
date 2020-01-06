@@ -118,13 +118,8 @@ for tool in tabix vt bgzip vcf-sort; do
     fi
 done
 
-# memory intensive, can easily use 10GB per normalize_exome_chrom call
-# Make sure swap is also enabled or can risk OOM killing by the kernel
-# SWAP_ON=$(swapon --show | wc -l)
-# if [[ $SWAP_ON -eq 0 ]]; then
-#     echo " *** WARNING *** Swap does not appear to be enabled. Processes are likely to be killed by the kernel"
-# fi
-# MEM_MAX_PCNT=$(grep -P '(Mem|Swap)Total' /proc/meminfo | perl -lane 'if ($F[2] eq "kB"){$sum += $F[1] / 1024/1024;}elsif ($F[2] eq "mB"){$sum += $F[1]/1024}elsif ($F[2] eq "B"){$sum += $F[1]/1024/1024/1024}}{print int($sum/10)')
+# Estimate max parallel procs based on CPU as limiting resource
+# though I/O is likely to be main chokepoint unless running on lots of SSDs
 CPU_MAX_PCNT=$(grep -c processor /proc/cpuinfo)
 MAX_PCNT=${MAX_PCNT:-$CPU_MAX_PCNT}
 
