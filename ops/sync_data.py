@@ -249,7 +249,7 @@ def main():
                     logger.error(f"No MD5SUM file found for {dataset_name} at {md5sum}, cannot validate files")
                     continue
                 subprocess.run(["md5sum", "-c", "MD5SUM"], cwd=data_dir, check=True)
-                logger.info(f"All files {dataset_name} files validated successfully")
+                logger.info(f"All {dataset_name} files validated successfully")
             else:
                 mgr.upload_package(*cmd_args)
         else:
