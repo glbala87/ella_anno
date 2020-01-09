@@ -5,7 +5,7 @@ TARGETS_OUT ?= /media/oyvinev/Storage/anno-targets-out
 SAMPLE_REPO ?= /media/oyvinev/Storage/sample-repo
 
 RELEASE_TAG ?= $(shell git tag -l --points-at HEAD)
-ifdef RELEASE_TAG
+ifneq ($(RELEASE_TAG),)
 ANNO_BUILD := anno-$(RELEASE_TAG)
 BUILDER_BUILD := annobuilder-$(RELEASE_TAG)
 BUILD_OPTS += -t local/anno:$(RELEASE_TAG)
@@ -243,7 +243,9 @@ singularity-start: uta-data
 		$(SINGULARITY_IMAGE_NAME) $(SINGULARITY_INSTANCE_NAME)
 
 singularity-test:
+	-PYTHONPATH= singularity exec instance://$(SINGULARITY_INSTANCE_NAME) supervisorctl -c /anno/ops/supervisor.cfg stop all
 	PYTHONPATH= singularity exec instance://$(SINGULARITY_INSTANCE_NAME) /anno/ops/run_tests.sh
+	PYTHONPATH= singularity exec instance://$(SINGULARITY_INSTANCE_NAME) supervisorctl -c /anno/ops/supervisor.cfg start all
 
 singularity-stop:
 	singularity instance stop $(SINGULARITY_INSTANCE_NAME)
