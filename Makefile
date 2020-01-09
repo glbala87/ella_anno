@@ -170,11 +170,13 @@ annobuilder-exec:
 	$(annobuilder-template)
 
 download-data:
+	$(eval ANNOBUILDER_OPTS += --user $(shell id -u):$(shell id -g))
 	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --download)
 	$(annobuilder-template)
 
 download-package:
 	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to download')
+	$(eval ANNOBUILDER_OPTS += --user $(shell id -u):$(shell id -g))
 	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --download -d $(PKG_NAME))
 	$(annobuilder-template)
 
@@ -192,6 +194,7 @@ upload-package:
 	$(annobuilder-template)
 
 generate-data:
+	@$(call check_defined, ENTREZ_API_KEY, 'Make sure ENTREZ_API_KEY is set and exported so clinvar data can be built successfully')
 	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --generate)
 	$(annobuilder-template)
 
@@ -200,10 +203,12 @@ generate-package:
 	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --generate -d $(PKG_NAME))
 	$(annobuilder-template)
 
+# installed directly in Dockerfile, but commands here for reference or local install
 install-thirdparty:
 	$(eval RUN_CMD := python3 /anno/ops/sync_thirdparty.py --clean)
 	$(annobuilder-template)
 
+# installed directly in Dockerfile, but commands here for reference or local install
 install-package:
 	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to install')
 	$(eval RUN_CMD := python3 /anno/ops/sync_thirdparty.py --clean -p $(PKG_NAME))
