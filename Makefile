@@ -244,7 +244,6 @@ singularity-start: uta-data
 		-B $(shell pwd)/data:/anno/data \
 		-B $(shell mktemp -d):/anno/.cache \
 		-B $(SINGULARITY_USERDATA)/pg_uta:/pg_uta \
-		-B $(SINGULARITY_USERDATA)/postgresql:/var/run/postgresql \
 		$(SINGULARITY_IMAGE_NAME) $(SINGULARITY_INSTANCE_NAME)
 
 singularity-test:

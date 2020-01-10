@@ -2,11 +2,24 @@
 
 echo """
 Bootstrap: docker-daemon
-From: ${IMAGE_NAME}:latest
+From: ${IMAGE_NAME}:${RELEASE_TAG:-latest}
 IncludeCmd: yes
+
+%post
+    mv /pg_uta /pg_uta_default
+    chmod -R 777 /pg_uta_default
 
 %startscript
     export PYTHONPATH=/anno/src
+
+    #  use per-user postgres directories because postgres needs running user-only readable data files/dirs
+    export PGDATA=$PGDATA/$USER
+    mkdir -p $PGDATA
+    # if there is  not yet a folder for that user, copy the data out and chmod appropriately before starting
+    [ $(ls -A $PGDATA/$USER) ] || (rsync -az /pg_uta_default/ $PGDATA/$USER --info=progress2; chmod -R 700 $PGDATA)
+
+    # make sure data is unpacked and start anno
     cd /anno
+    unpack_data.py
     supervisord -c /anno/ops/supervisor.cfg
 """

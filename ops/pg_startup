@@ -1,36 +1,6 @@
 #!/bin/bash
 
-# For dev/demo use only! Production uses external database
-
-# Create the Postgres data directory, the database cluster in said folder and start the server.
-#
-# We make sure to shutdown postgres gently. Some shutdown modes will put postgres in bad state, making
-# a restart take a long time (replay of xlog/transaction logs).
-#
-# Also handles multiple start/stop cycles (í.e. using supervisorctl to stop/start). We only run initdb once.
-# Creating root user fails the second time, but the script continues.
-
-PG_BIN=/usr/lib/postgresql/11/bin
-
-if [ "$1" =  "init" ]; then
-    echo "Init of Postgres cluster in $PGDATA"
-
-    mkdir -p $PGDATA
-    chown postgres $PGDATA
-
-    if [ -d "$PGDATA/pg_clog" ]; then
-       echo "The database data dir already exists."
-    else
-        echo "Creating database cluster in $PGDATA"
-        gosu postgres $PG_BIN/initdb
-    fi
-
-    gosu postgres $PG_BIN/postgres --single -jE <<-EOSQL
-       CREATE USER root WITH SUPERUSER PASSWORD 'omgenetics' ;
-EOSQL
-
-fi
-
+# Recommended for dev/demo use only! Production uses external database
 
 function wait_for_ready() {
     timer=${1:-15}
@@ -40,35 +10,44 @@ function wait_for_ready() {
     done
 }
 
-function shutdown()
-{
+function shutdown() {
     echo "Shutting down PostgreSQL"
     pkill postgres
 }
 
-echo "Starting PostgreSQL"
-
-if [[ -z $SINGULARITY_NAME ]]; then
-    if [ -d /var/run/postgresql ]; then
-        chmod 2775 /var/run/postgresql
-    else
-        install -d -m 2775 -o postgres -g postgres /var/run/postgresql
-    fi
-fi
-
 # Allow any signal which would kill a process to stop PostgreSQL using the 'shutdown' function
 # KILL goes directly to kernel, so it's useless here.
 trap shutdown HUP INT QUIT ABRT ALRM TERM TSTP
-
-if [[ -z $SINGULARITY_NAME ]] || [[ ! -z $PG_DATA_DUMP ]]; then
-    exec gosu postgres $PG_BIN/postgres &
-else
-    $PG_BIN/postgres &
-fi
+PG_BIN=/usr/lib/postgresql/11/bin
 
 if [ "$1" = "init" ]; then
-    # make sure postgres has started
-    wait_for_ready
+    # This is run once, usually in the docker build process. If run a second time, creating the root user will fail.
+    # It creates the postgres data directory ($PGDATA) and initial db files, starts the server, and then loads
+    # the UTA data from the tarball.
+    #
+    # After that is complete, we make sure to shutdown postgres gently. Some shutdown modes will put postgres in bad
+    # state, causing restarts to take a long time (replay of xlog/transaction logs)
+
+    echo "Init of Postgres cluster in $PGDATA"
+    mkdir -p $PGDATA
+    cp /anno/ops/postgresql.conf $PGDATA/
+    chown -R postgres $PGDATA
+
+    if [ -d "$PGDATA/pg_clog" ]; then
+       echo "The database data dir already exists."
+    else
+        echo "Creating database cluster in $PGDATA"
+        gosu postgres $PG_BIN/initdb
+    fi
+
+    # default superuser/password, change to something private after install
+    gosu postgres $PG_BIN/postgres --single -jE <<-EOSQL
+       CREATE USER root WITH SUPERUSER PASSWORD 'omgenetics' ;
+EOSQL
+
+    echo "Starting PostgreSQL"
+    $PG_BIN/postgres &
+    wait_for_ready # make sure postgres has started before loading data
 
     echo "Extracting database from dump"
     dropdb uta
@@ -80,10 +59,18 @@ if [ "$1" = "init" ]; then
     psql -U uta_admin -d uta -c "REFRESH MATERIALIZED VIEW ${UTA_VERSION}.exon_set_exons_fp_mv;"
     psql -U uta_admin -d uta -c "REFRESH MATERIALIZED VIEW ${UTA_VERSION}.tx_exon_set_summary_mv;"
     psql -U uta_admin -d uta -c "REFRESH MATERIALIZED VIEW ${UTA_VERSION}.tx_def_summary_mv;"
+    # wait for all the actions to finish and postgres to return to a good state and shut it down cleanly
+    wait_for_ready 5
+    shutdown
     touch $PGDATA/pgready
     rm /$UTA_VERSION.pgd.gz
     echo "Database ready"
 else
-    echo "Postgres started"
-    sleep infinity
+    echo "Starting PostgreSQL"
+    # if not running in singularity container, use gosu for postgres user
+    if [[ -z $SINGULARITY_NAME ]]; then
+        exec gosu postgres $PG_BIN/postgres
+    else
+        exec $PG_BIN/postgres
+    fi
 fi
