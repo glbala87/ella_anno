@@ -1,5 +1,9 @@
 .git/*
 data/*
 rawdata/*
+release/*
+singularity/*
 thirdparty/*
+__pycache__
+
 *.sif
