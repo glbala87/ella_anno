@@ -49,13 +49,11 @@ RUN apt-get update && \
         procps \
         python \
         python-dev \
-        python-numpy \
         python-pip \
-        python-tk \
         python3 \
         python3-dev \
+        python3-pip \
         rsync \
-        sudo \
         supervisor \
         vim \
         watch \
@@ -75,7 +73,8 @@ RUN useradd -ms /bin/bash anno-user
 
 FROM base AS builder
 
-# add the google-cloud repo
+# add the google-cloud repo for gsutil/google-cloud-sdk, used to more easily download the gnomAD data
+# It is not used by anno, so is only included in the builder image
 RUN apt-get update && \
     apt-get install -y apt-transport-https apt-utils curl ca-certificates gnupg && \
     echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" \
@@ -90,8 +89,7 @@ RUN apt-get update && \
         g++ \
         google-cloud-sdk \
         libmodule-build-perl \
-        pkg-config \
-        python3-pip
+        pkg-config
 
 RUN pip install -U setuptools wheel && pip install -r annobuilder-requirements.txt && pip3 install boto3==1.10.6
 
@@ -135,4 +133,4 @@ ENV UTA_DB_URL=postgresql://uta_admin@localhost:5432/uta/${UTA_VERSION} \
     HGVS_SEQREPO_DIR=/anno/data/seqrepo/2019-06-20
 
 # Set supervisor as default cmd
-CMD /bin/bash -c "python3 unpack_lfs.py && supervisord -c /anno/ops/supervisor.cfg"
+CMD /bin/bash -c "python3 unpack_data.py && supervisord -c /anno/ops/supervisor.cfg"
