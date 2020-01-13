@@ -4,7 +4,7 @@ PG_BIN=/usr/lib/postgresql/11/bin
 PATH=$PATH:$PG_BIN
 
 # wait for a nice time to stop
-while ! pg_isready --dbname=postgres --username=postgres; do sleep 5; done
+while ! pg_isready --dbname=postgres --username=postgres -h $PGDATA; do sleep 5; done
 
 if [[ -z $SINGULARITY_NAME ]] || [[ ! -z $PG_DATA_DUMP ]]; then
     gosu postgres pg_ctl stop -m s

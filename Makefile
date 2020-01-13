@@ -24,9 +24,7 @@ ANNOBUILDER_OPTS = -e ENTREZ_API_KEY=$(ENTREZ_API_KEY)
 SINGULARITY_IMAGE_NAME = $(ANNO_BUILD).sif
 SINGULARITY_SANDBOX_NAME = $(ANNO_BUILD)/
 SINGULARITY_INSTANCE_NAME = $(ANNO_BUILD)-$(USER)
-SINGULARITY_DATA_BASE = $(shell pwd)/singularity
-SINGULARITY_DEFAULTDATA = "$(SINGULARITY_DATA_BASE)/default"
-SINGULARITY_USERDATA = "$(SINGULARITY_DATA_BASE)/$(USER)"
+SINGULARITY_DATA = $(shell pwd)/singularity
 SINGULARITY_DEF_FILE = Singularity.$(ANNO_BUILD)
 # Large tmp storage is needed for gnomAD data generation. Set this to somewhere with at least 50GB of space if not
 # available on /tmp's partition
@@ -120,7 +118,7 @@ update_seqrepo_internal:
 test:
 	docker run --rm -t \
 	-v $(shell pwd)/data:/anno/data \
-	--name $(CONTAINER_NAME) \
+	--name $(CONTAINER_NAME)-test \
 	$(IMAGE_NAME) /anno/ops/run_tests.sh
 
 cleanup:
@@ -224,26 +222,16 @@ tar-data:
 .PHONY: singularity-test singularity-shell singularity-start singularity-stop
 
 singularity-build: gen-singularityfile
-	[ -e $(SINGULARITY_SANDBOX_NAME) ] || sudo singularity build --sandbox $(SINGULARITY_SANDBOX_NAME) $(SINGULARITY_DEF_FILE)
-	mkdir -p singularity
-	sudo singularity exec \
-		--writable \
-		-B $(shell pwd)/ops:/anno/ops \
-		-B $(shell pwd)/data:/anno/data \
-		-B $(shell pwd)/singularity:/anno/singularity \
-		$(SINGULARITY_SANDBOX_NAME) \
-		/anno/ops/pg_setup_singularity.sh
-	sudo singularity build $(SINGULARITY_IMAGE_NAME) $(SINGULARITY_SANDBOX_NAME)
-	@sudo rm -rf $(SINGULARITY_SANDBOX_NAME)
+	sudo singularity build $(SINGULARITY_IMAGE_NAME) $(SINGULARITY_DEF_FILE)
 
 gen-singularityfile:
 	@IMAGE_NAME=$(IMAGE_NAME) bash Singularity_template > $(SINGULARITY_DEF_FILE)
 
-singularity-start: uta-data
+singularity-start:
 	singularity instance start \
 		-B $(shell pwd)/data:/anno/data \
 		-B $(shell mktemp -d):/anno/.cache \
-		-B $(SINGULARITY_USERDATA)/pg_uta:/pg_uta \
+		-B $(SINGULARITY_DATA):/pg_uta \
 		$(SINGULARITY_IMAGE_NAME) $(SINGULARITY_INSTANCE_NAME)
 
 singularity-test:
@@ -256,10 +244,6 @@ singularity-stop:
 
 singularity-shell:
 	PYTHONPATH= singularity shell instance://$(SINGULARITY_INSTANCE_NAME)
-
-uta-data:
-	[ -d $(SINGULARITY_USERDATA) ] || rsync -az $(SINGULARITY_DEFAULTDATA)/ $(SINGULARITY_USERDATA) --info=progress2
-	@chmod -R 700 $(SINGULARITY_USERDATA)/pg_uta
 
 #---------------------------------------------
 # RELEASE

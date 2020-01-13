@@ -116,9 +116,9 @@ RUN pip install -U setuptools wheel && pip install -r /dist/requirements.txt
 ENV UTA_VERSION=uta_20180821 \
     PGDATA=/pg_uta
 
-RUN wget http://dl.biocommons.org/uta/${UTA_VERSION}.pgd.gz -O /${UTA_VERSION}.pgd.gz
-COPY ops/pg_startup /usr/bin/pg_startup
-RUN /usr/bin/pg_startup init
+RUN service postgres stop && \
+    wget http://dl.biocommons.org/uta/${UTA_VERSION}.pgd.gz -O /${UTA_VERSION}.pgd.gz && \
+    /anno/ops/pg_startup init
 
 ENV UTA_DB_URL=postgresql://uta_admin@localhost:5432/uta/${UTA_VERSION} \
     ANNO=/anno \
@@ -133,4 +133,4 @@ ENV UTA_DB_URL=postgresql://uta_admin@localhost:5432/uta/${UTA_VERSION} \
     HGVS_SEQREPO_DIR=/anno/data/seqrepo/2019-06-20
 
 # Set supervisor as default cmd
-CMD /bin/bash -c "python3 unpack_data.py && supervisord -c /anno/ops/supervisor.cfg"
+CMD /anno/ops/entrypoint.sh

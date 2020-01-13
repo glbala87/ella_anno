@@ -10,9 +10,7 @@ IncludeCmd: yes
     chmod -R 777 /pg_uta_default
 
 %startscript
-    export PYTHONPATH=/anno/src
-
-    #  use per-user postgres directories because postgres needs running user-only readable data files/dirs
+    # use per-user postgres directories because postgres requires go-rwx privs on data files
     export PGDATA=$PGDATA/$USER
     mkdir -p $PGDATA
     # if there is  not yet a folder for that user, copy the data out and chmod appropriately before starting
