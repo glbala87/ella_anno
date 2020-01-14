@@ -5,19 +5,28 @@ Bootstrap: docker-daemon
 From: ${IMAGE_NAME}:${RELEASE_TAG:-latest}
 IncludeCmd: yes
 
+%environment
+#!/bin/bash
+    # force load in the docker env so we can modify the existing PGDATA value
+    # . /.singularity.d/env/10-docker2singularity.sh
+    # use per-user postgres directories because postgres requires go-rwx privs on data files
+    # we use user_id instead of user_name to ensure match inside/outside of container
+    export PGDATA=\$PGDATA/\$(id -u)
+
 %post
+#!/bin/bash
     mv /pg_uta /pg_uta_default
     chmod -R 777 /pg_uta_default
 
 %startscript
-    # use per-user postgres directories because postgres requires go-rwx privs on data files
-    export PGDATA=$PGDATA/$USER
-    mkdir -p $PGDATA
+#!/bin/bash
     # if there is  not yet a folder for that user, copy the data out and chmod appropriately before starting
-    [ $(ls -A $PGDATA/$USER) ] || (rsync -az /pg_uta_default/ $PGDATA/$USER --info=progress2; chmod -R 700 $PGDATA)
+    if [[ ! -d \$PGDATA ]] || [[ ! \$(ls -A \$PGDATA) ]]; then
+        rsync -az /pg_uta_default/ \$PGDATA --info=progress2 2>&1
+        chmod -R 700 \$PGDATA
+    fi
 
     # make sure data is unpacked and start anno
-    cd /anno
-    unpack_data.py
+    python3 /anno/unpack_data.py
     supervisord -c /anno/ops/supervisor.cfg
 """

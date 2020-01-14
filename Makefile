@@ -26,6 +26,9 @@ SINGULARITY_SANDBOX_NAME = $(ANNO_BUILD)/
 SINGULARITY_INSTANCE_NAME = $(ANNO_BUILD)-$(USER)
 SINGULARITY_DATA = $(shell pwd)/singularity
 SINGULARITY_DEF_FILE = Singularity.$(ANNO_BUILD)
+SINGULARITY_LOG_DIR = $(HOME)/.singularity/instances/logs/$(shell hostname)/$(USER)
+SINGULARITY_LOG_STDERR = $(SINGULARITY_LOG_DIR)/$(SINGULARITY_INSTANCE_NAME).err
+SINGULARITY_LOG_STDOUT = $(SINGULARITY_LOG_DIR)/$(SINGULARITY_INSTANCE_NAME).out
 # Large tmp storage is needed for gnomAD data generation. Set this to somewhere with at least 50GB of space if not
 # available on /tmp's partition
 TMP_DIR ?= /tmp
@@ -228,22 +231,57 @@ gen-singularityfile:
 	@IMAGE_NAME=$(IMAGE_NAME) bash Singularity_template > $(SINGULARITY_DEF_FILE)
 
 singularity-start:
+	[ -d $(SINGULARITY_DATA) ] || mkdir -p $(SINGULARITY_DATA)
 	singularity instance start \
 		-B $(shell pwd)/data:/anno/data \
 		-B $(shell mktemp -d):/anno/.cache \
 		-B $(SINGULARITY_DATA):/pg_uta \
+		-B $(shell pwd)/ops:/anno/ops \
+		--cleanenv \
 		$(SINGULARITY_IMAGE_NAME) $(SINGULARITY_INSTANCE_NAME)
 
 singularity-test:
-	-PYTHONPATH= singularity exec instance://$(SINGULARITY_INSTANCE_NAME) supervisorctl -c /anno/ops/supervisor.cfg stop all
-	PYTHONPATH= singularity exec instance://$(SINGULARITY_INSTANCE_NAME) /anno/ops/run_tests.sh
-	PYTHONPATH= singularity exec instance://$(SINGULARITY_INSTANCE_NAME) supervisorctl -c /anno/ops/supervisor.cfg start all
+	-singularity exec --cleanenv instance://$(SINGULARITY_INSTANCE_NAME) supervisorctl -c /anno/ops/supervisor.cfg stop all
+	singularity exec --cleanenv instance://$(SINGULARITY_INSTANCE_NAME) /anno/ops/run_tests.sh
+	singularity exec --cleanenv instance://$(SINGULARITY_INSTANCE_NAME) supervisorctl -c /anno/ops/supervisor.cfg start all
 
 singularity-stop:
+	singularity exec --cleanenv instance://$(SINGULARITY_INSTANCE_NAME) supervisorctl -c /anno/ops/supervisor.cfg stop all
 	singularity instance stop $(SINGULARITY_INSTANCE_NAME)
 
 singularity-shell:
-	PYTHONPATH= singularity shell instance://$(SINGULARITY_INSTANCE_NAME)
+	singularity shell --cleanenv instance://$(SINGULARITY_INSTANCE_NAME)
+
+singularity-tail-logs:
+	tail -f $(SINGULARITY_LOG_STDOUT) $(SINGULARITY_LOG_STDERR)
+
+singularity-errlog:
+	cat $(SINGULARITY_LOG_STDERR) | $(PAGER)
+
+singularity-log:
+	cat $(SINGULARITY_LOG_STDOUT) | $(PAGER)
+
+# Sandbox dev options so don't have to rebuild the image all the time
+# Still uses same SINGULARITY_INSTANCE_NAME, so -stop, -test, -shell all still work
+singularity-build-dev: gen-singularityfile
+	sudo singularity build --sandbox $(SINGULARITY_SANDBOX_NAME) $(SINGULARITY_DEF_FILE)
+	sudo chown -R $(whoami). $(SINGULARITY_SANDBOX_NAME)
+
+singularity-start-dev:
+	[ -d $(SINGULARITY_DATA) ] || mkdir -p $(SINGULARITY_DATA)
+	singularity -v instance start \
+		-B $(shell pwd)/data:/anno/data \
+		-B $(shell mktemp -d):/anno/.cache \
+		-B $(SINGULARITY_DATA):/pg_uta \
+		--cleanenv \
+		--writable \
+		$(SINGULARITY_SANDBOX_NAME) $(SINGULARITY_INSTANCE_NAME)
+
+singularity-stop-dev: singularity-stop
+
+singularity-shell-dev: singularity-shell
+
+singularity-test-dev: singularity-test
 
 #---------------------------------------------
 # RELEASE

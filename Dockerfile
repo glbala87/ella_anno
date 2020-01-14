@@ -31,6 +31,7 @@ RUN apt-get update && \
         git \
         gnupg2 \
         htop \
+        jq \
         less \
         libarchive-extract-perl \
         libarchive-zip-perl \
