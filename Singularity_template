@@ -7,8 +7,6 @@ IncludeCmd: yes
 
 %environment
 #!/bin/bash
-    # force load in the docker env so we can modify the existing PGDATA value
-    # . /.singularity.d/env/10-docker2singularity.sh
     # use per-user postgres directories because postgres requires go-rwx privs on data files
     # we use user_id instead of user_name to ensure match inside/outside of container
     export PGDATA=\$PGDATA/\$(id -u)
