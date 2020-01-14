@@ -6,9 +6,4 @@ ROOT_DIR=$(dirname "$THIS_DIR")
 # unpack tarred data, if any
 python3 "$ROOT_DIR/unpack_data.py"
 
-if [[ -z $PGONLY ]]; then
-    CFG="$THIS_DIR/supervisor.cfg"
-else
-    CFG="$THIS_DIR/supervisor-postgres.cfg"
-fi
-exec supervisord -c "$CFG"
+exec supervisord -c "$THIS_DIR/supervisor.cfg"
