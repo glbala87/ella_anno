@@ -13,36 +13,35 @@ from util import hash_file
 
 
 thirdparty_packages = {
-    # "vcfanno": {
-    #     "url": "https://github.com/brentp/vcfanno",
-    #     "version": "0.2.8",
-    #     "sha256": "",
-    #     "download": {"filename": ""},
-    # },
-    # "vt": {"url": "https://github.com/atks/vt", "version": "0.57721", "sha256": ""},
     "htslib": {
         "url": "https://github.com/samtools/htslib",
         "version": "1.9",
         "sha256": "e04b877057e8b3b8425d957f057b42f0e8509173621d3eccaedd0da607d9929a",
-        "filename": "htslib-VERSION.tar.bz2",
-        "url_prefix": "releases/download/VERSION",
-        "src_dir": "htslib-VERSION",
+        "filename": "htslib-{version}.tar.bz2",
+        "url_prefix": "releases/download/{version}",
+        "src_dir": "htslib-{version}",
         "installation": ["autoheader", "autoconf", "./configure", "make"],
     },
     "bedtools": {
         "url": "https://github.com/arq5x/bedtools2",
         "version": "2.29.0",
         "sha256": "a5140d265b774b628d8aa12bd952dd2331aa7c0ec895a460ee29afe2ce907f30",
-        "filename": "bedtools-VERSION.tar.gz",
+        "filename": "bedtools-{version}.tar.gz",
         "src_dir": "bedtools2",
         "installation": ["make"],
     },
+    # "vcfanno": {
+    #     "url": "https://github.com/brentp/vcfanno",
+    #     "version": "0.2.8",
+    #     "sha256": "",
+    #     "download": {"filename": ""},
+    # },
     "vcftools": {
         "url": "https://github.com/vcftools/vcftools",
         "version": "0.1.16",
         "sha256": "dbfc774383c106b85043daa2c42568816aa6a7b4e6abc965eeea6c47dde914e3",
-        "filename": "vcftools-VERSION.tar.gz",
-        "src_dir": "vcftools-VERSION",
+        "filename": "vcftools-{version}.tar.gz",
+        "src_dir": "vcftools-{version}",
         "installation": [
             "./configure",  # --prefix $(dirname $PWD)/vcftools",
             "make",
@@ -56,10 +55,20 @@ thirdparty_packages = {
         "url": "https://github.com/Ensembl/ensembl-vep",
         "version": "98.3",
         "url_prefix": "archive/release",
-        "filename": "VERSION.tar.gz",
-        "src_dir": "ensembl-vep-release-VERSION",
+        "filename": "{version}.tar.gz",
+        "src_dir": "ensembl-vep-release-{version}",
         "sha256": "ef878d61071c37d35f00909c21cd7769175eb91b331e985413435dfab2474bd7",
         "installation": ["perl INSTALL.pl -a a -s homo_sapiens_merged -y GRCh37"],
+    },
+    "vt": {
+        "url": "https://github.com/atks/vt",
+        "version": "0.57721",
+        "sha256": "",
+        "url_prefix": "archive",
+        "filename": "{version}.tar.gz",
+        "src_dir": "vt-{version}",
+        "sha256": "8f06d464ec5458539cfa30f81a034f47fe7f801146fe8ca80c14a3816b704e17",
+        "installation": ["make -j {max_procs}"],
     },
 }
 TOUCHFILE = "SETUP_COMPLETE"
@@ -88,6 +97,9 @@ def main():
         choices=thirdparty_packages.keys(),
         help=f"install one of: {', '.join(sorted(thirdparty_packages.keys()))}",
     )
+    parser.add_argument(
+        "--max-processes", "-x", type=int, default=os.cpu_count(), help="maximum number of processes to run in parallel"
+    )
     parser.add_argument("--clean", action="store_true", help="clean up intermediate files")
     parser.add_argument("--verbose", action="store_true", help="be extra chatty")
     parser.add_argument("--debug", action="store_true", help="run in debug mode")
@@ -106,10 +118,11 @@ def main():
         install_packages = thirdparty_packages
 
     for pkg_name, pkg in install_packages.items():
-        pkg_artifact = pkg["filename"].replace("VERSION", pkg["version"])
-        if "VERSION" in pkg["src_dir"]:
-            pkg_dir = args.directory / Path(pkg["src_dir"].replace("VERSION", pkg["version"]))
-            final_dir = args.directory / Path(pkg["src_dir"].replace("-VERSION", ""))
+        format_opts = {"version": pkg["version"], "max_procs": args.max_processes}
+        pkg_artifact = pkg["filename"].format(**format_opts)
+        if "{version}" in pkg["src_dir"]:
+            pkg_dir = args.directory / Path(pkg["src_dir"].format(**format_opts))
+            final_dir = args.directory / Path(pkg["src_dir"].replace("-{version}", ""))
         else:
             pkg_dir = args.directory / Path(pkg["src_dir"])
             final_dir = pkg_dir
@@ -133,7 +146,7 @@ def main():
 
         if args.verbose:
             logger.info(f"Fetching {pkg_name}...\n")
-        github_fetch_package(pkg, args.directory)
+        github_fetch_package(pkg, args.directory, format_opts)
 
         if args.verbose:
             logger.info(f"Compiling / packaging {pkg_name}")
@@ -144,8 +157,9 @@ def main():
 
         compile_dir = args.directory / pkg_dir
         for step_num, step in enumerate(pkg["installation"]):
+            step_str = step.format(**format_opts)
             logger.debug(f"DEBUG - Step {step_num}: {step}\n")
-            step_resp = subprocess.run(step, shell=True, cwd=compile_dir)
+            step_resp = subprocess.run(step_str, shell=True, cwd=compile_dir)
             if step_resp.returncode != 0:
                 raise Exception(f"Error installing package {pkg_name} on step: {step}")
 
@@ -161,10 +175,10 @@ def main():
             break
 
 
-def github_fetch_package(pkg, dest, hash="sha256"):
+def github_fetch_package(pkg, dest, format_opts, hash="sha256"):
     """downloads a release archive from github"""
 
-    release_file = pkg["filename"].replace("VERSION", pkg["version"])
+    release_file = pkg["filename"].format(**format_opts)
     release_filepath = args.directory / release_file
     if release_filepath.is_file():
         this_hash = hash_file(release_filepath, hash_type=hash)

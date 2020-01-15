@@ -36,11 +36,13 @@ RUN apt-get update && \
         libarchive-extract-perl \
         libarchive-zip-perl \
         libbz2-dev \
+        libcurl4-openssl-dev \
         libdbi-perl \
         libjson-perl \
         liblzma-dev \
         libperlio-gzip-perl \
         libset-intervaltree-perl \
+        libssl-dev \
         libwww-perl \
         make \
         mlocate \
