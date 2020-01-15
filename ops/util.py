@@ -51,7 +51,7 @@ def hash_directory_async(basepath, max_procs=None, ignore=[], *args, **kwargs):
         for r in async_result:
             hash_list.append(FileHash(r[0], r[1].get()))
             finished_count += 1
-            if show_status(finished_count, total_files):
+            if _show_status(finished_count, total_files):
                 print(
                     f"{datetime.datetime.now()} - Finished hashing {r[0]} {finished_count}/{total_files} files "
                     f"({finished_count/total_files*100:.2f}%)"
@@ -64,7 +64,11 @@ def apply_hash(filename, args=list(), kwargs=dict()):
     return hash_file(filename, *args, **kwargs)
 
 
-def show_status(file_num, max_files, ceiling=50, mult=0.05):
+def _show_status(file_num, max_files):
+    """
+    returns true if it should print a status update on processing the files. this happens when `max_filse` < `max_file_limit`
+    or when `file_num` is X percent (`status_mult`) of the total files to be processed (`max_files`)
+    """
     max_file_limit = 50
     status_mult = 0.05
     return max_files <= max_file_limit or file_num % int(max_files * status_mult) == 0 or file_num == max_files

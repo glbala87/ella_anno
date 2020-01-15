@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # gnomAD exomes is downloaded as one single file with all chromosomes
-# parallel per chromosome processing due to large memory required by vt-rminfo
 #  remove histogram fields and VEP annotation (CSQ field)
 #  decompose and normalize by vt
 #  bgzip
@@ -141,7 +140,6 @@ for i in {1..22} X Y; do
     else
         normalize_exome_chrom $i $EXOME_INPUT $norm_fn &
     fi
-    echo $EXOME_INPUT > /dev/null
 done
 
 # start processing genome chromosome files
@@ -182,11 +180,7 @@ else
 fi
 
 log "Indexing ${EXOME_OUTPUT}"
-if [[ ! -f ${EXOME_OUTPUT}.tbi ]]; then
-    tabix -p vcf "${EXOME_OUTPUT}"
-else
-    echo "$EXOME_OUTPUT already indexed"
-fi
+tabix -p vcf -f "${EXOME_OUTPUT}"
 
 # zip and index genome data
 log "Zipping ${GENOME_OUTPUT}"
@@ -197,10 +191,6 @@ else
 fi
 
 log "Indexing ${GENOME_OUTPUT}"
-if [[ ! -f ${GENOME_OUTPUT}.tbi ]]; then
-    tabix -p vcf "${GENOME_OUTPUT}"
-else
-    echo "$GENOME_OUTPUT already indexed"
-fi
+tabix -p vcf -f "${GENOME_OUTPUT}"
 
 log "Finished processing gnomAD data"
