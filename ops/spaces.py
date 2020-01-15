@@ -21,6 +21,7 @@ SPACES_ENDPOINT = f"https://{SPACES_REGION}.digitaloceanspaces.com"
 SPACES_BUCKET = "ella-anno"
 ROOT_DIR = Path(__file__).absolute().parent.parent
 DATA_DIR = ROOT_DIR / "data"
+# boto3 doesn't let you directly import classes, so we have to do a hacky string "class" for checking type
 S3Object = "<class 'boto3.resources.factory.s3.Object'>"
 PackageFile = namedtuple("PackageFile", ["local", "remote"])
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -39,11 +40,11 @@ def s3_object_exists(s3_object):
     return True
 
 
-def files_match(pfile):
+def files_match(package_file):
     return (
-        pfile.local.exists()
-        and s3_object_exists(pfile.remote)
-        and pfile.local.stat().st_size == pfile.remote.content_length
+        package_file.local.exists()
+        and s3_object_exists(package_file.remote)
+        and package_file.local.stat().st_size == package_file.remote.content_length
     )
 
 
@@ -176,7 +177,9 @@ class DataManager(object):
         # check that the package version exists in the bucket and bail if not
         data_ready = self.bucket.Object(f"{key_base}/DATA_READY")
         if not s3_object_exists(data_ready):
-            raise Exception(f"Data for {name} version {version} incomplete or non-existent. Check ")
+            raise Exception(
+                f"Data for {name} version {version} incomplete or non-existent. Check requested/available versions."
+            )
 
         skip_count = 0
         package_files = list()
@@ -197,18 +200,20 @@ class DataManager(object):
             self.pool.map(download_func, sorted(package_files))
         logger.info(f"Finished downloading all files for {name}")
 
-    def _upload_file(self, pfile, show_progress=False):
-        logging.debug(f"Uploading {pfile.local.name} to {pfile.remote.key}")
-        cb = TransferProgress(pfile.local) if self._show_progress else None
-        self.client.upload_fileobj(pfile.local.open("rb"), self.bucket.name, pfile.remote.key, Callback=cb)
+    def _upload_file(self, package_file, show_progress=False):
+        logging.debug(f"Uploading {package_file.local.name} to {package_file.remote.key}")
+        cb = TransferProgress(package_file.local) if self._show_progress else None
+        self.client.upload_fileobj(
+            package_file.local.open("rb"), self.bucket.name, package_file.remote.key, Callback=cb
+        )
         if cb:
             print()  # extra print to get past the \r in the TransferProgress callback
 
-    def _download_file(self, pfile, show_progress=False):
-        logging.debug(f"Downloading {pfile.remote.key} to {pfile.local}")
-        cb = TransferProgress(pfile.remote) if self._show_progress else None
-        pfile.local.parent.mkdir(parents=True, exist_ok=True)
-        pfile.remote.download_fileobj(pfile.local.open("wb"), Callback=cb)
+    def _download_file(self, package_file, show_progress=False):
+        logging.debug(f"Downloading {package_file.remote.key} to {package_file.local}")
+        cb = TransferProgress(package_file.remote) if self._show_progress else None
+        package_file.local.parent.mkdir(parents=True, exist_ok=True)
+        package_file.remote.download_fileobj(package_file.local.open("wb"), Callback=cb)
         if cb:
             print()  # extra print to get past the \r in the TransferProgress callback
 
