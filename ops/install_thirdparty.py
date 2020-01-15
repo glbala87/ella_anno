@@ -6,6 +6,7 @@ import hashlib
 import logging
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -20,7 +21,7 @@ thirdparty_packages = {
         "filename": "htslib-{version}.tar.bz2",
         "url_prefix": "releases/download/{version}",
         "src_dir": "htslib-{version}",
-        "installation": ["autoheader", "autoconf", "./configure", "make"],
+        "installation": ["autoheader", "autoconf", "./configure", "make -j {max_procs}"],
     },
     "bedtools": {
         "url": "https://github.com/arq5x/bedtools2",
@@ -28,14 +29,16 @@ thirdparty_packages = {
         "sha256": "a5140d265b774b628d8aa12bd952dd2331aa7c0ec895a460ee29afe2ce907f30",
         "filename": "bedtools-{version}.tar.gz",
         "src_dir": "bedtools2",
-        "installation": ["make"],
+        "installation": ["make -j {max_procs}"],
     },
-    # "vcfanno": {
-    #     "url": "https://github.com/brentp/vcfanno",
-    #     "version": "0.2.8",
-    #     "sha256": "",
-    #     "download": {"filename": ""},
-    # },
+    "vcfanno": {
+        "url": "https://github.com/brentp/vcfanno",
+        "version": "0.3.2",
+        "sha256": "a3e52b72d960edfc5754c4865f168b4ad228ceebbf87f15424792b3737f54f60",
+        "filename": "vcfanno_linux64",
+        "src_dir": "",  # binary only, no source needed
+        "installation": ["chmod +x {filename}", "mv {filename} ../bin/vcfanno"],
+    },
     "vcftools": {
         "url": "https://github.com/vcftools/vcftools",
         "version": "0.1.16",
@@ -44,7 +47,7 @@ thirdparty_packages = {
         "src_dir": "vcftools-{version}",
         "installation": [
             "./configure",  # --prefix $(dirname $PWD)/vcftools",
-            "make",
+            "make -j {max_procs}",
             "mkdir -p bin lib",
             "cp src/perl/*.pm lib/",
             "cp src/perl/vcf-* bin/",
@@ -54,20 +57,19 @@ thirdparty_packages = {
     "vep": {
         "url": "https://github.com/Ensembl/ensembl-vep",
         "version": "98.3",
+        "sha256": "ef878d61071c37d35f00909c21cd7769175eb91b331e985413435dfab2474bd7",
         "url_prefix": "archive/release",
         "filename": "{version}.tar.gz",
         "src_dir": "ensembl-vep-release-{version}",
-        "sha256": "ef878d61071c37d35f00909c21cd7769175eb91b331e985413435dfab2474bd7",
         "installation": ["perl INSTALL.pl -a a -s homo_sapiens_merged -y GRCh37"],
     },
     "vt": {
         "url": "https://github.com/atks/vt",
         "version": "0.57721",
-        "sha256": "",
+        "sha256": "8f06d464ec5458539cfa30f81a034f47fe7f801146fe8ca80c14a3816b704e17",
         "url_prefix": "archive",
         "filename": "{version}.tar.gz",
         "src_dir": "vt-{version}",
-        "sha256": "8f06d464ec5458539cfa30f81a034f47fe7f801146fe8ca80c14a3816b704e17",
         "installation": ["make -j {max_procs}"],
     },
 }
@@ -75,14 +77,11 @@ TOUCHFILE = "SETUP_COMPLETE"
 this_dir = Path(__file__).parent.absolute()
 anno_root = this_dir.parent
 default_dir = anno_root / "thirdparty"
-args = None
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
 def main():
-    global args
-
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--directory",
@@ -94,7 +93,7 @@ def main():
         "--package",
         "-p",
         metavar="PACKAGE_NAME",
-        choices=thirdparty_packages.keys(),
+        choices=sorted(thirdparty_packages.keys()),
         help=f"install one of: {', '.join(sorted(thirdparty_packages.keys()))}",
     )
     parser.add_argument(
@@ -109,8 +108,8 @@ def main():
         setattr(args, "verbose", True)
         logger.setLevel(logging.DEBUG)
 
-    if not os.path.exists(args.directory):
-        os.makedirs(args.directory)
+    # make sure thirdparty dir exists
+    args.directory.mkdir(parents=True, exist_ok=True)
 
     if args.package and args.package in thirdparty_packages.keys():
         install_packages = {args.package: thirdparty_packages[args.package]}
@@ -118,10 +117,13 @@ def main():
         install_packages = thirdparty_packages
 
     for pkg_name, pkg in install_packages.items():
-        format_opts = {"version": pkg["version"], "max_procs": args.max_processes}
-        pkg_artifact = pkg["filename"].format(**format_opts)
-        if "{version}" in pkg["src_dir"]:
-            pkg_dir = args.directory / Path(pkg["src_dir"].format(**format_opts))
+        # add args.max_processes to pkg so we can use a single dict with .format statements
+        pkg["max_procs"] = args.max_processes
+        if pkg["src_dir"] == "":
+            pkg_dir = args.directory
+            final_dir = pkg_dir
+        elif "{version}" in pkg["src_dir"]:
+            pkg_dir = args.directory / Path(pkg["src_dir"].format(**pkg))
             final_dir = args.directory / Path(pkg["src_dir"].replace("-{version}", ""))
         else:
             pkg_dir = args.directory / Path(pkg["src_dir"])
@@ -132,32 +134,38 @@ def main():
             logger.info(f"Using final_dir: {final_dir}\n", file=sys.stderr)
 
         pkg_touchfile = final_dir / TOUCHFILE
-        if final_dir.exists():
-            logger.debug(f"Found existing final_dir: {final_dir}")
-            if pkg_touchfile.exists():
-                logger.info(f"Package {pkg_name} already installed on {pkg_touchfile.read_text()}, skipping")
-                continue
-            else:
-                # assume failed install because no TOUCHFILE
-                shutil.rmtree(final_dir)
-        elif pkg_dir.exists():
-            # pkg_dir exists, but final_dir does not assume failed installation and remove
-            shutil.rmtree(pkg_dir)
+        # if src_dir is an empty string, a binary is downloaded and moved to anno_root/bin, so nothing to delete
+        if pkg["src_dir"] != "":
+            if final_dir.exists():
+                logger.debug(f"Found existing final_dir: {final_dir}")
+                if pkg_touchfile.exists():
+                    logger.info(f"Package {pkg_name} already installed on {pkg_touchfile.read_text()}, skipping")
+                    continue
+                else:
+                    # assume failed install because no TOUCHFILE
+                    shutil.rmtree(final_dir)
+            elif pkg_dir.exists():
+                # pkg_dir exists, but final_dir does not assume failed installation and remove
+                shutil.rmtree(pkg_dir)
 
         if args.verbose:
             logger.info(f"Fetching {pkg_name}...\n")
-        github_fetch_package(pkg, args.directory, format_opts)
+        pkg_artifact = github_fetch_package(pkg, args.directory)
 
-        if args.verbose:
-            logger.info(f"Compiling / packaging {pkg_name}")
-        subprocess.run(["tar", "xvf", pkg_artifact], cwd=args.directory, check=True)
+        if is_archive(pkg_artifact):
+            if args.verbose:
+                logger.info(f"Compiling / packaging {pkg_name}")
+            subprocess.run(["tar", "xvf", pkg_artifact], cwd=args.directory, check=True)
+        else:
+            if args.verbose:
+                logger.info(f"Not extracting non-archive artifact {pkg_artifact}")
 
-        if args.clean:
-            os.remove(os.path.join(args.directory, pkg_artifact))
+        if args.clean and is_archive(pkg_artifact):
+            pkg_artifact.unlink()
 
         compile_dir = args.directory / pkg_dir
         for step_num, step in enumerate(pkg["installation"]):
-            step_str = step.format(**format_opts)
+            step_str = step.format(**pkg)
             logger.debug(f"DEBUG - Step {step_num}: {step}\n")
             step_resp = subprocess.run(step_str, shell=True, cwd=compile_dir)
             if step_resp.returncode != 0:
@@ -168,18 +176,19 @@ def main():
         if final_dir != pkg_dir:
             pkg_dir.rename(final_dir)
 
-        # create a touchfile to mark that setup was successful
-        pkg_touchfile.write_text(f"{datetime.datetime.utcnow()}")
+        # create a touchfile to mark that setup was successful, if src_dir available to write to
+        if pkg["src_dir"]:
+            pkg_touchfile.write_text(f"{datetime.datetime.utcnow()}")
 
         if args.debug:
             break
 
 
-def github_fetch_package(pkg, dest, format_opts, hash="sha256"):
+def github_fetch_package(pkg, dest, hash="sha256"):
     """downloads a release archive from github"""
 
-    release_file = pkg["filename"].format(**format_opts)
-    release_filepath = args.directory / release_file
+    release_file = pkg["filename"].format(**pkg)
+    release_filepath = dest / release_file
     if release_filepath.is_file():
         this_hash = hash_file(release_filepath, hash_type=hash)
         if this_hash == pkg[hash]:
@@ -189,14 +198,20 @@ def github_fetch_package(pkg, dest, format_opts, hash="sha256"):
             logger.info("Removing partially downloaded package")
             release_filepath.unlink()
 
-    default_url_prefix = pkg["url_prefix"] if pkg.get("url_prefix") else "releases/download/vVERSION"
-    release_url = f'{pkg["url"]}/{default_url_prefix}'.replace("VERSION", pkg["version"])
+    default_url_prefix = pkg["url_prefix"] if pkg.get("url_prefix") else "releases/download/v{version}"
+    release_url = f"{pkg['url']}/{default_url_prefix}".format(**pkg)
     full_url = f"{release_url}/{release_file}"
 
     subprocess.run(["wget", full_url], cwd=dest, check=True)
     this_hash = hash_file(release_filepath, hash_type=hash)
     if this_hash != pkg[hash]:
         raise Exception(f"Checksum mismatch on {release_file}. Expected {pkg[hash]}, but got {this_hash}")
+
+    return release_filepath
+
+
+def is_archive(filename):
+    return bool(re.search(r"\.tar\.(?:gz|bz2)$", f"{filename}"))
 
 
 ###
