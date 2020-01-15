@@ -10,19 +10,17 @@ ANNO_BUILD := anno-$(RELEASE_TAG)
 BUILDER_BUILD := annobuilder-$(RELEASE_TAG)
 BUILD_OPTS += -t local/anno:$(RELEASE_TAG)
 else
-ANNO_BUILD = anno-$(BRANCH)
+ANNO_BUILD := anno-$(BRANCH)
 BUILDER_BUILD = annobuilder-$(BRANCH)
 endif
 
-BUNDLE ?= /media/oyvinev/1E51A9957C59176F/vcpipe-bundle
-SENSITIVE_DB ?= /media/oyvinev/1E51A9957C59176F/vcpipe-bundle/fake-sensitive-db
 CONTAINER_NAME ?= $(ANNO_BUILD)-$(USER)
 IMAGE_NAME = local/$(ANNO_BUILD)
 ANNOBUILDER_CONTAINER_NAME ?= $(BUILDER_BUILD)
 ANNOBUILDER_IMAGE_NAME = local/$(BUILDER_BUILD)
 ANNOBUILDER_OPTS = -e ENTREZ_API_KEY=$(ENTREZ_API_KEY)
 SINGULARITY_IMAGE_NAME = $(ANNO_BUILD).sif
-SINGULARITY_SANDBOX_NAME = $(ANNO_BUILD)/
+SINGULARITY_SANDBOX_PATH = $(ANNO_BUILD)/
 SINGULARITY_INSTANCE_NAME = $(ANNO_BUILD)-$(USER)
 SINGULARITY_DATA = $(shell pwd)/singularity
 SINGULARITY_DEF_FILE = Singularity.$(ANNO_BUILD)
@@ -105,29 +103,11 @@ restart: stop
 kill:
 	docker rm -f -v $(CONTAINER_NAME) || :
 
-update_seqrepo:
-	docker run --rm \
-	--name $(CONTAINER_NAME) \
-	-v $(shell pwd):/anno \
-	$(IMAGE_NAME) \
-	make update_seqrepo_internal
-	tar -C data -cf data/seqrepo.tar seqrepo
-
-update_seqrepo_internal:
-	mkdir -p /anno/data/seqrepo
-	rm -rf /anno/data/seqrepo/*
-	seqrepo -r /anno/data/seqrepo -v pull
-
 test:
 	docker run --rm -t \
 	-v $(shell pwd)/data:/anno/data \
 	--name $(CONTAINER_NAME)-test \
 	$(IMAGE_NAME) /anno/ops/run_tests.sh
-
-cleanup:
-	docker run --rm -t \
-	-v $(shell pwd):/anno \
-	$(IMAGE_NAME) git clean -xdf --exclude .vscode
 
 localclean:
 	rm -rf thirdparty/ data/ rawdata/
@@ -154,6 +134,7 @@ build-base:
 build-annobuilder:
 	docker build -t $(ANNOBUILDER_IMAGE_NAME) --target builder .
 
+# annobuilder/-shell are only run when troubleshooting data generation or adding new packages
 annobuilder:
 	docker run -td \
 		--restart=always \
@@ -206,13 +187,13 @@ generate-package:
 
 # installed directly in Dockerfile, but commands here for reference or local install
 install-thirdparty:
-	$(eval RUN_CMD := python3 /anno/ops/sync_thirdparty.py --clean)
+	$(eval RUN_CMD := python3 /anno/ops/install_thirdparty.py --clean)
 	$(annobuilder-template)
 
 # installed directly in Dockerfile, but commands here for reference or local install
 install-package:
 	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to install')
-	$(eval RUN_CMD := python3 /anno/ops/sync_thirdparty.py --clean -p $(PKG_NAME))
+	$(eval RUN_CMD := python3 /anno/ops/install_thirdparty.py --clean -p $(PKG_NAME))
 	$(annobuilder-template)
 
 tar-data:
@@ -264,8 +245,8 @@ singularity-log:
 # Sandbox dev options so don't have to rebuild the image all the time
 # Still uses same SINGULARITY_INSTANCE_NAME, so -stop, -test, -shell all still work
 singularity-build-dev: gen-singularityfile
-	sudo singularity build --sandbox $(SINGULARITY_SANDBOX_NAME) $(SINGULARITY_DEF_FILE)
-	sudo chown -R $(whoami). $(SINGULARITY_SANDBOX_NAME)
+	sudo singularity build --sandbox $(SINGULARITY_SANDBOX_PATH) $(SINGULARITY_DEF_FILE)
+	sudo chown -R $(whoami). $(SINGULARITY_SANDBOX_PATH)
 
 singularity-start-dev:
 	[ -d $(SINGULARITY_DATA) ] || mkdir -p $(SINGULARITY_DATA)
@@ -275,7 +256,7 @@ singularity-start-dev:
 		-B $(SINGULARITY_DATA):/pg_uta \
 		--cleanenv \
 		--writable \
-		$(SINGULARITY_SANDBOX_NAME) $(SINGULARITY_INSTANCE_NAME)
+		$(SINGULARITY_SANDBOX_PATH) $(SINGULARITY_INSTANCE_NAME)
 
 singularity-stop-dev: singularity-stop
 

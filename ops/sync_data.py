@@ -10,7 +10,7 @@ from pathlib import Path
 import shutil
 import subprocess
 from spaces import DataManager
-from sync_thirdparty import thirdparty_packages
+from install_thirdparty import thirdparty_packages
 import time
 from util import hash_file, hash_directory_async
 

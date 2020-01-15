@@ -95,7 +95,7 @@ RUN apt-get update && \
 RUN pip install -U setuptools wheel && pip install -r annobuilder-requirements.txt && pip3 install boto3==1.10.6
 
 # install thirdparty packages
-RUN python3 /anno/ops/sync_thirdparty.py --clean
+RUN python3 /anno/ops/install_thirdparty.py --clean
 
 #####################
 # Production
