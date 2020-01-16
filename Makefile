@@ -217,7 +217,6 @@ singularity-start:
 		-B $(shell pwd)/data:/anno/data \
 		-B $(shell mktemp -d):/anno/.cache \
 		-B $(SINGULARITY_DATA):/pg_uta \
-		-B $(shell pwd)/ops:/anno/ops \
 		--cleanenv \
 		$(SINGULARITY_IMAGE_NAME) $(SINGULARITY_INSTANCE_NAME)
 
