@@ -4,6 +4,7 @@ import argparse
 from collections import OrderedDict
 import datetime
 import hashlib
+import json
 import os
 import logging
 from pathlib import Path
@@ -16,7 +17,6 @@ from util import hash_file, hash_directory_async
 
 import pdb
 
-args = None
 this_dir = Path(__file__).parent.absolute()
 default_base_dir = this_dir.parent
 default_data_dir = default_base_dir / "data"
@@ -33,10 +33,10 @@ datasets = OrderedDict(
                 "destination": "FASTA",
                 "retries": 5,
                 "generate": [
-                    "wget ftp://gsapubftp-anonymous@ftp.broadinstitute.org/bundle/b37/human_g1k_v37_decoy.fasta.gz -O DATA_DIR/human_g1k_v37_decoy.fasta.gz",
-                    "echo 'HASH_VALUE DATA_DIR/human_g1k_v37_decoy.fasta.gz' | HASH_TYPEsum -c",
-                    "gunzip DATA_DIR/human_g1k_v37_decoy.fasta.gz",
-                    "bgzip DATA_DIR/human_g1k_v37_decoy.fasta -c > DATA_DIR/human_g1k_v37_decoy.fasta.gz",
+                    "wget ftp://gsapubftp-anonymous@ftp.broadinstitute.org/bundle/b37/human_g1k_v37_decoy.fasta.gz -O {data_dir}/human_g1k_v37_decoy.fasta.gz",
+                    "echo '{hash_value} {data_dir}/human_g1k_v37_decoy.fasta.gz' | {hash_type}sum -c",
+                    "gunzip {data_dir}/human_g1k_v37_decoy.fasta.gz",
+                    "bgzip {data_dir}/human_g1k_v37_decoy.fasta -c > {data_dir}/human_g1k_v37_decoy.fasta.gz",
                 ],
             },
         ),
@@ -47,7 +47,7 @@ datasets = OrderedDict(
                 "destination": "VEP/cache",
                 "version": thirdparty_packages["vep"]["version"],
                 "thirdparty-name": "ensembl-vep-release",
-                "generate": ["perl THIRDPARTY/INSTALL.pl -a cf -l -n -s homo_sapiens_merged -y GRCh37 -c DATA_DIR"],
+                "generate": ["perl {thirdparty}/INSTALL.pl -a cf -l -n -s homo_sapiens_merged -y GRCh37 -c {data_dir}"],
             },
         ),
         (
@@ -59,22 +59,22 @@ datasets = OrderedDict(
                 "destination": "refGene",
                 "generate": [
                     "wget http://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/refGene.txt.gz",
-                    "echo 'HASH_VALUE refGene.txt.gz' | HASH_TYPEsum -c",
-                    "zcat refGene.txt.gz | cut -f 3,5,6 | sed 's/chr//g' | sort -k1,1V -k2,2n | uniq | bedtools merge > refgene_VERSION.bed",
-                    "mysql --user=genome --host=genome-mysql.cse.ucsc.edu -A -e 'select chrom, size from VERSION.chromInfo' | sed 's/chr//g' > DATA_DIR/VERSION.genome",
-                    "bedtools slop -i refgene_VERSION.bed -g DATA_DIR/VERSION.genome -b 10000 > DATA_DIR/refgene_VERSION_slop_10k.bed",
+                    "echo '{hash_value} refGene.txt.gz' | {hash_type}sum -c",
+                    "zcat refGene.txt.gz | cut -f 3,5,6 | sed 's/chr//g' | sort -k1,1V -k2,2n | uniq | bedtools merge > refgene_{version}.bed",
+                    "mysql --user=genome --host=genome-mysql.cse.ucsc.edu -A -e 'select chrom, size from {version}.chromInfo' | sed 's/chr//g' > {data_dir}/{version}.genome",
+                    "bedtools slop -i refgene_{version}.bed -g {data_dir}/{version}.genome -b 10000 > {data_dir}/refgene_{version}_slop_10k.bed",
                 ],
             },
         ),
         (
             "gnomad",
             {
-                "description": "gnomaAD variant database",
+                "description": "gnomAD variant database",
                 "version": "2.0.2",
                 "destination": "variantDBs/gnomAD",
                 "generate": [
-                    "BASE_DIR/scripts/gnomad/download_gnomad.sh -r VERSION -s",
-                    "BASE_DIR/scripts/gnomad/gnomad_process_data.sh -v VERSION -b BASE_DIR/data/refGene/refgene_hg19_slop_10k.bed",
+                    "{base_dir}/scripts/gnomad/download_gnomad.sh -r {version} -s",
+                    "{base_dir}/scripts/gnomad/gnomad_process_data.sh -v {version} -b {base_dir}/data/refGene/refgene_hg19_slop_10k.bed",
                 ],
             },
         ),
@@ -85,7 +85,7 @@ datasets = OrderedDict(
                 "version": "20191127",
                 "destination": "variantDBs/clinvar",
                 "generate": [
-                    f"python BASE_DIR/scripts/clinvar/clinvardb_to_vcf.py -np {os.cpu_count() * 2} -o DATA_DIR/clinvar_VERSION.vcf -g BASE_DIR/data/FASTA/human_g1k_v37_decoy.fasta"
+                    "python {base_dir}/scripts/clinvar/clinvardb_to_vcf.py -np {max_procs} -o {data_dir}/clinvar_{version}.vcf -g {base_dir}/data/FASTA/human_g1k_v37_decoy.fasta"
                 ],
             },
         ),
@@ -96,8 +96,8 @@ datasets = OrderedDict(
                 "version": "2019-06-20",
                 "destination": "seqrepo",
                 "generate": [
-                    "seqrepo -r DATA_DIR -v pull",
-                    "[[ -d DATA_DIR/VERSION ]] || (echo downloaded version does not match; exit 1)",
+                    "seqrepo -r {data_dir} -v pull --instance-name {version}",
+                    "[[ -d {data_dir}/{version} ]] || (echo downloaded version does not match; exit 1)",
                 ],
             },
         ),
@@ -105,13 +105,16 @@ datasets = OrderedDict(
     ]
 )
 TOUCHFILE = "DATA_READY"
+sources_json_file = default_base_dir / "sources.json"
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
-def main():
-    global args
+# add --validate, to check existing data/versions against sources.json, run at startup
 
+
+def main():
     parser = argparse.ArgumentParser()
     action_args = parser.add_mutually_exclusive_group(required=True)
     action_args.add_argument("--download", action="store_true", help="download pre-processed datasets")
@@ -126,7 +129,7 @@ def main():
         metavar="/path/to/anno/data/dir",
         type=Path,
         default=default_data_dir,
-        help="directory to write processed data to. Default: {}".format(default_data_dir),
+        help=f"directory to write processed data to. Default: {default_data_dir}",
     )
     parser.add_argument(
         "-rd",
@@ -134,7 +137,7 @@ def main():
         metavar="/path/to/anno/rawdata",
         type=Path,
         default=default_rawdata_dir,
-        help="directory to temporarily store unprocessed data in. Default: {}".format(default_rawdata_dir),
+        help=f"directory to temporarily store unprocessed data in. Default: {default_rawdata_dir}",
     )
     parser.add_argument(
         "-tp",
@@ -142,7 +145,14 @@ def main():
         metavar="/path/to/anno/thirdparty",
         type=Path,
         default=default_thirdparty_dir,
-        help="directory thirdparty packages are installed in. Default: {}".format(default_thirdparty_dir),
+        help=f"directory thirdparty packages are installed in. Default: {default_thirdparty_dir}",
+    )
+    parser.add_argument(
+        "--max-processes",
+        "-x",
+        type=int,
+        default=min(os.cpu_count(), 20),
+        help=f"max number of processes to run in parallel. Default: {os.cpu_count()}",
     )
     parser.add_argument("--cleanup", action="store_true", help="clean up raw data after successful processing")
     parser.add_argument("--verbose", action="store_true", help="be extra chatty")
@@ -164,17 +174,16 @@ def main():
         data_dir = args.data_dir.absolute() / dataset.get("destination", dataset_name)
         thirdparty_dir = args.thirdparty_dir.absolute() / dataset.get("thirdparty-name", dataset_name)
         dataset_version = dataset.get("version", "")
-        evals = OrderedDict(
-            [
-                ("VERSION", dataset_version),
-                ("DATA_DIR", str(data_dir)),
-                ("THIRDPARTY", str(thirdparty_dir)),
-                ("BASE_DIR", str(default_base_dir)),
-            ]
-        )
+        format_opts = {
+            "version": dataset_version,
+            "data_dir": str(data_dir),
+            "thirdparty": str(thirdparty_dir),
+            "base_dir": str(default_base_dir),
+            "max_procs": args.max_processes,
+        }
         if "hash" in dataset:
-            evals["HASH_TYPE"] = dataset["hash"]["type"]
-            evals["HASH_VALUE"] = dataset["hash"]["value"]
+            format_opts["hash_type"] = dataset["hash"]["type"]
+            format_opts["hash_value"] = dataset["hash"]["value"]
 
         if args.generate:
             dataset_ready = data_dir / TOUCHFILE
@@ -192,12 +201,7 @@ def main():
 
             for step_num, step in enumerate(dataset["generate"]):
                 logger.debug(f"DEBUG - Step {step_num}: {step}\n")
-                eval_step = [step]
-                for var_name, val in evals.items():
-                    if var_name in eval_step[-1]:
-                        eval_step.append(eval_step[-1].replace(var_name, val))
-                step_cmd = eval_step[-1]
-                logger.debug(f"DEBUG - step replacements: {eval_step}")
+                step_str = step.format(**format_opts)
 
                 # if dataset allows retries (e.g., Broad's crappy FTP server), retry until max reached
                 # otherwise, bail on error
@@ -205,10 +209,10 @@ def main():
                 max_retries = dataset.get("retries", 0)
                 step_success = False
                 while num_retries <= max_retries:
-                    logger.info(f"Running: {step_cmd}")
-                    step_resp = subprocess.run(step_cmd, shell=True, cwd=raw_dir, stderr=subprocess.PIPE)
+                    logger.info(f"Running: {step_str}")
+                    step_resp = subprocess.run(step_str, shell=True, cwd=raw_dir, stderr=subprocess.PIPE)
                     if step_resp.returncode != 0:
-                        errs.append((dataset_name, step_cmd, step_resp.returncode, step_resp.stderr.decode("utf-8")))
+                        errs.append((dataset_name, step_str, step_resp.returncode, step_resp.stderr.decode("utf-8")))
                         if num_retries >= max_retries and max_retries > 0:
                             errs.append((dataset_name, "max retries exceeded without success"))
                             break
@@ -248,7 +252,7 @@ def main():
                 if not md5sum.exists():
                     logger.error(f"No MD5SUM file found for {dataset_name} at {md5sum}, cannot validate files")
                     continue
-                subprocess.run(["md5sum", "-c", "MD5SUM"], cwd=data_dir, check=True)
+                subprocess.run(["md5sum", "--quiet", "-c", "MD5SUM"], cwd=data_dir, check=True)
                 logger.info(f"All {dataset_name} files validated successfully")
             else:
                 mgr.upload_package(*cmd_args)
@@ -260,6 +264,12 @@ def main():
         for err_entry in errs:
             print(" --- ".join([str(x) for x in err_entry]))
             print(" ---\n")
+
+
+def update_sources(key, val):
+    file_json = json.loads(sources_json_file.read_text())
+    file_json[key] = val
+    sources_json_file.write_text(json.dumps(file_json, indent=2, sort_keys=True) + "\n")
 
 
 ###
