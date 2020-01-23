@@ -1,36 +1,44 @@
 {
-    "fasta":{
+    "fasta": {
         "description": "reference genome from Broad in gzipped fasta",
         "version": "GRCh37",
-        "hash": {"type": "md5", "value": "dd05833f18c22cc501e3e31406d140b0"},
+        "hash": {
+            "type": "md5",
+            "value": "dd05833f18c22cc501e3e31406d140b0"
+        },
         "destination": "FASTA",
         "retries": 5,
         "generate": [
             "wget ftp://gsapubftp-anonymous@ftp.broadinstitute.org/bundle/b37/human_g1k_v37_decoy.fasta.gz -O {data_dir}/human_g1k_v37_decoy.fasta.gz",
             "echo '{hash_value} {data_dir}/human_g1k_v37_decoy.fasta.gz' | {hash_type}sum -c",
             "gunzip {data_dir}/human_g1k_v37_decoy.fasta.gz",
-            "bgzip {data_dir}/human_g1k_v37_decoy.fasta -c > {data_dir}/human_g1k_v37_decoy.fasta.gz",
-        ],
+            "bgzip {data_dir}/human_g1k_v37_decoy.fasta -c > {data_dir}/human_g1k_v37_decoy.fasta.gz"
+        ]
     },
     "vep": {
         "description": "offline VEP cache",
         "destination": "VEP/cache",
         "version": "{vep_version}",
         "thirdparty-name": "ensembl-vep-release",
-        "generate": ["perl {thirdparty}/INSTALL.pl -a cf -l -n -s homo_sapiens_merged -y GRCh37 -c {data_dir}"],
+        "generate": [
+            "perl {thirdparty}/INSTALL.pl -a cf -l -n -s homo_sapiens_merged -y GRCh37 -c {data_dir}"
+        ]
     },
     "refgene": {
         "description": "refGene database for slicing gnomAD data",
         "version": "hg19",
-        "hash": {"type": "md5", "value": "e0de330beb80dc91df475615f7181f8c"},
+        "hash": {
+            "type": "md5",
+            "value": "e0de330beb80dc91df475615f7181f8c"
+        },
         "destination": "refGene",
         "generate": [
             "wget http://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/refGene.txt.gz",
             "echo '{hash_value} refGene.txt.gz' | {hash_type}sum -c",
             "zcat refGene.txt.gz | cut -f 3,5,6 | sed 's/chr//g' | sort -k1,1V -k2,2n | uniq | bedtools merge > refgene_{version}.bed",
             "mysql --user=genome --host=genome-mysql.cse.ucsc.edu -A -e 'select chrom, size from {version}.chromInfo' | sed 's/chr//g' > {data_dir}/{version}.genome",
-            "bedtools slop -i refgene_{version}.bed -g {data_dir}/{version}.genome -b 10000 > {data_dir}/refgene_{version}_slop_10k.bed",
-        ],
+            "bedtools slop -i refgene_{version}.bed -g {data_dir}/{version}.genome -b 10000 > {data_dir}/refgene_{version}_slop_10k.bed"
+        ]
     },
     "gnomad": {
         "description": "gnomAD variant database",
@@ -38,7 +46,7 @@
         "destination": "variantDBs/gnomAD",
         "generate": [
             "{base_dir}/scripts/gnomad/download_gnomad.sh -r {version} -s",
-            "{base_dir}/scripts/gnomad/gnomad_process_data.sh -v {version} -b {base_dir}/data/refGene/refgene_hg19_slop_10k.bed",
+            "{base_dir}/scripts/gnomad/gnomad_process_data.sh -v {version} -b {base_dir}/data/refGene/refgene_hg19_slop_10k.bed"
         ],
         "vcfanno": [
             {
@@ -119,7 +127,7 @@
                     "QD",
                     "ReadPosRankSum",
                     "AS_RF",
-                    "AS_FilterStatus",
+                    "AS_FilterStatus"
                 ],
                 "names": [
                     "GNOMAD_EXOMES__MULTIALLELIC",
@@ -197,7 +205,7 @@
                     "GNOMAD_EXOMES__QD",
                     "GNOMAD_EXOMES__ReadPosRankSum",
                     "GNOMAD_EXOMES__AS_RF",
-                    "GNOMAD_EXOMES__AS_FilterStatus",
+                    "GNOMAD_EXOMES__AS_FilterStatus"
                 ],
                 "ops": [
                     "flag",
@@ -275,8 +283,8 @@
                     "first",
                     "first",
                     "first",
-                    "first",
-                ],
+                    "first"
+                ]
             },
             {
                 "file": "{data_dir}/gnomad.genomes.r2.0.2.refgene.norm.vcf.gz",
@@ -356,7 +364,7 @@
                     "QD",
                     "ReadPosRankSum",
                     "AS_RF",
-                    "AS_FilterStatus",
+                    "AS_FilterStatus"
                 ],
                 "names": [
                     "GNOMAD_GENOMES__MULTIALLELIC",
@@ -434,7 +442,7 @@
                     "GNOMAD_GENOMES__QD",
                     "GNOMAD_GENOMES__ReadPosRankSum",
                     "GNOMAD_GENOMES__AS_RF",
-                    "GNOMAD_GENOMES__AS_FilterStatus",
+                    "GNOMAD_GENOMES__AS_FilterStatus"
                 ],
                 "ops": [
                     "flag",
@@ -512,10 +520,10 @@
                     "first",
                     "first",
                     "first",
-                    "first",
-                ],
-            },
-        ],
+                    "first"
+                ]
+            }
+        ]
     },
     "clinvar": {
         "description": "clinvar variant database",
@@ -527,11 +535,17 @@
         "vcfanno": [
             {
                 "file": "{data_dir}/clinvar_{version}.vcf.gz",
-                "fields": ["CLINVARJSON"],
-                "names": ["CLINVARJSON"],
-                "ops": ["first"],
+                "fields": [
+                    "CLINVARJSON"
+                ],
+                "names": [
+                    "CLINVARJSON"
+                ],
+                "ops": [
+                    "first"
+                ]
             }
-        ],
+        ]
     },
     "seqrepo": {
         "description": "biocommons seqrepo data",
@@ -540,7 +554,7 @@
         "generate": [
             "seqrepo -r {data_dir} -v pull --instance-name {version}",
             "[[ -d {data_dir}/{version} ]] || (echo downloaded version does not match; exit 1)",
-            "cd {data_dir}; ln -sf {version} latest",
-        ],
-    },
+            "cd {data_dir}; ln -sf {version} latest"
+        ]
+    }
 }
