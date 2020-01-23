@@ -540,8 +540,7 @@
         "generate": [
             "seqrepo -r {data_dir} -v pull --instance-name {version}",
             "[[ -d {data_dir}/{version} ]] || (echo downloaded version does not match; exit 1)",
-            "ln -sf ",
-            "TODO: # symlink latest timedate str to latest"
+            "cd {data_dir}; ln -sf {version} latest",
         ],
     },
 }
