@@ -11,10 +11,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LC_ALL=C.UTF-8 \
     PATH=/anno/bin:$PATH
 
-COPY . /anno
-WORKDIR /anno
-
-
 RUN echo 'Acquire::ForceIPv4 "true";' | tee /etc/apt/apt.conf.d/99force-ipv4
 
 RUN apt-get update && \
@@ -24,6 +20,8 @@ RUN apt-get update && \
         bzip2 \
         ca-certificates \
         curl \
+        cython \
+        cython3 \
         file \
         fontconfig \
         gawk \
@@ -94,25 +92,38 @@ RUN apt-get update && \
         libmodule-build-perl \
         pkg-config
 
-RUN pip install -U setuptools wheel && pip install -r annobuilder-requirements.txt && pip3 install boto3==1.10.6
+COPY ./ops /anno/ops
+COPY ./bin /anno/bin
+COPY annobuilder-requirements.txt /dist/annobuilder-requirements.txt
+WORKDIR /anno
+
+RUN pip install -U setuptools wheel && \
+    pip install -r /dist/annobuilder-requirements.txt && \
+    pip3 install -U setuptools wheel && \
+    pip3 install boto3==1.10.6 PyYAML==5.1.2
 
 # install thirdparty packages
 RUN python3 /anno/ops/install_thirdparty.py --clean
+
+# if do_creds file mounted in, source and export variables for uploading data to DigitalOcean
+RUN echo "if [[ -f /anno/do_creds ]]; then source /anno/do_creds; export SPACES_KEY SPACES_SECRET; fi" >> /root/.bashrc
 
 #####################
 # Production
 #####################
 
 FROM base AS prod
+COPY . /anno
 COPY --from=builder /anno/thirdparty /anno/thirdparty
 COPY --from=builder /anno/bin /anno/bin
+WORKDIR /anno
 
 RUN curl -L https://github.com/tianon/gosu/releases/download/1.7/gosu-amd64 -o /usr/local/bin/gosu && chmod u+x /usr/local/bin/gosu && \
     # Cleanup
     cp -R /usr/share/locale/en\@* /tmp/ && rm -rf /usr/share/locale/* && mv /tmp/en\@* /usr/share/locale/ && \
     rm -rf /usr/share/doc/* /usr/share/man/* /usr/share/groff/* /usr/share/info/* /tmp/* /var/cache/apt/* /root/.cache
 
-ADD pip-requirements /dist/requirements.txt
+COPY pip-requirements /dist/requirements.txt
 RUN pip install -U setuptools wheel && pip install -r /dist/requirements.txt
 
 # Init UTA Postgres database
