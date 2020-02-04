@@ -125,7 +125,7 @@ docker run --rm -t \
 	-v $(TMP_DIR):/tmp \
 	-v $(PWD):/anno \
 	$(ANNOBUILDER_IMAGE_NAME) \
-	$(RUN_CMD)
+	bash -ic "$(RUN_CMD)"
 endef
 
 build-base:
@@ -164,14 +164,14 @@ download-package:
 
 upload-data:
 	@$(call check_defined, DO_CREDS, 'Use DO_CREDS to specify a file containing SPACES_KEY and SPACES_SECRET')
-	$(eval ANNOBUILDER_OPTS += $(DO_CREDS))
+	$(eval ANNOBUILDER_OPTS += -v $(DO_CREDS):/anno/do_creds)
 	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --upload)
 	$(annobuilder-template)
 
 upload-package:
-	@$(call check_defined, DO_CREDS, 'Use DO_CREDS to specify a file containing SPACES_KEY and SPACES_SECRET')
+	@$(call check_defined, DO_CREDS, 'Use DO_CREDS to specify the absolute path to a file containing SPACES_KEY and SPACES_SECRET')
 	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to download')
-	$(eval ANNOBUILDER_OPTS += $(DO_CREDS))
+	$(eval ANNOBUILDER_OPTS += -v $(DO_CREDS):/anno/do_creds)
 	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --upload -d $(PKG_NAME))
 	$(annobuilder-template)
 

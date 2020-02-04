@@ -169,7 +169,7 @@ def main():
             logger.debug(f"DEBUG - Step {step_num}: {step}\n")
             step_resp = subprocess.run(step_str, shell=True, cwd=compile_dir)
             if step_resp.returncode != 0:
-                raise Exception(f"Error installing package {pkg_name} on step: {step}")
+                raise Exception(f"Error installing package {pkg_name} on step: {step_str}")
 
         # the packaged src_dir sometimes includes the current version number
         # we don't want that in the path, so rename it to non-versioned

@@ -54,9 +54,7 @@ def main():
         default=default_dataset_file,
         help=f"JSON file containing dataset info. Default: {default_dataset_file}",
     )
-    parser.add_argument(
-        "-d", "--dataset", choices=list(datasets.keys()), help="download or generate a specific dataset"
-    )
+    parser.add_argument("-d", "--dataset", help="download or generate a specific dataset")
     parser.add_argument(
         "-dd",
         "--data-dir",
@@ -100,6 +98,9 @@ def main():
         datasets = json.loads(args.dataset_file.read_text(), object_pairs_hook=OrderedDict)
     else:
         raise IOError(f"Cannot read dataset file: {args.dataset_file}. Check it exists, is readable and try again")
+
+    if args.dataset not in datasets.keys():
+        raise ValueError(f"Invalid dataset: {args.dataset}. Must be one of: {', '.join(sorted(datasets.keys()))}")
 
     if args.dataset:
         sync_datasets = {args.dataset: datasets[args.dataset]}
