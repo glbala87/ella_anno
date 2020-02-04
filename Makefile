@@ -1,8 +1,8 @@
 BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD)
 API_PORT ?= 6000-6100
-TARGETS_FOLDER ?= /home/oyvinev/repositories/anno-targets
-TARGETS_OUT ?= /media/oyvinev/Storage/anno-targets-out
-SAMPLE_REPO ?= /media/oyvinev/Storage/sample-repo
+TARGETS_FOLDER ?= $(shell pwd)/anno-targets
+TARGETS_OUT ?= $(shell pwd)/anno-targets-out
+SAMPLE_REPO ?= $(shell pwd)/sample-repo
 
 RELEASE_TAG ?= $(shell git tag -l --points-at HEAD)
 ifneq ($(RELEASE_TAG),)
@@ -123,7 +123,6 @@ define annobuilder-template
 docker run --rm -t \
 	$(ANNOBUILDER_OPTS) \
 	-v $(TMP_DIR):/tmp \
-	-v $(PWD):/anno \
 	$(ANNOBUILDER_IMAGE_NAME) \
 	bash -ic "$(RUN_CMD)"
 endef
@@ -134,13 +133,12 @@ build-base:
 build-annobuilder:
 	docker build -t $(ANNOBUILDER_IMAGE_NAME) --target builder .
 
-# annobuilder/-shell are only run when troubleshooting data generation or adding new packages
+# annobuilder/-shell/-exec are only run when troubleshooting data generation or adding new packages
 annobuilder:
 	docker run -td \
 		--restart=always \
 		--name $(ANNOBUILDER_CONTAINER_NAME) \
 		$(ANNOBUILDER_OPTS) \
-		-v $(shell pwd):/anno \
 		$(ANNOBUILDER_IMAGE_NAME) \
 		sleep infinity
 

@@ -5,6 +5,8 @@ thirdparty/
 data/
 rawdata/
 release/
+anno-targets*
+sample-repo/
 
 singularity/
 *.sif
