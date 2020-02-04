@@ -94,13 +94,13 @@ RUN apt-get update && \
 
 COPY ./ops /anno/ops
 COPY ./bin /anno/bin
-COPY annobuilder-requirements.txt /dist/annobuilder-requirements.txt
+COPY annobuilder-requirements-py2.txt annobuilder-requirements-py3.txt /dist/
 WORKDIR /anno
 
 RUN pip install -U setuptools wheel && \
-    pip install -r /dist/annobuilder-requirements.txt && \
+    pip install -r /dist/annobuilder-requirements-py2.txt && \
     pip3 install -U setuptools wheel && \
-    pip3 install boto3==1.10.6 PyYAML==5.1.2
+    pip3 install -r /dist/annobuilder-requirements-py3.txt
 
 # install thirdparty packages
 RUN python3 /anno/ops/install_thirdparty.py --clean
