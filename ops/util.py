@@ -1,7 +1,9 @@
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 import datetime
 import hashlib
+import json
 import multiprocessing
+from numbers import Number
 import os
 from pathlib import Path
 import re
@@ -11,6 +13,29 @@ import sys
 FileHash = namedtuple("FileHash", ["path", "hash"])
 DEFAULT_HASH_TYPE = "md5"
 DEFAULT_BLOCK_SIZE = 4096
+
+
+def format_obj(obj, format_opts):
+    """
+    recursively formats all strings with a dict of replacement values
+    """
+    if isinstance(obj, str):
+        return obj.format(**format_opts)
+    elif isinstance(obj, (list, set, tuple)):
+        # get list-like class to cast output to
+        listy = type(obj)
+        return listy([format_obj(x, format_opts) for x in obj])
+    elif isinstance(obj, OrderedDict):
+        new_dict = OrderedDict()
+        for key, val in obj.items():
+            new_dict[format_obj(key, format_opts)] = format_obj(val, format_opts)
+        return new_dict
+    elif isinstance(obj, dict):
+        return {format_obj(key, format_opts): format_obj(val, format_opts) for key, val in obj.items()}
+    elif isinstance(obj, Number):
+        return obj
+    else:
+        raise ValueError(f"Cannot format {type(obj)}: {obj}")
 
 
 def hash_file(filename, hash_type=DEFAULT_HASH_TYPE, block_size=DEFAULT_BLOCK_SIZE):
@@ -72,3 +97,11 @@ def _show_status(file_num, max_files):
     max_file_limit = 50
     status_mult = 0.05
     return max_files <= max_file_limit or file_num % int(max_files * status_mult) == 0 or file_num == max_files
+
+
+class AnnoJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        # use default string format for date/datetime objs
+        if isinstance(obj, datetime.date):
+            return f"{obj}"
+        return json.JSONEncoder.default(self, obj)
