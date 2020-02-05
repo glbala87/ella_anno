@@ -92,7 +92,7 @@ RUN apt-get update && \
         libmodule-build-perl \
         pkg-config
 
-COPY ./ops /anno/ops
+COPY ./ops/install_thirdparty.py ./ops/util.py /anno/ops/
 COPY ./bin /anno/bin
 COPY annobuilder-requirements-py2.txt annobuilder-requirements-py3.txt /dist/
 WORKDIR /anno
@@ -104,6 +104,8 @@ RUN pip install -U setuptools wheel && \
 
 # install thirdparty packages
 RUN python3 /anno/ops/install_thirdparty.py --clean
+
+COPY ./ops/sync_data.py ./ops/spaces.py ./ops/datasets.json /anno/ops/
 
 # if do_creds file mounted in, source and export variables for uploading data to DigitalOcean
 RUN echo "if [[ -f /anno/do_creds ]]; then source /anno/do_creds; export SPACES_KEY SPACES_SECRET; fi" >> /root/.bashrc
