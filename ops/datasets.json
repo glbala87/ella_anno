@@ -45,8 +45,8 @@
         "version": "2.0.2",
         "destination": "variantDBs/gnomAD",
         "generate": [
-            "{base_dir}/scripts/gnomad/download_gnomad.sh -r {version} -s",
-            "{base_dir}/scripts/gnomad/gnomad_process_data.sh -v {version} -b {base_dir}/data/refGene/refgene_hg19_slop_10k.bed"
+            "{root_dir}/scripts/gnomad/download_gnomad.sh -r {version} -s",
+            "{root_dir}/scripts/gnomad/gnomad_process_data.sh -v {version} -b {base_data_dir}/refGene/refgene_hg19_slop_10k.bed"
         ],
         "vcfanno": [
             {
@@ -530,7 +530,7 @@
         "version": "20191127",
         "destination": "variantDBs/clinvar",
         "generate": [
-            "python {base_dir}/scripts/clinvar/clinvardb_to_vcf.py -np {max_procs} -o {data_dir}/clinvar_{version}.vcf -g {base_dir}/data/FASTA/human_g1k_v37_decoy.fasta"
+            "python {root_dir}/scripts/clinvar/clinvardb_to_vcf.py -np {max_procs} -o {data_dir}/clinvar_{version}.vcf -g {root_dir}/data/FASTA/human_g1k_v37_decoy.fasta"
         ],
         "vcfanno": [
             {

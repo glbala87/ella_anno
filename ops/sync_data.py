@@ -13,15 +13,17 @@ import subprocess
 from spaces import DataManager
 from install_thirdparty import thirdparty_packages
 import time
-from util import hash_file, hash_directory_async
+import toml
+from util import hash_file, hash_directory_async, AnnoJSONEncoder, format_obj
 from yaml import load as load_yaml, dump as dump_yaml
 
 try:
     # try to use libyaml first
-    from yaml import CLoader as Loader, CDumper as Dumper
+    from yaml import CBaseLoader as Loader, CDumper as Dumper
 except ImportError:
     # fall back to pure python
-    from yaml import Loader, Dumper
+    from yaml import BaseLoader as Loader, Dumper
+# we're using C/BaseLoader to ensure all values are strings as expected
 
 import pdb
 
@@ -109,7 +111,7 @@ def main():
         sync_datasets = datasets
 
     sources_json_file = args.data_dir / "sources.json"
-    vcfanno_toml_file = args.data_dir / "vcfanno"
+    vcfanno_toml_file = args.data_dir / "vcfanno_config.toml"
 
     errs = list()
     for dataset_name, dataset in sync_datasets.items():
@@ -117,16 +119,26 @@ def main():
         raw_dir = args.rawdata_dir.absolute() / dataset_name
         data_dir = args.data_dir.absolute() / dataset.get("destination", dataset_name)
         thirdparty_dir = args.thirdparty_dir.absolute() / dataset.get("thirdparty-name", dataset_name)
-        dataset_version = dataset.get("version", "")
+        if dataset_name == "vep":
+            # special processing for VEP, which has its version defined in install_thirdparty.py
+            dataset_version = thirdparty_packages["vep"]["version"]
+        else:
+            dataset_version = dataset.get("version", "")
+
         format_opts = {
-            "version": dataset_version,
+            # directory paths, all absolute
+            "root_dir": str(default_base_dir),
+            "base_data_dir": str(args.data_dir.absolute()),
             "data_dir": str(data_dir),
             "thirdparty": str(thirdparty_dir),
-            "base_dir": str(default_base_dir),
-            "max_procs": args.max_processes,
+            # version info
+            "version": dataset_version,
             # vep version is a special case, since data is retrieved after installing the software in `install_thirdparty.py`
             "vep_version": thirdparty_packages["vep"]["version"],
+            # misc settings
+            "max_procs": args.max_processes,
         }
+
         sources_data = OrderedDict()
         sources_data["version"] = dataset_version
         if "hash" in dataset:
@@ -149,7 +161,7 @@ def main():
 
             for step_num, step in enumerate(dataset["generate"]):
                 logger.debug(f"DEBUG - Step {step_num}: {step}\n")
-                step_str = step.format(**format_opts)
+                step_str = format_obj(step, format_opts)
 
                 # if dataset allows retries (e.g., Broad's crappy FTP server), retry until max reached
                 # otherwise, bail on error
@@ -205,7 +217,7 @@ def main():
                 sources_data["timestamp"] = dataset_metadata["timestamp"]
 
                 if args.skip_validation:
-                    logger.info(f"Skipping download validation for {pkg_name}")
+                    logger.info(f"Skipping download validation for {dataset_name}")
                 else:
                     logger.info("Validating downloaded data")
                     md5sum = data_dir / "MD5SUM"
@@ -222,9 +234,7 @@ def main():
 
         if args.generate or args.download:
             if "vcfanno" in dataset:
-                sources_data["vcfanno"] = OrderedDict()
-                for key, val in dataset["vcfanno"].items():
-                    sources_data["vcfanno"][key] = val.format(format_opts)
+                sources_data["vcfanno"] = format_obj(dataset["vcfanno"], format_opts)
                 update_vcfanno_toml(vcfanno_toml_file, sources_data["vcfanno"])
             update_sources(sources_json_file, dataset_name, sources_data)
 
@@ -244,7 +254,7 @@ def update_sources(sources_file, source_name, source_data):
     old_data = file_json.get(source_name, OrderedDict())
     if source_data != old_data:
         file_json[source_name] = source_data
-        sources_file.write_text(json.dumps(file_json, indent=2, object_pairs_hook=OrderedDict) + "\n")
+        sources_file.write_text(json.dumps(file_json, cls=AnnoJSONEncoder, indent=2) + "\n")
     else:
         logger.info(f"Not updating {sources_file} for {source_name}: data is unchanged")
 
@@ -258,15 +268,20 @@ def update_vcfanno_toml(toml_file, annotation_data):
     # check if entry for file already exists
     if "annotation" in toml_data.keys():
         matching_index = [i for i, x in enumerate(toml_data["annotation"]) if x["file"] == annotation_data["file"]]
-        anno_index = matching_index[0] if matching_index else len(toml_data["annotation"])
+        anno_index = matching_index[0] if matching_index else None
     else:
         toml_data["annotation"] = list()
-        anno_index = 0
+        anno_index = None
 
     if anno_index and toml_data["annotation"][anno_index] == annotation_data:
         loggger.info(f"Not updating {toml_file} for {annotation_data['file']: data is unchanged}")
     else:
-        toml_data["annotation"][anno_index] = toml_data
+        # append new file data, otherwise update in place
+        if anno_index is None:
+            toml_data["annotation"].append(annotation_data)
+        else:
+            toml_data["annotation"][anno_index] = annotation_data
+
         try:
             toml_file.write_text(toml.dumps(toml_data))
         except IOError as e:
