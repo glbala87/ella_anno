@@ -28,7 +28,7 @@ import pdb
 this_dir = Path(__file__).parent.absolute()
 default_base_dir = this_dir.parent
 # check for ANNO_DATA env variable, otherwise use {default_base_dir}/data
-default_data_dir = os.environ["ANNO_DATA"] if os.environ.get("ANNO") else default_base_dir / "data"
+default_data_dir = Path(os.environ["ANNO_DATA"]) if os.environ.get("ANNO") else default_base_dir / "data"
 default_rawdata_dir = default_base_dir / "rawdata"
 default_thirdparty_dir = default_base_dir / "thirdparty"
 default_dataset_file = this_dir / "datasets.json"
@@ -100,7 +100,7 @@ def main():
     else:
         raise IOError(f"Cannot read dataset file: {args.dataset_file}. Check it exists, is readable and try again")
 
-    if args.dataset not in datasets.keys():
+    if args.dataset and args.dataset not in datasets.keys():
         raise ValueError(f"Invalid dataset: {args.dataset}. Must be one of: {', '.join(sorted(datasets.keys()))}")
 
     if args.dataset:
