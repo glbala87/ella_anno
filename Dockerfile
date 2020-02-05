@@ -146,7 +146,8 @@ ENV UTA_DB_URL=postgresql://uta_admin@localhost:5432/uta/${UTA_VERSION} \
     PATH=/anno/bin:$TARGETS/targets:$PATH \
     PERL5LIB=/anno/thirdparty/ensembl-vep-release/lib/:/anno/thirdparty/vcftools/lib \
     WORKFOLDER=/tmp/annowork \
-    HGVS_SEQREPO_DIR=/anno/data/seqrepo/latest
+    HGVS_SEQREPO_DIR=/anno/data/seqrepo/latest \
+    ANNO_DATA=/anno/data
 
 # Set supervisor as default cmd
 CMD /anno/ops/entrypoint.sh
