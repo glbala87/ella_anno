@@ -124,7 +124,7 @@ docker run --rm -t \
 	$(ANNOBUILDER_OPTS) \
 	-v $(TMP_DIR):/tmp \
 	$(ANNOBUILDER_IMAGE_NAME) \
-	bash -ic "$(RUN_CMD)"
+	bash -ic "$(RUN_CMD) $(RUN_CMD_ARGS)"
 endef
 
 build-base:

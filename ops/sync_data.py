@@ -27,12 +27,12 @@ import pdb
 
 this_dir = Path(__file__).parent.absolute()
 default_base_dir = this_dir.parent
-default_data_dir = default_base_dir / "data"
+# check for ANNO_DATA env variable, otherwise use {default_base_dir}/data
+default_data_dir = os.environ["ANNO_DATA"] if os.environ.get("ANNO") else default_base_dir / "data"
 default_rawdata_dir = default_base_dir / "rawdata"
 default_thirdparty_dir = default_base_dir / "thirdparty"
 default_dataset_file = this_dir / "datasets.json"
 TOUCHFILE = "DATA_READY"
-sources_json_file = default_base_dir / "sources.json"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -87,6 +87,7 @@ def main():
         help=f"max number of processes to run in parallel. Default: {os.cpu_count()}",
     )
     parser.add_argument("--cleanup", action="store_true", help="clean up raw data after successful processing")
+    parser.add_argument("--skip-validation", action="store_true", help="skip md5 validation of downloaded files")
     parser.add_argument("--verbose", action="store_true", help="be extra chatty")
     parser.add_argument("--debug", action="store_true", help="run in debug mode")
     args = parser.parse_args()
@@ -106,6 +107,9 @@ def main():
         sync_datasets = {args.dataset: datasets[args.dataset]}
     else:
         sync_datasets = datasets
+
+    sources_json_file = args.data_dir / "sources.json"
+    vcfanno_toml_file = args.data_dir / "vcfanno"
 
     errs = list()
     for dataset_name, dataset in sync_datasets.items():
@@ -200,14 +204,17 @@ def main():
                     continue
                 sources_data["timestamp"] = dataset_metadata["timestamp"]
 
-                logger.info("Validating downloaded data")
-                md5sum = data_dir / "MD5SUM"
-                if not md5sum.exists():
-                    logger.error(f"No MD5SUM file found for {dataset_name} at {md5sum}, cannot validate files")
-                    continue
-                subprocess.run(["md5sum", "--quiet", "-c", "MD5SUM"], cwd=data_dir, check=True)
+                if args.skip_validation:
+                    logger.info(f"Skipping download validation for {pkg_name}")
+                else:
+                    logger.info("Validating downloaded data")
+                    md5sum = data_dir / "MD5SUM"
+                    if not md5sum.exists():
+                        logger.error(f"No MD5SUM file found for {dataset_name} at {md5sum}, cannot validate files")
+                        continue
+                    subprocess.run(["md5sum", "--quiet", "-c", "MD5SUM"], cwd=data_dir, check=True)
 
-                logger.info(f"All {dataset_name} files validated successfully")
+                    logger.info(f"All {dataset_name} files validated successfully")
             else:
                 mgr.upload_package(*cmd_args)
         else:
@@ -218,7 +225,8 @@ def main():
                 sources_data["vcfanno"] = OrderedDict()
                 for key, val in dataset["vcfanno"].items():
                     sources_data["vcfanno"][key] = val.format(format_opts)
-            update_sources(dataset_name, sources_data)
+                update_vcfanno_toml(vcfanno_toml_file, sources_data["vcfanno"])
+            update_sources(sources_json_file, dataset_name, sources_data)
 
     if errs:
         logger.error(f"Encountered errors with the following datasets:")
@@ -227,18 +235,43 @@ def main():
             print(" ---\n")
 
 
-def update_sources(source_name, source_data):
-    if sources_json_file.exists():
-        file_json = json.loads(sources_json_file.read_text(), object_pairs_hook=OrderedDict)
+def update_sources(sources_file, source_name, source_data):
+    if sources_file.exists():
+        file_json = json.loads(sources_file.read_text(), object_pairs_hook=OrderedDict)
     else:
         file_json = OrderedDict()
 
     old_data = file_json.get(source_name, OrderedDict())
     if source_data != old_data:
         file_json[source_name] = source_data
-        sources_json_file.write_text(json.dumps(file_json, indent=2, object_pairs_hook=OrderedDict) + "\n")
+        sources_file.write_text(json.dumps(file_json, indent=2, object_pairs_hook=OrderedDict) + "\n")
     else:
-        logger.info(f"Not updating {sources_json_file} for {source_name}: data is unchanged")
+        logger.info(f"Not updating {sources_file} for {source_name}: data is unchanged")
+
+
+def update_vcfanno_toml(toml_file, annotation_data):
+    if toml_file.exists():
+        toml_data = toml.loads(toml_file.read_text(), _dict=OrderedDict)
+    else:
+        toml_data = OrderedDict()
+
+    # check if entry for file already exists
+    if "annotation" in toml_data.keys():
+        matching_index = [i for i, x in enumerate(toml_data["annotation"]) if x["file"] == annotation_data["file"]]
+        anno_index = matching_index[0] if matching_index else len(toml_data["annotation"])
+    else:
+        toml_data["annotation"] = list()
+        anno_index = 0
+
+    if anno_index and toml_data["annotation"][anno_index] == annotation_data:
+        loggger.info(f"Not updating {toml_file} for {annotation_data['file']: data is unchanged}")
+    else:
+        toml_data["annotation"][anno_index] = toml_data
+        try:
+            toml_file.write_text(toml.dumps(toml_data))
+        except IOError as e:
+            logger.error(f"Error writing to {toml_file}")
+            raise e
 
 
 ###
