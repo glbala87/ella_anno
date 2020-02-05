@@ -3,6 +3,7 @@ API_PORT ?= 6000-6100
 TARGETS_FOLDER ?= $(shell pwd)/anno-targets
 TARGETS_OUT ?= $(shell pwd)/anno-targets-out
 SAMPLE_REPO ?= $(shell pwd)/sample-repo
+ANNO_DATA ?= $(shell pwd)/data
 
 RELEASE_TAG ?= $(shell git tag -l --points-at HEAD)
 ifneq ($(RELEASE_TAG),)
@@ -81,7 +82,7 @@ run:
 	--restart=always \
 	--name $(CONTAINER_NAME) \
 	-p $(API_PORT):6000 \
-	-v $(shell pwd)/data:/anno/data \
+	-v $(ANNO_DATA):/anno/data \
 	-v $(TARGETS_FOLDER):/targets \
 	-v $(TARGETS_OUT):/targets-out \
 	-v $(SAMPLE_REPO):/samples \
@@ -123,6 +124,7 @@ define annobuilder-template
 docker run --rm -t \
 	$(ANNOBUILDER_OPTS) \
 	-v $(TMP_DIR):/tmp \
+	-v $(ANNO_DATA):/anno/data \
 	$(ANNOBUILDER_IMAGE_NAME) \
 	bash -ic "$(RUN_CMD) $(RUN_CMD_ARGS)"
 endef
@@ -212,7 +214,7 @@ gen-singularityfile:
 singularity-start:
 	[ -d $(SINGULARITY_DATA) ] || mkdir -p $(SINGULARITY_DATA)
 	singularity instance start \
-		-B $(shell pwd)/data:/anno/data \
+		-B $(ANNO_DATA):/anno/data \
 		-B $(shell mktemp -d):/anno/.cache \
 		-B $(SINGULARITY_DATA):/pg_uta \
 		--cleanenv \
