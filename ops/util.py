@@ -70,7 +70,7 @@ def hash_directory_async(basepath, max_procs=None, ignore=[], *args, **kwargs):
         async_result = list()
         for file_path in file_list:
             async_result.append(
-                (f"{file_path.relative_to(basepath)}", pool.apply_async(apply_hash, [file_path, args, kwargs]))
+                (f"{file_path.relative_to(basepath)}", pool.apply_async(_apply_hash, [file_path, args, kwargs]))
             )
         finished_count = 0
         for r in async_result:
@@ -85,7 +85,7 @@ def hash_directory_async(basepath, max_procs=None, ignore=[], *args, **kwargs):
     return hash_list
 
 
-def apply_hash(filename, args=list(), kwargs=dict()):
+def _apply_hash(filename, args=list(), kwargs=dict()):
     return hash_file(filename, *args, **kwargs)
 
 
