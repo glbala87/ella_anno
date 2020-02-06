@@ -93,6 +93,7 @@ RUN apt-get update && \
         pkg-config
 
 COPY ./ops/install_thirdparty.py ./ops/util.py /anno/ops/
+COPY ./scripts /anno/scripts
 COPY ./bin /anno/bin
 COPY annobuilder-requirements-py2.txt annobuilder-requirements-py3.txt /dist/
 WORKDIR /anno

@@ -459,7 +459,10 @@ def parse_clinvar_file(vcf_file, archive=True):
             vcf_positions[variant_id] = (chrom, int(pos), ref, alt)
 
             assert variant_id not in clnsig_and_revstat
-            revstat = re.match(".*CLNREVSTAT=([^;]+).*", info).groups(1)[0].replace("_", " ")
+            try:
+                revstat = re.match(".*CLNREVSTAT=([^;]+).*", info).groups(1)[0].replace("_", " ")
+            except AttributeError as e:
+                clnsig = "N/A"
 
             try:
                 clnsig = re.match(".*CLNSIG=([^;]+).*", info).groups(1)[0].replace("_", " ")
