@@ -56,6 +56,7 @@ class DataManager(object):
     _pool = None
     _max_threads = None
     _show_progress = False
+    skip_validation = False
 
     def __init__(self, access_key=None, access_secret=None, **kwargs):
         self.access_key = os.environ.get("SPACES_KEY", access_key)
@@ -152,7 +153,7 @@ class DataManager(object):
                     file_key = f"{file_obj.absolute().relative_to(abs_path)}"
                 spaces_key = f"{key_base}/{file_key}"
                 package_file = PackageFile(local=file_obj, remote=self.bucket.Object(spaces_key))
-                if package_file.remote.key in remote_keys and files_match(package_file):
+                if package_file.remote.key in remote_keys and (args.skip_validation or files_match(package_file)):
                     skip_count += 1
                 else:
                     package_files.append(package_file)
@@ -164,9 +165,7 @@ class DataManager(object):
 
         if package_files:
             logger.info(f"Uploading {len(package_files)} files for {name}")
-            self.pool.map(
-                upload_func, sorted([p for p in package_files if not files_match(p)], key=lambda x: f"{x.local}")
-            )
+            self.pool.map(upload_func, sorted(package_files, key=lambda x: f"{x.local}"))
         logger.info(f"Finished processing all files for {name}")
 
     def download_package(self, name, version, path, show_progress=False):
@@ -187,7 +186,7 @@ class DataManager(object):
             package_file = PackageFile(
                 local=Path(obj.key.replace(f"/{version}/", "/")), remote=self.bucket.Object(obj.key)
             )
-            if files_match(package_file):
+            if package_file.local.exists() and (self.skip_validation or files_match(package_file)):
                 skip_count += 1
             else:
                 package_files.append(package_file)
