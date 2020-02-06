@@ -203,7 +203,7 @@ def main():
             if args.cleanup:
                 shutil.rmtree(raw_dir)
         elif args.download or args.upload:
-            mgr = DataManager()
+            mgr = DataManager(skip_validation=args.skip_validation)
             cmd_args = [dataset_name, dataset_version, data_dir.relative_to(default_base_dir)]
             if args.download:
                 mgr.download_package(*cmd_args)
@@ -235,7 +235,9 @@ def main():
         if args.generate or args.download:
             if "vcfanno" in dataset:
                 sources_data["vcfanno"] = format_obj(dataset["vcfanno"], format_opts)
-                update_vcfanno_toml(vcfanno_toml_file, sources_data["vcfanno"])
+                # some datasets may have multiple files to be added (e.g., gnomAD), so update each of those individually
+                for anno_entry in sources_data["vcfanno"]:
+                    update_vcfanno_toml(vcfanno_toml_file, anno_entry)
             update_sources(sources_json_file, dataset_name, sources_data)
 
     if errs:
@@ -274,7 +276,7 @@ def update_vcfanno_toml(toml_file, annotation_data):
         anno_index = None
 
     if anno_index and toml_data["annotation"][anno_index] == annotation_data:
-        loggger.info(f"Not updating {toml_file} for {annotation_data['file']: data is unchanged}")
+        loggger.info(f"Not updating {toml_file} for {annotation_data['file']}: data is unchanged")
     else:
         # append new file data, otherwise update in place
         if anno_index is None:
@@ -284,6 +286,7 @@ def update_vcfanno_toml(toml_file, annotation_data):
 
         try:
             toml_file.write_text(toml.dumps(toml_data))
+            logger.info(f"Updated {toml_file} with entry for {annotation_data['file']}")
         except IOError as e:
             logger.error(f"Error writing to {toml_file}")
             raise e
