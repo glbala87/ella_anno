@@ -61,7 +61,7 @@ thirdparty_packages = {
         "url_prefix": "archive/release",
         "filename": "{version}.tar.gz",
         "src_dir": "ensembl-vep-release-{version}",
-        "installation": ["perl INSTALL.pl -a a -s homo_sapiens_merged -y GRCh37"],
+        "installation": ["perl INSTALL.pl -n -a a -s homo_sapiens_merged -y GRCh37"],
     },
     "vt": {
         "url": "https://github.com/atks/vt",
