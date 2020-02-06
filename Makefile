@@ -140,6 +140,7 @@ annobuilder:
 	docker run -td \
 		--restart=always \
 		--name $(ANNOBUILDER_CONTAINER_NAME) \
+		-v $(ANNO_DATA):/anno/data \
 		$(ANNOBUILDER_OPTS) \
 		$(ANNOBUILDER_IMAGE_NAME) \
 		sleep infinity
