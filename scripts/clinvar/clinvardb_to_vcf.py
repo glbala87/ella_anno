@@ -462,11 +462,11 @@ def parse_clinvar_file(vcf_file, archive=True):
             try:
                 revstat = re.match(".*CLNREVSTAT=([^;]+).*", info).groups(1)[0].replace("_", " ")
             except AttributeError as e:
-                clnsig = "N/A"
+                revstat = "N/A"
 
             try:
                 clnsig = re.match(".*CLNSIG=([^;]+).*", info).groups(1)[0].replace("_", " ")
-            except Exception as e:
+            except AttributeError as e:
                 clnsig = "N/A"
             clnsig_and_revstat[variant_id] = (clnsig, revstat)
 
