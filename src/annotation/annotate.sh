@@ -260,7 +260,6 @@ then
             --force_overwrite \
             --sift=b \
             --polyphen=b \
-            --ccds \
             --hgvs \
             --numbers \
             --domains \
@@ -268,9 +267,6 @@ then
             --canonical \
             --protein \
             --biotype \
-            --af \
-            --af_1kg \
-            --af_esp \
             --pubmed \
             --symbol \
             --allow_non_variant \
