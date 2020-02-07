@@ -3,6 +3,7 @@ import re
 import os
 import datetime
 import tempfile
+import json
 from collections import defaultdict
 
 # Module for converting data
@@ -38,6 +39,14 @@ logger = logging.getLogger("anno")
 #   signal.alarm(0) # <-- Reset the timeout criteria. Functions run after this will not time out.
 #
 signal.signal(signal.SIGALRM, timeout_handler)
+
+if "HGVS_SEQREPO_DIR" not in os.environ:
+    with open(os.path.join(os.environ["ANNO_DATA"], "sources.json")) as sources_file:
+        sources = json.load(sources_file)
+        seqrepo_version = sources["seqrepo"]["version"]
+        os.environ["HGVS_SEQREPO_DIR"] = os.path.join(os.environ["ANNO_DATA"], "seqrepo", seqrepo_version)
+
+assert os.path.isdir(os.environ["HGVS_SEQREPO_DIR"]), "Path not found: {}".format(os.environ["HGVS_SEQREPO_DIR"])
 
 
 class Exporter(object):

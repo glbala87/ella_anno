@@ -146,7 +146,6 @@ ENV UTA_DB_URL=postgresql://uta_admin@localhost:5432/uta/${UTA_VERSION} \
     PERL5LIB=/anno/thirdparty/ensembl-vep-release/:/anno/thirdparty/vcftools/lib \
     LD_LIBRARY_PATH=/anno/thirdparty/ensembl-vep-release/htslib \
     WORKFOLDER=/tmp/annowork \
-    HGVS_SEQREPO_DIR=/anno/data/seqrepo/latest \
     ANNO_DATA=/anno/data
 
 COPY . /anno
