@@ -71,7 +71,7 @@ def get_alt_for_inversion(ref):
     return "".join(reversed(ref.translate(translation_table)))
 
 
-def var_g_to_vcf(var_g, seqdb):
+def var_g_to_vcf(var_g, fasta):
     """
     Convert var_g to vcf using the genome reference to add bases where needed.
     """
@@ -92,22 +92,16 @@ def var_g_to_vcf(var_g, seqdb):
         alt = get_alt_for_inversion(ref)
         vcf_data.update({"pos": start, "ref": ref, "alt": alt})
     elif variant_type == "dup":
-        _, vcf_pos, _, ref, alt = vcfhelper.VCFAlleleCreator(seqdb).duplication(
-            chrom, start - 1, end, duplicated=ref
-        )
+        _, vcf_pos, _, ref, alt = vcfhelper.VCFAlleleCreator(fasta).duplication(chrom, start - 1, end, duplicated=ref)
         vcf_data.update({"pos": vcf_pos, "ref": ref, "alt": alt})
     elif variant_type == "del":
-        _, vcf_pos, _, ref, alt = vcfhelper.VCFAlleleCreator(seqdb).deletion(
-            chrom, start - 1, end, deleted=ref
-        )
+        _, vcf_pos, _, ref, alt = vcfhelper.VCFAlleleCreator(fasta).deletion(chrom, start - 1, end, deleted=ref)
         vcf_data.update({"pos": vcf_pos, "ref": ref, "alt": alt})
     elif variant_type == "ins":
-        _, vcf_pos, _, ref, alt = vcfhelper.VCFAlleleCreator(seqdb).insertion(
-            chrom, start - 1, alt
-        )
+        _, vcf_pos, _, ref, alt = vcfhelper.VCFAlleleCreator(fasta).insertion(chrom, start - 1, alt)
         vcf_data.update({"pos": vcf_pos, "ref": ref, "alt": alt})
     elif variant_type == "delins":
-        _, vcf_pos, _, ref, alt = vcfhelper.VCFAlleleCreator(seqdb).indel(
+        _, vcf_pos, _, ref, alt = vcfhelper.VCFAlleleCreator(fasta).indel(
             chrom, start - 1, end, inserted=alt, deleted=ref
         )
         vcf_data.update({"pos": vcf_pos, "ref": ref, "alt": alt})

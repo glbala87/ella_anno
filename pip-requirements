@@ -4,19 +4,14 @@ blinker==1.4.0
 flake8==3.2.1
 Flask-RESTful==0.3.1
 Flask==0.10.1
-hgvs==1.2.5
+hgvs==1.4.0
 itsdangerous==0.24
 Jinja2==2.7.3
 MarkupSafe==0.23
 psutil==5.2.2
-#psycopg2==2.5.4
-pygr==0.8.2
+pysam==0.15.3
 pytest==3.0.5
 six==1.11.0
 Werkzeug==0.9.6
 wsgiref==0.1.2
-
-# clinvardb_to_vcf reqs
-jsonschema==3.1.1
-lxml==4.4.1
-pyfaidx==0.5.5.2
+yoyo-migrations==6.1.0
