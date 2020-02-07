@@ -139,8 +139,7 @@ def main():
             "max_procs": args.max_processes,
         }
 
-        sources_data = OrderedDict()
-        sources_data["version"] = dataset_version
+        sources_data = {"version": dataset_version}
         if "hash" in dataset:
             format_opts["hash_type"] = dataset["hash"]["type"]
             format_opts["hash_value"] = dataset["hash"]["value"]
@@ -155,9 +154,6 @@ def main():
 
             if not raw_dir.exists():
                 raw_dir.mkdir(parents=True)
-
-            if type(dataset["generate"]) is str and dataset["generate"] == "download":
-                dataset["generate"] = dataset["download"]
 
             for step_num, step in enumerate(dataset["generate"]):
                 logger.debug(f"DEBUG - Step {step_num}: {step}\n")
@@ -198,7 +194,7 @@ def main():
             if step_success is True:
                 fin_time = datetime.datetime.utcnow()
                 sources_data["timestamp"] = fin_time
-                dump_yaml(sources_data.open("wt"), Dumper=Dumper)
+                dump_yaml(sources_data, dataset_ready.open("wt"), Dumper=Dumper)
 
             if args.cleanup:
                 shutil.rmtree(raw_dir)
