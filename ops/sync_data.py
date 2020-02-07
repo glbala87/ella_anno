@@ -276,7 +276,7 @@ def update_vcfanno_toml(toml_file, annotation_data):
         anno_index = None
 
     if anno_index and toml_data["annotation"][anno_index] == annotation_data:
-        loggger.info(f"Not updating {toml_file} for {annotation_data['file']}: data is unchanged")
+        logger.info(f"Not updating {toml_file} for {annotation_data['file']}: data is unchanged")
     else:
         # append new file data, otherwise update in place
         if anno_index is None:
