@@ -153,7 +153,7 @@ class DataManager(object):
                     file_key = f"{file_obj.absolute().relative_to(abs_path)}"
                 spaces_key = f"{key_base}/{file_key}"
                 package_file = PackageFile(local=file_obj, remote=self.bucket.Object(spaces_key))
-                if package_file.remote.key in remote_keys and (args.skip_validation or files_match(package_file)):
+                if package_file.remote.key in remote_keys and (self.skip_validation or files_match(package_file)):
                     skip_count += 1
                 else:
                     package_files.append(package_file)
