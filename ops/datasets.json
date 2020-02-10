@@ -40,6 +40,38 @@
             "bedtools slop -i refgene_{version}.bed -g {data_dir}/{version}.genome -b 10000 > {data_dir}/refgene_{version}_slop_10k.bed"
         ]
     },
+    "refseq": {
+        "description": "RefSeq identifiers suitable for VEP annotation. More up to date and fixes alignment not handled by VEP refseq cache",
+        "version": "20191105",
+        "hash": {
+            "type": "md5",
+            "value": "e84f4e0102b6c4f4cc0035b8abf1038f"
+        },
+        "destination": "RefSeq",
+        "generate": [
+            "wget -O GRCh37_refseq_{version}.gff.gz ftp://ftp.ncbi.nlm.nih.gov/refseq/H_sapiens/annotation/GRCh37_latest/refseq_identifiers/GRCh37_latest_genomic.gff.gz",
+            "echo '{hash_value} GRCh37_refseq_{version}.gff.gz' | {hash_type}sum -c",
+            "zgrep -v '#' GRCh37_refseq_{version}.gff.gz | sort -k1,1 -k4,4n -k5,5n -t '\t' | bgzip -c > GRCh37_refseq_{version}_VEP.gff.gz",
+            "tabix -p gff GRCh37_refseq_{version}_VEP.gff.gz",
+            "mv GRCh37_refseq_{version}_VEP.gff.gz* {data_dir}"
+        ]
+    },
+    "refseq_interim": {
+        "description": "RefSeq identifiers suitable for VEP annotation. See https://blog.goldenhelix.com/updating-varseqs-transcript-annotation-along-with-ncbi-refseq-genes-interim-release/",
+        "version": "20170113",
+        "hash": {
+            "type": "md5",
+            "value": "ea1627a1b54bf130e364c90f94a130dd"
+        },
+        "destination": "RefSeq_interim",
+        "generate": [
+            "wget -O GRCh37_refseq_interim_{version}.gff.gz ftp://ftp.ncbi.nlm.nih.gov/genomes/Homo_sapiens/ARCHIVE/ANNOTATION_RELEASE.109/GRCh37.p13_interim_annotation/interim_GRCh37.p13_top_level_2017-01-13.gff3.gz",
+            "echo '{hash_value} GRCh37_refseq_interim_{version}.gff.gz' | {hash_type}sum -c",
+            "zgrep -v '#' GRCh37_refseq_interim_{version}.gff.gz | sort -k1,1 -k4,4n -k5,5n -t '\t' | bgzip -c > GRCh37_refseq_interim_{version}_VEP.gff.gz",
+            "tabix -p gff GRCh37_refseq_interim_{version}_VEP.gff.gz",
+            "mv GRCh37_refseq_interim_{version}_VEP.gff.gz* {data_dir}"
+        ]
+    },
     "gnomad": {
         "description": "gnomAD variant database",
         "version": "2.0.2",
