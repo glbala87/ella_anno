@@ -57,6 +57,9 @@ class DataManager(object):
     _max_threads = None
     _show_progress = False
     skip_validation = False
+    overwrite_remote = False
+    overwrite_local = True
+    # TODO: public/non-public flag?
 
     def __init__(self, access_key=None, access_secret=None, **kwargs):
         self.access_key = os.environ.get("SPACES_KEY", access_key)
@@ -136,6 +139,8 @@ class DataManager(object):
         # get a list of keys already in the bucket for this package version
         # checking for a key in the array is faster than running s3_object_exists for every file on new package uploads
         remote_keys = set([o.key for o in self.bucket.objects.filter(Prefix=key_base)])
+        if remote_keys and self.overwrite_remote is False:
+            raise Exception(f"Found existing remote files at {key_base}, aborting. Remove remote files or set overwrite_remote=True and try again.")
         skip_count = 0
         package_files = []
         if not path.exists():
@@ -186,7 +191,9 @@ class DataManager(object):
             package_file = PackageFile(
                 local=Path(obj.key.replace(f"/{version}/", "/")), remote=self.bucket.Object(obj.key)
             )
-            if package_file.local.exists() and (self.skip_validation or files_match(package_file)):
+            if package_file.local.exists() is False and self.overwrite_local is False:
+                raise Exception(f"Cannot overwrite existing files for {name}. Remove files or set overwrite_local to True")
+            elif package_file.local.exists() and (self.skip_validation or files_match(package_file)):
                 skip_count += 1
             else:
                 package_files.append(package_file)
@@ -202,6 +209,7 @@ class DataManager(object):
     def _upload_file(self, package_file, show_progress=False):
         logging.debug(f"Uploading {package_file.local.name} to {package_file.remote.key}")
         cb = TransferProgress(package_file.local) if self._show_progress else None
+        # TODO: set to readable if public repo
         self.client.upload_fileobj(
             package_file.local.open("rb"), self.bucket.name, package_file.remote.key, Callback=cb
         )
@@ -212,7 +220,14 @@ class DataManager(object):
         logging.debug(f"Downloading {package_file.remote.key} to {package_file.local}")
         cb = TransferProgress(package_file.remote) if self._show_progress else None
         package_file.local.parent.mkdir(parents=True, exist_ok=True)
-        package_file.remote.download_fileobj(package_file.local.open("wb"), Callback=cb)
+        # check for auth creds, and use client if found otherwise authless download without creds from s3 object
+        if self.access_secret and self.access_key:
+            self.client.download_fileobj(
+                self.bucket.name, package_file.remote.key, package_file.local.open("wb")
+            )
+        else:
+            package_file.remote.download_fileobj(package_file.local.open("wb"), Callback=cb)
+
         if cb:
             print()  # extra print to get past the \r in the TransferProgress callback
 
