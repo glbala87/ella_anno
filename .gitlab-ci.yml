@@ -22,17 +22,17 @@ stages:
   before_script:
     - apk add --update make git
 
-run_pytest:
-  extends: .image-setup
-  stage: test
-  script:
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - docker pull $BUILDER_IMAGE_NAME
-    - docker pull $PROD_IMAGE_NAME
-    - make download-data
-    - make test
-  after_script:
-    - make cleanup
+# run_pytest:
+#   extends: .image-setup
+#   stage: test
+#   script:
+#     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+#     - docker pull $BUILDER_IMAGE_NAME
+#     - docker pull $PROD_IMAGE_NAME
+#     - make download-data
+#     - make test
+#   after_script:
+#     - make cleanup
 
 # build:
 #   stage: build
@@ -48,15 +48,15 @@ run_pytest:
 #     - docker push $BUILDER_IMAGE_NAME
 #     - docker push $CI_REGISTRY_IMAGE:builder-latest
 
-build:
-  stage: build
-  extends: .image-setup
-  script:
-    - env | egrep '^(CI|GITLAB)_'
-    - docker login -u tsnowlan -p $CI_REGISTRY_RW $CI_REGISTRY
-    - export
-    - docker build -t buildtest --target buildtest .
-    - docker push buildtest
+# build:
+#   stage: build
+#   extends: .image-setup
+#   script:
+#     - env | egrep '^(CI|GITLAB)_'
+#     - docker login -u tsnowlan -p $CI_REGISTRY_RW $CI_REGISTRY
+#     - export
+#     - docker build -t buildtest --target buildtest .
+#     - docker push buildtest
 
 faketest:
   stage: faketest
