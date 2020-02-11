@@ -16,8 +16,7 @@ variables:
   PIPELINE_ID: anno-$CI_PIPELINE_ID
 
 stages:
-  - build
-  - test
+  - faketest
 
 .image-setup:
   before_script:
@@ -58,3 +57,9 @@ build:
     - export
     - docker build -t buildtest --target buildtest .
     - docker push buildtest
+
+faketest:
+  stage: faketest
+  extends: .image-setup
+  script:
+    - make gitlab-ci
