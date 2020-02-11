@@ -5,9 +5,9 @@
 PG_BIN=/usr/lib/postgresql/11/bin
 function wait_for_ready() {
     timer=${1:-15}
-    while ! $PG_BIN/pg_isready --dbname=postgres --username=postgres --host $PGDATA; do
+    while ! $PG_BIN/pg_isready --dbname=postgres --username=postgres --host "$PGDATA"; do
         >&2 echo "[$(date +%Y-%m-%d\ %H:%M:%S)] Postgres is unavailable - sleeping for $timer seconds"
-        sleep $timer
+        sleep "$timer"
     done
 }
 
@@ -34,8 +34,8 @@ if [ "$1" = "init" ]; then
     # state, causing restarts to take a long time (replay of xlog/transaction logs)
 
     echo "Init of Postgres cluster in $PGDATA"
-    mkdir -p $PGDATA
-    chown postgres $PGDATA
+    mkdir -p "$PGDATA"
+    chown postgres "$PGDATA"
 
     if [ -d "$PGDATA/pg_clog" ]; then
        echo "The database data dir already exists."
@@ -44,8 +44,8 @@ if [ "$1" = "init" ]; then
         gosu postgres $PG_BIN/initdb
         gosu postgres $PG_BIN/pg_ctl stop -m s
         # use custom postgres conf
-        cp /anno/ops/postgresql.conf $PGDATA/
-        chown postgres $PGDATA/postgresql.conf
+        cp /anno/ops/postgresql.conf "$PGDATA"/
+        chown postgres "$PGDATA"/postgresql.conf
 
         # default superuser/password, change to something private after install
         gosu postgres $PG_BIN/postgres --single -jE <<-EOSQL
@@ -59,23 +59,23 @@ EOSQL
 
     echo "Extracting database from dump"
     # remove old users, if existing
-    dropdb -h $PGDATA uta
-    dropuser -h $PGDATA uta_admin
+    dropdb -h "$PGDATA" uta
+    dropuser -h "$PGDATA" uta_admin
     # create new users  and load data
-    createuser -h $PGDATA -U postgres uta_admin
-    createdb -h $PGDATA -U postgres -O uta_admin uta
-    gzip -cdq /$UTA_VERSION.pgd.gz | psql -h $PGDATA -q -U uta_admin -1 -v ON_ERROR_STOP=1 -d uta
+    createuser -h "$PGDATA" -U postgres uta_admin
+    createdb -h "$PGDATA" -U postgres -O uta_admin uta
+    gzip -cdq "/$UTA_VERSION.pgd.gz" | psql -h "$PGDATA" -q -U uta_admin -1 -v ON_ERROR_STOP=1 -d uta
 
     echo "Refreshing materialized views"
-    psql -h $PGDATA -U uta_admin -d uta -c "REFRESH MATERIALIZED VIEW ${UTA_VERSION}.exon_set_exons_fp_mv;"
-    psql -h $PGDATA -U uta_admin -d uta -c "REFRESH MATERIALIZED VIEW ${UTA_VERSION}.tx_exon_set_summary_mv;"
-    psql -h $PGDATA -U uta_admin -d uta -c "REFRESH MATERIALIZED VIEW ${UTA_VERSION}.tx_def_summary_mv;"
+    psql -h "$PGDATA" -U uta_admin -d uta -c "REFRESH MATERIALIZED VIEW ${UTA_VERSION}.exon_set_exons_fp_mv;"
+    psql -h "$PGDATA" -U uta_admin -d uta -c "REFRESH MATERIALIZED VIEW ${UTA_VERSION}.tx_exon_set_summary_mv;"
+    psql -h "$PGDATA" -U uta_admin -d uta -c "REFRESH MATERIALIZED VIEW ${UTA_VERSION}.tx_def_summary_mv;"
 
     # wait for all the actions to finish and postgres to return to a good state and shut it down cleanly
     wait_for_ready 5
     shutdown
-    touch $PGDATA/pgready
-    rm /$UTA_VERSION.pgd.gz
+    touch "$PGDATA/pgready"
+    rm "/$UTA_VERSION.pgd.gz"
     echo "Database ready"
 else
     echo "Starting PostgreSQL"

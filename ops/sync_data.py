@@ -3,7 +3,6 @@
 import argparse
 from collections import OrderedDict
 import datetime
-import hashlib
 import json
 import os
 import logging
@@ -14,7 +13,7 @@ from spaces import DataManager
 from install_thirdparty import thirdparty_packages
 import time
 import toml
-from util import hash_file, hash_directory_async, AnnoJSONEncoder, format_obj
+from util import hash_directory_async, AnnoJSONEncoder, format_obj
 from yaml import load as load_yaml, dump as dump_yaml
 
 try:
@@ -25,7 +24,6 @@ except ImportError:
     from yaml import BaseLoader as Loader, Dumper
 # we're using C/BaseLoader to ensure all values are strings as expected
 
-import pdb
 
 this_dir = Path(__file__).parent.absolute()
 default_base_dir = this_dir.parent
@@ -44,6 +42,7 @@ logger = logging.getLogger(__name__)
 
 
 def main():
+    """Generate, download or upload datasets based on steps given in --dataset-file."""
     parser = argparse.ArgumentParser()
     action_args = parser.add_mutually_exclusive_group(required=True)
     action_args.add_argument("--download", action="store_true", help="download pre-processed datasets")
@@ -244,6 +243,7 @@ def main():
 
 
 def update_sources(sources_file, source_name, source_data):
+    """Update sources.json file with dataset metadata."""
     if sources_file.exists():
         file_json = json.loads(sources_file.read_text(), object_pairs_hook=OrderedDict)
     else:
@@ -258,6 +258,7 @@ def update_sources(sources_file, source_name, source_data):
 
 
 def update_vcfanno_toml(toml_file, annotation_data):
+    """Update vcfanno_config.toml for the given dataset."""
     if toml_file.exists():
         toml_data = toml.loads(toml_file.read_text(), _dict=OrderedDict)
     else:

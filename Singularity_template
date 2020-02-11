@@ -2,7 +2,7 @@
 import os
 
 template_vars = {
-    "image_name": os.environ["IMAGE_NAME"] ,
+    "image_name": os.environ["IMAGE_NAME"],
     "release_tag": os.environ.get("RELEASE_TAG", "latest"),
 }
 
