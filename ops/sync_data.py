@@ -16,13 +16,12 @@ import toml
 from util import hash_directory_async, AnnoJSONEncoder, format_obj
 from yaml import load as load_yaml, dump as dump_yaml
 
+# try to use libyaml, then fall back to pure python if not available
 try:
-    # try to use libyaml first
+    # we're using C/BaseLoader to ensure all values are strings as expected
     from yaml import CBaseLoader as Loader, CDumper as Dumper
 except ImportError:
-    # fall back to pure python
     from yaml import BaseLoader as Loader, Dumper
-# we're using C/BaseLoader to ensure all values are strings as expected
 
 
 this_dir = Path(__file__).parent.absolute()
@@ -38,11 +37,9 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 
-# add --validate, to check existing data/versions against sources.json, run at startup
-
-
 def main():
     """Generate, download or upload datasets based on steps given in --dataset-file."""
+    # add --validate, to check existing data/versions against sources.json, run at startup
     parser = argparse.ArgumentParser()
     action_args = parser.add_mutually_exclusive_group(required=True)
     action_args.add_argument("--download", action="store_true", help="download pre-processed datasets")
