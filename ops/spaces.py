@@ -1,8 +1,9 @@
+"""Module for managing versioned data in DigitalOcean Spaces."""
+
 import boto3
 from botocore.config import Config as BotoConfig
 from botocore.exceptions import ClientError
 from botocore.handlers import disable_signing
-import csv
 from collections import namedtuple
 from functools import partial
 import logging
@@ -10,17 +11,13 @@ import multiprocessing
 from multiprocessing.pool import ThreadPool
 import os
 from pathlib import Path, PosixPath
-import subprocess
 import sys
-
-import pdb
+import typing
 
 
 SPACES_REGION = "fra1"
 SPACES_ENDPOINT = f"https://{SPACES_REGION}.digitaloceanspaces.com"
 SPACES_BUCKET = "ella-anno"
-ROOT_DIR = Path(__file__).absolute().parent.parent
-DATA_DIR = ROOT_DIR / "data"
 # boto3 doesn't let you directly import classes, so we have to do a hacky string "class" for checking type
 S3Object = "<class 'boto3.resources.factory.s3.Object'>"
 PackageFile = namedtuple("PackageFile", ["local", "remote"])
@@ -31,6 +28,7 @@ client_config = BotoConfig(max_pool_connections=max_pool_conns)
 
 
 def s3_object_exists(s3_object):
+    """Send HEAD request for object: 200 -> object exists, 404 -> object does not exist."""
     try:
         s3_object.load()
     except ClientError as e:
@@ -40,26 +38,27 @@ def s3_object_exists(s3_object):
     return True
 
 
-def files_match(package_file):
+def files_match(package_file: PackageFile):
+    """Return true if remote and local files exist and have identical sizes."""
     return (
-        package_file.local.exists()
-        and s3_object_exists(package_file.remote)
-        and package_file.local.stat().st_size == package_file.remote.content_length
+        package_file.local.exists() and s3_object_exists(package_file.remote) and package_file.local.stat().st_size == package_file.remote.content_length
     )
 
 
 class DataManager(object):
+    """Manage uploading/downloading of files from DigitalOcean Spaces, structured by package name and version."""
+
     _bucket = None
     _client = None
     _s3 = None
     _session = None
     _pool = None
-    _max_threads = None
     _show_progress = False
+    max_threads = os.cpu_count()
     skip_validation = False
     overwrite_remote = False
     overwrite_local = True
-    # TODO: public/non-public flag?
+    is_public = False
 
     def __init__(self, access_key=None, access_secret=None, **kwargs):
         self.access_key = os.environ.get("SPACES_KEY", access_key)
@@ -75,13 +74,15 @@ class DataManager(object):
 
     @property
     def pool(self):
+        """Return a shared multiprocessing.ThreadPool resource, creating a new one if necessary."""
         if self._pool is None:
-            self._pool = ThreadPool(processes=self._max_threads)
+            self._pool = ThreadPool(processes=self.max_threads)
 
         return self._pool
 
     @property
     def client(self):
+        """Return a shared boto3.Client resource from self._session, creating a new one if necessary."""
         if self._client is None:
             self._client = self.session.client("s3", endpoint_url=self.endpoint, config=client_config)
 
@@ -89,6 +90,7 @@ class DataManager(object):
 
     @property
     def bucket(self):
+        """Return a boto3.Bucket resource, creating a new one if necessary."""
         if self._bucket is None:
             self._bucket = self.s3.Bucket(SPACES_BUCKET)
 
@@ -96,6 +98,7 @@ class DataManager(object):
 
     @property
     def s3(self):
+        """Return a boto3.S3 resource, creating a new one if necessary."""
         if self._s3 is None:
             if self.access_key is None or self.access_secret is None:
                 # no key/secret needed for downloading data, so if they're not found we can assume that
@@ -118,6 +121,7 @@ class DataManager(object):
 
     @property
     def session(self):
+        """Return a boto3 session, creating a new one if necessary."""
         if self._session is None:
             if self.access_key is None:
                 raise ValueError("You must include either access_key param or SPACES_KEY environent variable")
@@ -131,7 +135,8 @@ class DataManager(object):
 
         return self._session
 
-    def upload_package(self, name, version, path, show_progress=False):
+    def upload_package(self, name: str, version: str, path: Path, show_progress=False):
+        """Upload a package from the specified path to corresponding package/version in DigitalOcean."""
         abs_path = path.absolute()
         key_base = f"{path}/{version}"
         upload_func = partial(self._upload_file, show_progress=show_progress)
@@ -173,7 +178,8 @@ class DataManager(object):
             self.pool.map(upload_func, sorted(package_files, key=lambda x: f"{x.local}"))
         logger.info(f"Finished processing all files for {name}")
 
-    def download_package(self, name, version, path, show_progress=False):
+    def download_package(self, name: str, version: str, path: Path, show_progress=False):
+        """Download all files for a given package/version to the given location."""
         abs_path = path.absolute()
         key_base = f"{path}/{version}"
         download_func = partial(self._download_file, show_progress=show_progress)
@@ -206,17 +212,22 @@ class DataManager(object):
             self.pool.map(download_func, sorted(package_files))
         logger.info(f"Finished downloading all files for {name}")
 
-    def _upload_file(self, package_file, show_progress=False):
+    def _upload_file(self, package_file: PackageFile, show_progress=False):
+        """Upload individual files, internal function."""
         logging.debug(f"Uploading {package_file.local.name} to {package_file.remote.key}")
         cb = TransferProgress(package_file.local) if self._show_progress else None
         # TODO: set to readable if public repo
+        extra_args = {}
+        if self.is_public:
+            extra_args = {"ACL": "public-read"}
         self.client.upload_fileobj(
-            package_file.local.open("rb"), self.bucket.name, package_file.remote.key, Callback=cb
+            package_file.local.open("rb"), self.bucket.name, package_file.remote.key, ExtraArgs=extra_args, Callback=cb
         )
         if cb:
             print()  # extra print to get past the \r in the TransferProgress callback
 
-    def _download_file(self, package_file, show_progress=False):
+    def _download_file(self, package_file: PackageFile, show_progress=False):
+        """Download individual files, internal function."""
         logging.debug(f"Downloading {package_file.remote.key} to {package_file.local}")
         cb = TransferProgress(package_file.remote) if self._show_progress else None
         package_file.local.parent.mkdir(parents=True, exist_ok=True)
@@ -233,7 +244,7 @@ class DataManager(object):
 
 
 class TransferProgress(object):
-    """Prints progress of a file transfer"""
+    """Print progress of a file transfer."""
 
     def __init__(self, file_obj):
         if type(file_obj) in (Path, PosixPath):
@@ -250,7 +261,8 @@ class TransferProgress(object):
         self._seen_so_far = 0
         self._lock = multiprocessing.Lock()
 
-    def __call__(self, bytes_amount):
+    def __call__(self, bytes_amount: int):
+        """Print transfer status to terminal."""
         # To simplify, assume this is hooked up to a single filename
         with self._lock:
             self._seen_so_far += bytes_amount
