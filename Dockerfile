@@ -92,18 +92,20 @@ RUN apt-get update && \
     libmodule-build-perl \
     pkg-config
 
-COPY annobuilder-requirements-py2.txt annobuilder-requirements-py3.txt /dist/
+COPY annobuilder-requirements-py2.txt /dist/
 WORKDIR /anno
 
 RUN pip install -U setuptools wheel && \
-    pip install -r /dist/annobuilder-requirements-py2.txt && \
-    pip3 install -U setuptools wheel && \
-    pip3 install -r /dist/annobuilder-requirements-py3.txt
+    pip install -r /dist/annobuilder-requirements-py2.txt
 
 COPY ./ops/install_thirdparty.py ./ops/util.py /anno/ops/
 COPY ./bin /anno/bin
 # install thirdparty packages
 RUN python3 /anno/ops/install_thirdparty.py --clean
+
+COPY annobuilder-requirements-py3.txt /dist/
+RUN pip3 install -U setuptools wheel && \
+    pip3 install -r /dist/annobuilder-requirements-py3.txt
 
 COPY ./scripts /anno/scripts/
 COPY ./ops/spaces_config.json /anno/ops/
