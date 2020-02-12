@@ -106,6 +106,7 @@ COPY ./bin /anno/bin
 RUN python3 /anno/ops/install_thirdparty.py --clean
 
 COPY ./scripts /anno/scripts/
+COPY ./ops/spaces_config.json /anno/ops/
 COPY ./ops/sync_data.py ./ops/spaces.py ./ops/datasets.json /anno/ops/
 
 # if do_creds file mounted in, source and export variables for uploading data to DigitalOcean

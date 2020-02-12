@@ -9,7 +9,7 @@ import logging
 from pathlib import Path
 import shutil
 import subprocess
-from spaces import DataManager
+from data_spaces import DataManager
 from install_thirdparty import thirdparty_packages
 import time
 import toml
@@ -31,6 +31,7 @@ default_data_dir = Path(os.environ["ANNO_DATA"]) if os.environ.get("ANNO") else 
 default_rawdata_dir = default_base_dir / "rawdata"
 default_thirdparty_dir = default_base_dir / "thirdparty"
 default_dataset_file = this_dir / "datasets.json"
+default_spaces_config = this_dir / "spaces_config.json"
 TOUCHFILE = "DATA_READY"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -84,12 +85,20 @@ def main():
         default=min(os.cpu_count(), 20),
         help=f"max number of processes to run in parallel. Default: {os.cpu_count()}",
     )
+    parser.add_argument(
+        "-c",
+        "--spaces-config",
+        type=Path,
+        default=default_spaces_config,
+        help=f"JSON config for spaces.DataManager. Default: {default_spaces_config}",
+    )
     parser.add_argument("--cleanup", action="store_true", help="clean up raw data after successful processing")
     parser.add_argument("--skip-validation", action="store_true", help="skip md5 validation of downloaded files")
     parser.add_argument("--verbose", action="store_true", help="be extra chatty")
     parser.add_argument("--debug", action="store_true", help="run in debug mode")
     args = parser.parse_args()
 
+    # process args
     if args.debug:
         setattr(args, "verbose", True)
 
@@ -106,6 +115,17 @@ def main():
     else:
         sync_datasets = datasets
 
+    if args.spaces_config.exists():
+        try:
+            spaces_config = json.loads(args.spaces_config.read_text())
+        except Exception as e:
+            logging.error(f"Failed to parse spaces config file: {args.spaces_config}")
+            raise e
+    else:
+        raise FileNotFoundError(f"Specified --spaces-config {args.spaces_config} does not exist")
+    spaces_config["skip_validation"] = args.skip_validation
+
+    # now we actually start doing things
     sources_json_file = args.data_dir / "sources.json"
     vcfanno_toml_file = args.data_dir / "vcfanno_config.toml"
 
@@ -195,7 +215,7 @@ def main():
             if args.cleanup:
                 shutil.rmtree(raw_dir)
         elif args.download or args.upload:
-            mgr = DataManager(skip_validation=args.skip_validation)
+            mgr = DataManager(**spaces_config)
             cmd_args = [dataset_name, dataset_version, data_dir.relative_to(default_base_dir)]
             if args.download:
                 mgr.download_package(*cmd_args)
