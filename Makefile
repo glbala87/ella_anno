@@ -32,6 +32,12 @@ SINGULARITY_LOG_STDOUT = $(SINGULARITY_LOG_DIR)/$(SINGULARITY_INSTANCE_NAME).out
 # available on /tmp's partition
 TMP_DIR ?= /tmp
 UTA_VERSION=uta_20180821
+
+# if DO_CREDS is set, the file should be mounted into the docker container
+ifneq ($(DO_CREDS),)
+ANNOBUILDER_OPTS += -v $(DO_CREDS):/anno/do_creds
+endif
+
 .PHONY: help
 
 help :
@@ -121,7 +127,7 @@ shell:
 #---------------------------------------------------------------------
 
 define annobuilder-template
-docker run --rm -t \
+docker run --rm -it \
 	$(ANNOBUILDER_OPTS) \
 	-v $(TMP_DIR):/tmp \
 	-v $(ANNO_DATA):/anno/data \
@@ -165,14 +171,12 @@ download-package:
 
 upload-data:
 	@$(call check_defined, DO_CREDS, 'Use DO_CREDS to specify a file containing SPACES_KEY and SPACES_SECRET')
-	$(eval ANNOBUILDER_OPTS += -v $(DO_CREDS):/anno/do_creds)
 	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --upload)
 	$(annobuilder-template)
 
 upload-package:
 	@$(call check_defined, DO_CREDS, 'Use DO_CREDS to specify the absolute path to a file containing SPACES_KEY and SPACES_SECRET')
 	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to download')
-	$(eval ANNOBUILDER_OPTS += -v $(DO_CREDS):/anno/do_creds)
 	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --upload -d $(PKG_NAME))
 	$(annobuilder-template)
 
