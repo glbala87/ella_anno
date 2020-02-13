@@ -277,6 +277,8 @@ then
             --failed=1 \
             --no_stats \
             --merged \
+            --custom ${ANNODATA}/RefSeq/GRCh37_refseq_$(jq -r '.refseq.version' $ANNO/sources.json)_VEP.gff.gz,RefSeq_gff,gff,overlap,1, \
+            --custom ${ANNODATA}/RefSeq_interim/GRCh37_refseq_interim_$(jq -r '.refseq_interim.version' $ANNO/sources.json)_VEP.gff.gz,RefSeq_Interim_gff,gff,overlap,1, \
             -i $VCF \
             -o $OUTPUT_VCF &> $OUTPUT_LOG"
     echo $cmd > $OUTPUT_CMD
