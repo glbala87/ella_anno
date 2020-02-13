@@ -259,7 +259,6 @@ singularity-start-dev:
 		-B $(shell mktemp -d):/anno/.cache \
 		-B $(SINGULARITY_DATA):/pg_uta \
 		--cleanenv \
-		--writable \
 		$(SINGULARITY_SANDBOX_PATH) $(SINGULARITY_INSTANCE_NAME)
 
 singularity-stop-dev: singularity-stop
