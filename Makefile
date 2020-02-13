@@ -22,7 +22,7 @@ ANNOBUILDER_IMAGE_NAME = local/$(BUILDER_BUILD)
 ANNOBUILDER_OPTS += -e ENTREZ_API_KEY=$(ENTREZ_API_KEY)
 SINGULARITY_IMAGE_NAME = $(ANNO_BUILD).sif
 SINGULARITY_SANDBOX_PATH = $(ANNO_BUILD)/
-SINGULARITY_INSTANCE_NAME = $(ANNO_BUILD)-$(USER)
+SINGULARITY_INSTANCE_NAME ?= $(ANNO_BUILD)-$(USER)
 SINGULARITY_DATA = $(shell pwd)/singularity
 SINGULARITY_DEF_FILE = Singularity.$(ANNO_BUILD)
 SINGULARITY_LOG_DIR = $(HOME)/.singularity/instances/logs/$(shell hostname)/$(USER)
@@ -214,7 +214,7 @@ singularity-build: gen-singularityfile
 	sudo singularity build $(SINGULARITY_IMAGE_NAME) $(SINGULARITY_DEF_FILE)
 
 gen-singularityfile:
-	@IMAGE_NAME=$(IMAGE_NAME) bash Singularity_template > $(SINGULARITY_DEF_FILE)
+	@IMAGE_NAME=$(IMAGE_NAME) ./Singularity_template > $(SINGULARITY_DEF_FILE)
 
 singularity-start:
 	[ -d $(SINGULARITY_DATA) ] || mkdir -p $(SINGULARITY_DATA)
