@@ -7,7 +7,7 @@ config = {
         os.path.split(os.path.abspath(__file__))[0], "annotation/annotate.sh"
     ),
     "vcfanno_config": os.path.join(
-        os.path.split(os.path.abspath(__file__))[0], "annotation/vcfanno_config.toml"
+        os.environ["ANNO_DATA"], "vcfanno_config.toml"
     ),
     "convert": {"fail_on_conversion_error": True, "replace_ref_if_mismatch": True},
 }
