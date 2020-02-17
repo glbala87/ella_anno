@@ -181,6 +181,7 @@ fi
 
 log "Indexing ${EXOME_OUTPUT}"
 tabix -p vcf -f "${EXOME_OUTPUT}"
+tabix -p vcf --csi -f "${EXOME_OUTPUT}"
 
 # zip and index genome data
 log "Zipping ${GENOME_OUTPUT}"
@@ -192,5 +193,6 @@ fi
 
 log "Indexing ${GENOME_OUTPUT}"
 tabix -p vcf -f "${GENOME_OUTPUT}"
+tabix -p vcf --csi -f "${GENOME_OUTPUT}"
 
 log "Finished processing gnomAD data"

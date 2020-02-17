@@ -10,12 +10,14 @@ usage="Usage: `basename $0`
 	--regions [regions]		    regions to slice input on
     --convert                   flag to run conversion only, not annotation
 	-o|--outfolder [outfolder]	output folder (default: working directory)
+    -p|--processes              number of cores to use for time-consuming annotation steps (default number of cores available)
 
 "
 
 # Parse arguments
 WORKDIR=$PWD
 CONVERT_ONLY=0
+NUM_PROCESSES=$(nproc)
 while [ $# -gt 0 ]; do
   case "$1" in
     --vcf)
@@ -44,6 +46,10 @@ while [ $# -gt 0 ]; do
       ;;
     --convert)
       CONVERT_ONLY=1
+      ;;
+    --processes|-p)
+      NUM_PROCESSES="$2"
+      shift
       ;;
     *)
       echo "* Error: Invalid argument: $1"
@@ -270,7 +276,7 @@ then
             --pubmed \
             --symbol \
             --allow_non_variant \
-            --fork=4 \
+            --fork=$NUM_PROCESSES \
             --vcf \
             --allele_number \
             --no_escape \
@@ -292,7 +298,7 @@ then
     handle_step_start "VCFANNO"
 
     cp $VCFANNO_CONFIG "$WORKDIR_STEP/vcfanno_config.toml"
-    cmd="vcfanno -base-path $ANNODATA $WORKDIR_STEP/vcfanno_config.toml $VCF > $OUTPUT_VCF 2> $OUTPUT_LOG"
+    cmd="IRELATE_MAX_GAP=1000 GOGC=1000 vcfanno -p $NUM_PROCESSES -base-path $ANNODATA $WORKDIR_STEP/vcfanno_config.toml $VCF > $OUTPUT_VCF 2> $OUTPUT_LOG"
     echo $cmd > $OUTPUT_CMD
     bash $OUTPUT_CMD
 
