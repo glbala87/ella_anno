@@ -35,7 +35,7 @@ UTA_VERSION=uta_20180821
 
 # if DO_CREDS is set, the file should be mounted into the docker container
 ifneq ($(DO_CREDS),)
-ANNOBUILDER_OPTS += -v $(DO_CREDS):/anno/do_creds
+ANNOBUILDER_OPTS += -v $(shell realpath $(DO_CREDS)):/anno/do_creds
 endif
 
 .PHONY: help
