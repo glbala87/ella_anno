@@ -281,6 +281,8 @@ then
             --allele_number \
             --no_escape \
             --failed=1 \
+            --exclude_predicted \
+            --hgvsg \
             --no_stats \
             --merged \
             --custom ${ANNODATA}/RefSeq/GRCh37_refseq_$(jq -r '.refseq.version' $ANNODATA/sources.json)_VEP.gff.gz,RefSeq_gff,gff,overlap,1, \
