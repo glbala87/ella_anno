@@ -3,6 +3,7 @@ import re
 import os
 import datetime
 import tempfile
+import json
 from collections import defaultdict
 
 # Module for converting data
@@ -15,7 +16,7 @@ import hgvs.exceptions
 # In addition, we need access to the reference genome. This is because
 # the tools above will only convert to hgvsg. To generate vcf, we might need
 # additional bases from the reference genome.
-from pygr.seqdb import SequenceFileDB
+import pysam
 
 from config import config
 from vcf_writer import VcfWriter
@@ -39,6 +40,18 @@ logger = logging.getLogger("anno")
 #
 signal.signal(signal.SIGALRM, timeout_handler)
 
+if "HGVS_SEQREPO_DIR" not in os.environ:
+    with open(os.path.join(os.environ["ANNO_DATA"], "sources.json")) as sources_file:
+        sources = json.load(sources_file)
+        seqrepo_version = sources["seqrepo"]["version"]
+        os.environ["HGVS_SEQREPO_DIR"] = os.path.join(
+            os.environ["ANNO_DATA"], "seqrepo", seqrepo_version
+        )
+
+assert os.path.isdir(os.environ["HGVS_SEQREPO_DIR"]), "Path not found: {}".format(
+    os.environ["HGVS_SEQREPO_DIR"]
+)
+
 
 class Exporter(object):
     """
@@ -51,7 +64,7 @@ class Exporter(object):
 
     def __init__(self, input, output_vcf=None):
         # Create the tools required for converting hgvsc to vcf
-        self.SEQ_DB = SequenceFileDB(os.environ["FASTA"])
+        self.FASTA = pysam.FastaFile(os.environ["FASTA"])
         self.HGVS_PARSER = hgvs.parser.Parser()
         self.UTA_CONNECTION = hgvs.dataproviders.uta.connect()
         self.VARIANT_MAPPER = hgvs.assemblymapper.AssemblyMapper(
@@ -129,7 +142,7 @@ class Exporter(object):
 
     def hgvsc_to_vcfdict(self, hgvsc, comment):
         var_g = self._convert_hgvsc(hgvsc)
-        vcf_data = var_g_to_vcf(var_g, self.SEQ_DB)
+        vcf_data = var_g_to_vcf(var_g, self.FASTA)
         if vcf_data["ref"] == vcf_data["alt"]:
             raise VcfInvalidVariantError(
                 "Not a variant. Reference {} matches alternate {}.".format(

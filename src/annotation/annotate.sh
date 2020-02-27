@@ -10,12 +10,14 @@ usage="Usage: `basename $0`
 	--regions [regions]		    regions to slice input on
     --convert                   flag to run conversion only, not annotation
 	-o|--outfolder [outfolder]	output folder (default: working directory)
+    -p|--processes              number of cores to use for time-consuming annotation steps (default number of cores available)
 
 "
 
 # Parse arguments
 WORKDIR=$PWD
 CONVERT_ONLY=0
+NUM_PROCESSES=$(nproc)
 while [ $# -gt 0 ]; do
   case "$1" in
     --vcf)
@@ -44,6 +46,10 @@ while [ $# -gt 0 ]; do
       ;;
     --convert)
       CONVERT_ONLY=1
+      ;;
+    --processes|-p)
+      NUM_PROCESSES="$2"
+      shift
       ;;
     *)
       echo "* Error: Invalid argument: $1"
@@ -75,7 +81,7 @@ then
 fi
 
 ANNODATA="${SOURCE_DIR}/../../data"
-VCFANNO_CONFIG="${SOURCE_DIR}/vcfanno_config.toml"
+VCFANNO_CONFIG="${ANNODATA}/vcfanno_config.toml"
 
 echo "ANNO version:"
 cat ${SOURCE_DIR}/../../version
@@ -257,11 +263,9 @@ then
     handle_step_start "VEP"
     cmd="vep_offline \
             --fasta $FASTA \
-            -custom $ANNODATA/repeatMasker/repeatMasker_hg19.20150508.reformat.sorted.bed.gz \
             --force_overwrite \
             --sift=b \
             --polyphen=b \
-            --ccds \
             --hgvs \
             --numbers \
             --domains \
@@ -269,20 +273,20 @@ then
             --canonical \
             --protein \
             --biotype \
-            --gmaf \
-            --maf_1kg \
-            --maf_esp \
             --pubmed \
             --symbol \
             --allow_non_variant \
-            --fork=4 \
+            --fork=$NUM_PROCESSES \
             --vcf \
             --allele_number \
             --no_escape \
             --failed=1 \
+            --exclude_predicted \
+            --hgvsg \
             --no_stats \
             --merged \
-            --shift_hgvs \
+            --custom ${ANNODATA}/RefSeq/GRCh37_refseq_$(jq -r '.refseq.version' $ANNODATA/sources.json)_VEP.gff.gz,RefSeq_gff,gff,overlap,1, \
+            --custom ${ANNODATA}/RefSeq_interim/GRCh37_refseq_interim_$(jq -r '.refseq_interim.version' $ANNODATA/sources.json)_VEP.gff.gz,RefSeq_Interim_gff,gff,overlap,1, \
             -i $VCF \
             -o $OUTPUT_VCF &> $OUTPUT_LOG"
     echo $cmd > $OUTPUT_CMD
@@ -296,7 +300,7 @@ then
     handle_step_start "VCFANNO"
 
     cp $VCFANNO_CONFIG "$WORKDIR_STEP/vcfanno_config.toml"
-    cmd="vcfanno -base-path $ANNODATA $WORKDIR_STEP/vcfanno_config.toml $VCF > $OUTPUT_VCF 2> $OUTPUT_LOG"
+    cmd="IRELATE_MAX_GAP=1000 GOGC=1000 vcfanno -p $NUM_PROCESSES -base-path $ANNODATA $WORKDIR_STEP/vcfanno_config.toml $VCF > $OUTPUT_VCF 2> $OUTPUT_LOG"
     echo $cmd > $OUTPUT_CMD
     bash $OUTPUT_CMD
 

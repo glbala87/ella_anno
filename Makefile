@@ -1,14 +1,43 @@
 BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD)
 API_PORT ?= 6000-6100
-TARGETS_FOLDER ?= /home/oyvinev/repositories/anno-targets
-TARGETS_OUT ?= /media/oyvinev/Storage/anno-targets-out
-SAMPLE_REPO ?= /media/oyvinev/Storage/sample-repo
-#TARGET_DATA ?= /media/oyvinev/Storage/vcpipe-bundle/dev
-BUNDLE ?= /media/oyvinev/1E51A9957C59176F/vcpipe-bundle
-SENSITIVE_DB ?= /media/oyvinev/1E51A9957C59176F/vcpipe-bundle/fake-sensitive-db
-CONTAINER_NAME ?= anno-$(BRANCH)-$(USER)
-IMAGE_NAME = local/anno-$(BRANCH)
+TARGETS_FOLDER ?= $(shell pwd)/anno-targets
+TARGETS_OUT ?= $(shell pwd)/anno-targets-out
+SAMPLE_REPO ?= $(shell pwd)/sample-repo
+ANNO_DATA ?= $(shell pwd)/data
+
+RELEASE_TAG ?= $(shell git tag -l --points-at HEAD)
+ifneq ($(RELEASE_TAG),)
+ANNO_BUILD := anno-$(RELEASE_TAG)
+BUILDER_BUILD := annobuilder-$(RELEASE_TAG)
+BUILD_OPTS += -t local/anno:$(RELEASE_TAG)
+else
+ANNO_BUILD := anno-$(BRANCH)
+BUILDER_BUILD = annobuilder-$(BRANCH)
+endif
+
+CONTAINER_NAME ?= $(ANNO_BUILD)-$(USER)
+IMAGE_NAME = local/$(ANNO_BUILD)
+ANNOBUILDER_CONTAINER_NAME ?= $(BUILDER_BUILD)
+ANNOBUILDER_IMAGE_NAME = local/$(BUILDER_BUILD)
+ANNOBUILDER_OPTS += -e ENTREZ_API_KEY=$(ENTREZ_API_KEY)
+SINGULARITY_IMAGE_NAME = $(ANNO_BUILD).sif
+SINGULARITY_SANDBOX_PATH = $(ANNO_BUILD)/
+SINGULARITY_INSTANCE_NAME ?= $(ANNO_BUILD)-$(USER)
+SINGULARITY_DATA = $(shell pwd)/singularity
+SINGULARITY_DEF_FILE = Singularity.$(ANNO_BUILD)
+SINGULARITY_LOG_DIR = $(HOME)/.singularity/instances/logs/$(shell hostname)/$(USER)
+SINGULARITY_LOG_STDERR = $(SINGULARITY_LOG_DIR)/$(SINGULARITY_INSTANCE_NAME).err
+SINGULARITY_LOG_STDOUT = $(SINGULARITY_LOG_DIR)/$(SINGULARITY_INSTANCE_NAME).out
+# Large tmp storage is needed for gnomAD data generation. Set this to somewhere with at least 50GB of space if not
+# available on /tmp's partition
+TMP_DIR ?= /tmp
 UTA_VERSION=uta_20180821
+
+# if DO_CREDS is set, the file should be mounted into the docker container
+ifneq ($(DO_CREDS),)
+ANNOBUILDER_OPTS += -v $(shell realpath $(DO_CREDS)):/anno/do_creds
+endif
+
 .PHONY: help
 
 help :
@@ -48,7 +77,7 @@ any:
 	@true
 
 build:
-	docker build -t $(IMAGE_NAME) $(BUILD_OPTS) .
+	docker build -t $(IMAGE_NAME) $(BUILD_OPTS) --target prod .
 
 run:
 	docker run -d \
@@ -59,7 +88,7 @@ run:
 	--restart=always \
 	--name $(CONTAINER_NAME) \
 	-p $(API_PORT):6000 \
-	-v $(shell pwd):/anno \
+	-v $(ANNO_DATA):/anno/data \
 	-v $(TARGETS_FOLDER):/targets \
 	-v $(TARGETS_OUT):/targets-out \
 	-v $(SAMPLE_REPO):/samples \
@@ -81,36 +110,162 @@ restart: stop
 kill:
 	docker rm -f -v $(CONTAINER_NAME) || :
 
-unpack_lfs:
-	python unpack_lfs.py
-
-update_seqrepo:
-	docker run --rm \
-	--name $(CONTAINER_NAME) \
-	-v $(shell pwd):/anno \
-	$(IMAGE_NAME) \
-	make update_seqrepo_internal
-	tar -C data -cf data/seqrepo.tar seqrepo
-
-update_seqrepo_internal:
-	mkdir -p /anno/data/seqrepo
-	rm -rf /anno/data/seqrepo/*
-	seqrepo -r /anno/data/seqrepo -v pull
-
 test:
 	docker run --rm -t \
-	-v $(shell pwd):/anno \
-	--name $(CONTAINER_NAME) \
+	-v $(shell pwd)/data:/anno/data \
+	--name $(CONTAINER_NAME)-test \
 	$(IMAGE_NAME) /anno/ops/run_tests.sh
 
-cleanup:
-	docker run --rm -t \
-	-v $(shell pwd):/anno \
-	$(IMAGE_NAME) git clean -xdf --exclude .vscode
+localclean:
+	rm -rf thirdparty/ data/ rawdata/
 
 shell:
 	docker exec -it $(CONTAINER_NAME) bash
 
+#---------------------------------------------------------------------
+# AnnoBuilder: generate / download processed datasets for anno
+#---------------------------------------------------------------------
+
+define annobuilder-template
+docker run --rm -it \
+	$(ANNOBUILDER_OPTS) \
+	-v $(TMP_DIR):/tmp \
+	-v $(ANNO_DATA):/anno/data \
+	$(ANNOBUILDER_IMAGE_NAME) \
+	bash -ic "$(RUN_CMD) $(RUN_CMD_ARGS)"
+endef
+
+build-base:
+	docker build -t local/anno-base --target base .
+
+build-annobuilder:
+	docker build -t $(ANNOBUILDER_IMAGE_NAME) --target builder .
+
+# annobuilder/-shell/-exec are only run when troubleshooting data generation or adding new packages
+annobuilder:
+	docker run -td \
+		--restart=always \
+		--name $(ANNOBUILDER_CONTAINER_NAME) \
+		-v $(ANNO_DATA):/anno/data \
+		$(ANNOBUILDER_OPTS) \
+		$(ANNOBUILDER_IMAGE_NAME) \
+		sleep infinity
+
+annobuilder-shell:
+	docker exec -it $(ANNOBUILDER_CONTAINER_NAME) /bin/bash
+
+annobuilder-exec:
+	@$(call check_defined, RUN_CMD, 'Use RUN_CMD="python something.py opt1 ..." to specify command to run')
+	$(annobuilder-template)
+
+download-data:
+	$(eval ANNOBUILDER_OPTS += --user $(shell id -u):$(shell id -g))
+	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --download)
+	$(annobuilder-template)
+
+download-package:
+	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to download')
+	$(eval ANNOBUILDER_OPTS += --user $(shell id -u):$(shell id -g))
+	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --download -d $(PKG_NAME))
+	$(annobuilder-template)
+
+upload-data:
+	@$(call check_defined, DO_CREDS, 'Use DO_CREDS to specify a file containing SPACES_KEY and SPACES_SECRET')
+	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --upload)
+	$(annobuilder-template)
+
+upload-package:
+	@$(call check_defined, DO_CREDS, 'Use DO_CREDS to specify the absolute path to a file containing SPACES_KEY and SPACES_SECRET')
+	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to download')
+	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --upload -d $(PKG_NAME))
+	$(annobuilder-template)
+
+generate-data:
+	@$(call check_defined, ENTREZ_API_KEY, 'Make sure ENTREZ_API_KEY is set and exported so clinvar data can be built successfully')
+	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --generate)
+	$(annobuilder-template)
+
+generate-package:
+	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to generate')
+	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --generate -d $(PKG_NAME))
+	$(annobuilder-template)
+
+# installed directly in Dockerfile, but commands here for reference or local install
+install-thirdparty:
+	$(eval RUN_CMD := python3 /anno/ops/install_thirdparty.py --clean)
+	$(annobuilder-template)
+
+# installed directly in Dockerfile, but commands here for reference or local install
+install-package:
+	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to install')
+	$(eval RUN_CMD := python3 /anno/ops/install_thirdparty.py --clean -p $(PKG_NAME))
+	$(annobuilder-template)
+
+tar-data:
+	tar cvf data.tar data/
+
+
+#---------------------------------------------------------------------
+# SINGULARITY
+#---------------------------------------------------------------------
+.PHONY: singularity-test singularity-shell singularity-start singularity-stop
+
+singularity-build: gen-singularityfile
+	sudo singularity build $(SINGULARITY_IMAGE_NAME) $(SINGULARITY_DEF_FILE)
+
+gen-singularityfile:
+	@IMAGE_NAME=$(IMAGE_NAME) ./Singularity_template > $(SINGULARITY_DEF_FILE)
+
+singularity-start:
+	[ -d $(SINGULARITY_DATA) ] || mkdir -p $(SINGULARITY_DATA)
+	singularity instance start \
+		-B $(ANNO_DATA):/anno/data \
+		-B $(shell mktemp -d):/anno/.cache \
+		-B $(SINGULARITY_DATA):/pg_uta \
+		--cleanenv \
+		$(SINGULARITY_IMAGE_NAME) $(SINGULARITY_INSTANCE_NAME)
+
+singularity-test:
+	-singularity exec --cleanenv instance://$(SINGULARITY_INSTANCE_NAME) supervisorctl -c /anno/ops/supervisor.cfg stop all
+	singularity exec --cleanenv instance://$(SINGULARITY_INSTANCE_NAME) /anno/ops/run_tests.sh
+	singularity exec --cleanenv instance://$(SINGULARITY_INSTANCE_NAME) supervisorctl -c /anno/ops/supervisor.cfg start all
+
+singularity-stop:
+	singularity exec --cleanenv instance://$(SINGULARITY_INSTANCE_NAME) supervisorctl -c /anno/ops/supervisor.cfg stop all
+	singularity instance stop $(SINGULARITY_INSTANCE_NAME)
+
+singularity-shell:
+	singularity shell --cleanenv instance://$(SINGULARITY_INSTANCE_NAME)
+
+singularity-tail-logs:
+	tail -f $(SINGULARITY_LOG_STDOUT) $(SINGULARITY_LOG_STDERR)
+
+singularity-errlog:
+	cat $(SINGULARITY_LOG_STDERR) | $(PAGER)
+
+singularity-log:
+	cat $(SINGULARITY_LOG_STDOUT) | $(PAGER)
+
+# Sandbox dev options so don't have to rebuild the image all the time
+# Still uses same SINGULARITY_INSTANCE_NAME, so -stop, -test, -shell all still work
+singularity-build-dev: gen-singularityfile
+	sudo singularity build --sandbox $(SINGULARITY_SANDBOX_PATH) $(SINGULARITY_DEF_FILE)
+	sudo chown -R $(whoami). $(SINGULARITY_SANDBOX_PATH)
+
+singularity-start-dev:
+	[ -d $(SINGULARITY_DATA) ] || mkdir -p $(SINGULARITY_DATA)
+	singularity -v instance start \
+		-B $(shell pwd)/data:/anno/data \
+		-B $(shell mktemp -d):/anno/.cache \
+		-B $(SINGULARITY_DATA):/pg_uta \
+		--cleanenv \
+		$(SINGULARITY_SANDBOX_PATH) $(SINGULARITY_INSTANCE_NAME)
+
+singularity-stop-dev: singularity-stop
+
+singularity-shell-dev: singularity-shell
+
+singularity-test-dev: singularity-test
 
 #---------------------------------------------
 # RELEASE
@@ -121,6 +276,28 @@ check-release-tag:
 	git rev-parse --verify "refs/tags/$(RELEASE_TAG)^{tag}"
 	git ls-remote --exit-code --tags origin "refs/tags/$(RELEASE_TAG)"
 
-release: check-release-tag
-	git archive -o anno-$(RELEASE_TAG)-src.tar $(RELEASE_TAG)
+release: tar-data check-release-tag
+	mkdir -p release/
+	tar cvf release/anno-$(RELEASE_TAG)-src.tar \
+		--exclude=thirdparty \
+		--exclude=".git*" \
+		--exclude="*data" \
+		--exclude=release \
+		--exclude=.vscode \
+		--exclude="*.sif" \
+		./
 
+singularity-release: check-release-tag tar-data singularity-build
+	mkdir -p release/
+	tar cvf release/anno-$(RELEASE_TAG)-singularity.tar \
+		Makefile \
+		$(SINGULARITY_IMAGE_NAME) \
+		singularity/
+
+#---------------------------------------------
+# CI testing
+#---------------------------------------------
+# CI is currently broken and I'm tired of getting emails, so here's a dummy step
+
+gitlab-ci:
+	@echo "fix the CI tests"

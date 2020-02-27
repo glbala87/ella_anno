@@ -1,71 +1,88 @@
 #!/bin/bash
 
-# For dev/demo use only! Production uses external database
+# Recommended for dev/demo use only! Production uses external database
 
-# Create the Postgres data directory, the database cluster in said folder and start the server.
-#
-# We make sure to shutdown postgres gently. Some shutdown modes will put postgres in bad state, making
-# a restart take a long time (replay of xlog/transaction logs).
-#
-# Also handles multiple start/stop cycles (í.e. using supervisorctl to stop/start). We only run initdb once.
-# Creating root user fails the second time, but the script continues.
+PG_BIN=/usr/lib/postgresql/11/bin
+function wait_for_ready() {
+    timer=${1:-15}
+    while ! $PG_BIN/pg_isready --dbname=postgres --username=postgres --host "$PGDATA"; do
+        >&2 echo "[$(date +%Y-%m-%d\ %H:%M:%S)] Postgres is unavailable - sleeping for $timer seconds"
+        sleep "$timer"
+    done
+}
 
-if [ "$1" =  "init" ]
-then
+function shutdown() {
+    echo "Shutting down PostgreSQL"
+    # if pkill fails (no process found, etc), still exit the script
+    if [[ -z $SINGULARITY_NAME ]]; then
+        gosu postgres "$PG_BIN/pg_ctl" stop -m s || exit $?
+    else
+        "$PG_BIN/pg_ctl" stop -m s || exit $?
+    fi
+}
+
+# Allow any signal which would kill a process to stop PostgreSQL using the 'shutdown' function
+# KILL goes directly to kernel, so it's useless here.
+trap shutdown HUP INT QUIT ABRT ALRM TERM TSTP
+
+if [ "$1" = "init" ]; then
+    # This is run once, usually in the docker build process. If run a second time, creating the root user will fail.
+    # It creates the postgres data directory ($PGDATA) and initial db files, starts the server, and then loads
+    # the UTA data from the tarball.
+    #
+    # After that is complete, we make sure to shutdown postgres gently. Some shutdown modes will put postgres in bad
+    # state, causing restarts to take a long time (replay of xlog/transaction logs)
+
     echo "Init of Postgres cluster in $PGDATA"
-
-    mkdir -p $PGDATA
-    chown postgres $PGDATA
+    mkdir -p "$PGDATA"
+    chown postgres "$PGDATA"
 
     if [ -d "$PGDATA/pg_clog" ]; then
        echo "The database data dir already exists."
     else
         echo "Creating database cluster in $PGDATA"
-        gosu postgres /usr/lib/postgresql/9.6/bin/initdb
+        gosu postgres $PG_BIN/initdb
+        gosu postgres $PG_BIN/pg_ctl stop -m s
+        # use custom postgres conf
+        cp /anno/ops/postgresql.conf "$PGDATA"/
+        chown postgres "$PGDATA"/postgresql.conf
+
+        # default superuser/password, change to something private after install
+        gosu postgres $PG_BIN/postgres --single -jE <<-EOSQL
+           CREATE USER root WITH SUPERUSER PASSWORD 'omgenetics' ;
+EOSQL
     fi
 
-    gosu postgres /usr/lib/postgresql/9.6/bin/postgres --single -jE <<-EOSQL
-       CREATE USER root WITH SUPERUSER PASSWORD 'omgenetics' ;
-EOSQL
+    echo "Starting PostgreSQL"
+    gosu postgres $PG_BIN/postgres &
+    wait_for_ready # make sure postgres has started before loading data
 
-fi
-
-
-function shutdown()
-{
-    echo "Shutting down PostgreSQL"
-    pkill postgres
-}
-
-echo "Starting PostgreSQL"
-
-if [ -d /var/run/postgresql ]; then
-    chmod 2775 /var/run/postgresql
-else
-    install -d -m 2775 -o postgres -g postgres /var/run/postgresql
-fi
-
-# Allow any signal which would kill a process to stop PostgreSQL using the 'shutdown' function
-# KILL goes directly to kernel, so it's useless here.
-trap shutdown HUP INT QUIT ABRT KILL ALRM TERM TSTP
-
-exec gosu postgres /usr/lib/postgresql/9.6/bin/postgres &
-
-if [ "$1" = "init" ]; then
     echo "Extracting database from dump"
-    dropdb uta
-    dropuser uta_admin
-    createuser -U postgres uta_admin
-    createdb -U postgres -O uta_admin uta
-    gzip -cdq /$UTA_VERSION.pgd.gz | psql -q -U uta_admin -1 -v ON_ERROR_STOP=1 -d uta
+    # remove old users, if existing
+    dropdb -h "$PGDATA" uta
+    dropuser -h "$PGDATA" uta_admin
+    # create new users  and load data
+    createuser -h "$PGDATA" -U postgres uta_admin
+    createdb -h "$PGDATA" -U postgres -O uta_admin uta
+    gzip -cdq "/$UTA_VERSION.pgd.gz" | psql -h "$PGDATA" -q -U uta_admin -1 -v ON_ERROR_STOP=1 -d uta
+
     echo "Refreshing materialized views"
-    psql -U uta_admin -d uta -c "REFRESH MATERIALIZED VIEW ${UTA_VERSION}.exon_set_exons_fp_mv;"
-    psql -U uta_admin -d uta -c "REFRESH MATERIALIZED VIEW ${UTA_VERSION}.tx_exon_set_summary_mv;"
-    psql -U uta_admin -d uta -c "REFRESH MATERIALIZED VIEW ${UTA_VERSION}.tx_def_summary_mv;"
-    touch $PGDATA/pgready
+    psql -h "$PGDATA" -U uta_admin -d uta -c "REFRESH MATERIALIZED VIEW ${UTA_VERSION}.exon_set_exons_fp_mv;"
+    psql -h "$PGDATA" -U uta_admin -d uta -c "REFRESH MATERIALIZED VIEW ${UTA_VERSION}.tx_exon_set_summary_mv;"
+    psql -h "$PGDATA" -U uta_admin -d uta -c "REFRESH MATERIALIZED VIEW ${UTA_VERSION}.tx_def_summary_mv;"
+
+    # wait for all the actions to finish and postgres to return to a good state and shut it down cleanly
+    wait_for_ready 5
+    shutdown
+    touch "$PGDATA/pgready"
+    rm "/$UTA_VERSION.pgd.gz"
     echo "Database ready"
 else
-    echo "Postgres started"
-    sleep infinity
+    echo "Starting PostgreSQL"
+    # if not running in singularity container, use gosu for postgres user
+    if [[ -z $SINGULARITY_NAME ]]; then
+        exec gosu postgres $PG_BIN/postgres
+    else
+        exec $PG_BIN/postgres
+    fi
 fi
-

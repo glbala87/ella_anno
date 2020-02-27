@@ -1,0 +1,4 @@
+pdbpp==0.10.0
+PyYAML==5.1.2
+toml==0.10.0
+git+https://gitlab.com/ousamg/data-spaces.git#egg=data_spaces

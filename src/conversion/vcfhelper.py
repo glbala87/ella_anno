@@ -15,8 +15,8 @@ class VCFAlleleCreator(object):
     Verifies that given reference matches what is found in genome at given coordinates.
     """
 
-    def __init__(self, seqdb, useGenomeRef=True):
-        self.seqdb = seqdb
+    def __init__(self, fasta, useGenomeRef=True):
+        self.fasta = fasta
         self.useGenomeRef = useGenomeRef
         self.refMismatch = []
 
@@ -27,7 +27,7 @@ class VCFAlleleCreator(object):
         """Given zero-based genomic position and other SNP data, return VCF SNP data."""
         assert len(ref) == len(alt) == 1
         assert gPos >= 0
-        refAtPosition = str(self.seqdb[chromosome][gPos : gPos + 1]).upper()
+        refAtPosition = str(self.fasta.fetch(chromosome, gPos, gPos + 1)).upper()
         if not self._refMatch(refAtPosition, ref):
             self.refMismatch.append(
                 ("SNP", refAtPosition, chromosome, gPos, ref, alt, id)
@@ -43,7 +43,7 @@ class VCFAlleleCreator(object):
 
         Note that gPos is 0-position before insertion, i.e. the first base in the VCF alleles."""
         assert gPos >= 0
-        firstBase = str(self.seqdb[chromosome][gPos : gPos + 1]).upper()
+        firstBase = str(self.fasta.fetch(chromosome, gPos, gPos + 1)).upper()
         ref = firstBase
         alt = firstBase + inserted
         vcfPosition = gPos + 1
@@ -56,7 +56,7 @@ class VCFAlleleCreator(object):
         gPosEnd is pos after last deleted base (i.e. half-open interval).
         """
         assert gPosStart >= 0 and gPosEnd > 0
-        refAtPosition = str(self.seqdb[chromosome][gPosStart:gPosEnd]).upper()
+        refAtPosition = str(self.fasta.fetch(chromosome, gPosStart, gPosEnd)).upper()
         if deleted != "":
             if len(deleted) != gPosEnd - gPosStart or not self._refMatch(
                 refAtPosition, deleted
@@ -64,7 +64,7 @@ class VCFAlleleCreator(object):
                 self.refMismatch.append(
                     ("DEL", refAtPosition, chromosome, gPosStart, gPosEnd, deleted, id)
                 )
-        firstBase = str(self.seqdb[chromosome][gPosStart - 1 : gPosStart]).upper()
+        firstBase = str(self.fasta.fetch(chromosome, gPosStart - 1, gPosStart)).upper()
         vcfPosition = gPosStart + 1 - 1
         ref = (
             firstBase + deleted
@@ -77,7 +77,7 @@ class VCFAlleleCreator(object):
     def indel(self, chromosome, gPosStart, gPosEnd, inserted, deleted="", id="."):
         """Returns VCF indel data. Positions as for deletion."""
         assert gPosStart >= 0 and gPosEnd > 0
-        refAtPosition = str(self.seqdb[chromosome][gPosStart:gPosEnd]).upper()
+        refAtPosition = str(self.fasta.fetch(chromosome, gPosStart, gPosEnd)).upper()
         if deleted != "":
             if len(deleted) != gPosEnd - gPosStart or not self._refMatch(
                 refAtPosition, deleted
@@ -94,7 +94,7 @@ class VCFAlleleCreator(object):
                         id,
                     )
                 )
-        firstBase = str(self.seqdb[chromosome][gPosStart - 1 : gPosStart]).upper()
+        firstBase = str(self.fasta.fetch(chromosome, gPosStart - 1, gPosStart)).upper()
         vcfPosition = gPosStart + 1 - 1
         ref = (
             firstBase + deleted
@@ -107,7 +107,7 @@ class VCFAlleleCreator(object):
     def duplication(self, chromosome, gPosStart, gPosEnd, duplicated="", id="."):
         """Returns VCF duplication data. Positions as for deletion."""
         assert gPosStart >= 0 and gPosEnd > 0
-        refAtPosition = str(self.seqdb[chromosome][gPosStart:gPosEnd]).upper()
+        refAtPosition = str(self.fasta.fetch(chromosome, gPosStart, gPosEnd)).upper()
         if duplicated != "":
             if len(duplicated) != gPosEnd - gPosStart or not self._refMatch(
                 refAtPosition, duplicated

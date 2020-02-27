@@ -1,5 +1,5 @@
-from pygr.seqdb import SequenceFileDB
 import os
+import pysam
 
 
 class IncorrectReferenceError(RuntimeError):
@@ -8,7 +8,7 @@ class IncorrectReferenceError(RuntimeError):
 
 class VCFCheckRef(object):
     def __init__(self):
-        self.SEQ_DB = SequenceFileDB(os.environ["FASTA"])
+        self.fasta = pysam.FastaFile(os.environ["FASTA"])
 
     def check(self, vcf_file):
         with open(vcf_file, "r") as input:
@@ -17,14 +17,13 @@ class VCFCheckRef(object):
                 if l.startswith("#") or not l:
                     continue
                 i += 1
-                lsplit = l.split("\t")
-                actual_ref = self.SEQ_DB[lsplit[0]][
-                    int(lsplit[1]) - 1 : int(lsplit[1]) + len(lsplit[3]) - 1
-                ]
-                if str(actual_ref) != lsplit[3]:
+                chrom, pos, _, vcf_ref = l.split("\t")[:4]
+                pos = int(pos) - 1
+                actual_ref = self.fasta.fetch(chrom, pos, pos + len(vcf_ref))
+                if str(actual_ref) != vcf_ref:
                     raise IncorrectReferenceError(
                         "Genome reference ({}) does not match vcf reference ({}). Offending line is: {} ".format(
-                            actual_ref, lsplit[3], l
+                            actual_ref, vcf_ref, l
                         )
                     )
 

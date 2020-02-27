@@ -1,0 +1,38 @@
+#!/usr/bin/env python
+from __future__ import print_function
+import os
+
+template_vars = {
+    "image_name": os.environ["IMAGE_NAME"],
+    "release_tag": os.environ.get("RELEASE_TAG", "latest"),
+}
+
+print("""
+Bootstrap: docker-daemon
+From: {image_name}:{release_tag}
+IncludeCmd: yes
+
+%environment
+#!/bin/bash
+    # use per-user postgres directories because postgres requires go-rwx privs on data files
+    # we use user_id instead of user_name to ensure match inside/outside of container
+    export PGDATA=$PGDATA/$(id -u)
+    # update default PGHOST with new PGDATA
+    export PGHOST=$PGDATA
+
+%post
+#!/bin/bash
+    mv /pg_uta /pg_uta_default
+    chmod -R 777 /pg_uta_default
+
+%startscript
+#!/bin/bash
+    # if there is  not yet a folder for that user, copy the data out and chmod appropriately before starting
+    if [[ ! -d $PGDATA ]] || [[ ! $(ls -A $PGDATA) ]]; then
+        rsync -az /pg_uta_default/ $PGDATA --info=progress2 2>&1
+        chmod -R 700 $PGDATA
+    fi
+
+    # run same entrypoint script as docker
+    /anno/ops/entrypoint.sh
+""".format(**template_vars))

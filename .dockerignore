@@ -1,3 +1,11 @@
 .git/*
 data/*
+rawdata/*
+release/*
+singularity/*
 thirdparty/*
+anno-targets*
+sample-repo/*
+__pycache__
+
+*.sif
