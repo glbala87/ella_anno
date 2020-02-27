@@ -37,7 +37,7 @@ do
     if [[ -z $PKG_NAME ]]; then
         continue
     fi
-    folder=$(jq -r --arg key $PKG_NAME '.[$key]'.destination $DATASETS)
+    folder=$(jq -r ".${PKG_NAME}.destination" $DATASETS)
     if [[ "${folder}" == "null" ]]; then
         echo "Unable to find package $PKG_NAME in $DATASETS. Continuing."
         continue
