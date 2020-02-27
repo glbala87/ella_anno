@@ -202,7 +202,9 @@ install-package:
 	$(annobuilder-template)
 
 tar-data:
-	tar cvf data.tar data/
+	$(eval TAR_OUTPUT ?= data.tar)
+	$(eval RUN_CMD := PKG_NAMES=$(PKG_NAMES) DATASETS=$(DATASETS) TAR_OUTPUT=$(TAR_OUTPUT) /anno/ops/package_data)
+	$(annobuilder-template)
 
 
 #---------------------------------------------------------------------

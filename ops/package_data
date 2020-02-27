@@ -1,0 +1,56 @@
+#!/bin/bash -euf
+
+
+TAR_OUTPUT=${TAR_OUTPUT:-data.tar}
+DATASETS=${DATASETS:-/anno/ops/datasets.json}
+PKG_NAMES=${PKG_NAMES:-}
+
+pushd /anno/data
+tmp=$(tempfile -d $(pwd) -s .tar)
+
+function rm_tmp() {
+    EXIT_CODE=$?
+    if [ ! $EXIT_CODE -eq 0 ]
+    then
+        rm $tmp
+    fi
+}
+
+trap rm_tmp EXIT
+
+
+if [[ -f ${TAR_OUTPUT} ]]; then
+    cp ${TAR_OUTPUT} $tmp
+fi
+
+tar -k -u -f $tmp sources.json vcfanno_config.toml
+
+if [[ -z $PKG_NAMES ]]; then
+    echo "No PKG_NAMES specified, tarring all datasets"
+    IFS="\",[]" read -ra _PKG_NAMES_ARRAY <<< $(jq -cr keys $DATASETS)
+else
+    IFS="," read -ra _PKG_NAMES_ARRAY <<< $PKG_NAMES
+fi
+
+for PKG_NAME in "${_PKG_NAMES_ARRAY[@]}"
+do
+    if [[ -z $PKG_NAME ]]; then
+        continue
+    fi
+    folder=$(jq -r --arg key $PKG_NAME '.[$key]'.destination $DATASETS)
+    if [[ "${folder}" == "null" ]]; then
+        echo "Unable to find package $PKG_NAME in $DATASETS. Continuing."
+        continue
+    fi
+
+    cmd="tar -k -W -u -f $tmp $folder"
+    echo "Adding $PKG_NAME to archive"
+    $cmd
+done
+
+IFS=
+COLOROFF='\033[0m'
+LIGHTGREEN='\033[1;32m'
+echo -e ${LIGHTGREEN}"\nVerifying temporary file\n\n"$(tar -vdf $tmp)${COLOROFF}
+mv $tmp $TAR_OUTPUT
+echo -e "\nCreated /anno/data/$TAR_OUTPUT"
