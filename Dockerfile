@@ -133,7 +133,7 @@ RUN pip install -U setuptools wheel && pip install -r /dist/requirements.txt
 ENV UTA_VERSION=uta_20180821 \
     PGDATA=/pg_uta
 ENV PGHOST=${PGDATA}
-COPY ./ops/ /anno/ops/
+COPY ./ops/pg_startup ./ops/postgresql.conf /anno/ops/
 RUN service postgresql stop && \
     wget http://dl.biocommons.org/uta/${UTA_VERSION}.pgd.gz -O /${UTA_VERSION}.pgd.gz && \
     /anno/ops/pg_startup init

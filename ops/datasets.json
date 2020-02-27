@@ -9,10 +9,16 @@
         "destination": "FASTA",
         "retries": 5,
         "generate": [
-            "wget ftp://gsapubftp-anonymous@ftp.broadinstitute.org/bundle/b37/human_g1k_v37_decoy.fasta.gz -O {data_dir}/human_g1k_v37_decoy.fasta.gz",
-            "echo '{hash_value} {data_dir}/human_g1k_v37_decoy.fasta.gz' | {hash_type}sum -c",
-            "gunzip {data_dir}/human_g1k_v37_decoy.fasta.gz",
-            "bgzip {data_dir}/human_g1k_v37_decoy.fasta -c > {data_dir}/human_g1k_v37_decoy.fasta.gz"
+            "wget -c ftp://gsapubftp-anonymous@ftp.broadinstitute.org/bundle/b37/human_g1k_v37_decoy*",
+            "cat human_g1k_v37_decoy.dict.gz.md5 human_g1k_v37_decoy.fasta.gz.md5 human_g1k_v37_decoy.fasta.fai.gz.md5 | awk  'BEGIN {{FS=\"[ /]+\" }} {{ print $1\" \"$NF }}' - | md5sum -c",
+            "echo '{hash_value} human_g1k_v37_decoy.fasta.gz' | {hash_type}sum -c",
+            "gunzip *.gz",
+            "bgzip human_g1k_v37_decoy.fasta -c > human_g1k_v37_decoy.fasta.gz",
+            "bgzip -r human_g1k_v37_decoy.fasta.gz",
+            "cp human_g1k_v37_decoy.fasta.fai human_g1k_v37_decoy.fasta.gz.fai",
+            "faidx -i chromsizes human_g1k_v37_decoy.fasta -o human_g1k_v37_decoy.chromsizes",
+            "rm *.md5",
+            "mv human_g1k_v37_decoy* {data_dir}"
         ]
     },
     "vep": {

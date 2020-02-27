@@ -60,10 +60,6 @@ if __name__ == "__main__":
     os.chdir(dname)
 
     folders_to_extract = [Path("data.tar").absolute(), Path("thirdparty.tar.gz").absolute()]
-    files_to_extract = [Path("data/FASTA/human_g1k_v37_decoy.fasta.gz").absolute()]
 
     for archive in folders_to_extract:
         unpack_folder(archive)
-
-    for archive in files_to_extract:
-        unpack_file(archive)
