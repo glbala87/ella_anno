@@ -2,10 +2,11 @@
 sidebar: false
 ---
 
-<div style="text-align: center;padding-top: 50px;padding-bottom: 50px">
-	<img width="250px;" src="./logo_anno_blue.svg">
-	<br><br>
-	<div style="font-size: 280%;">documentation</div>
+<div style="text-align: center;padding-bottom: 50px;">
+	<div style="padding-top: 50px;">
+		<img width="350px;" src="./anno-docs_blue.svg">
+	</div>
+	<br>
 	<div style="font-size: 80%;">v1.0 | [Date TBD]</div>
 </div>
 
