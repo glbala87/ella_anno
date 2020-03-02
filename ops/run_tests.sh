@@ -1,7 +1,5 @@
 #!/bin/bash -e
 
-python3 /anno/unpack_data.py
-
 /anno/ops/pg_startup &
 
 while ! pg_isready --host=$PGDATA --dbname=postgres --username=postgres; do sleep 5; done
