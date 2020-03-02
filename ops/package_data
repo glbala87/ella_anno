@@ -46,7 +46,7 @@ do
     fi
 
     echo "Adding $PKG_NAME to archive"
-    tar -k -W -u -f $tmp $folder
+    tar -k -u -f $tmp $folder
     echo $PKG_NAME >> $PKG_IN_ARCHIVE
 done
 
@@ -54,7 +54,7 @@ done
 COLOROFF='\033[0m'
 LIGHTGREEN='\033[1;32m'
 
-echo "Adding package list to archive"
+echo "Adding package list to archive and verifying data"
 cat $PKG_IN_ARCHIVE | sort | uniq > PACKAGES
 tar -W -u -f $tmp PACKAGES
 echo "Packages in archive: "
