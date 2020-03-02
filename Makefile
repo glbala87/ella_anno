@@ -131,7 +131,6 @@ docker run --rm -it \
 	$(ANNOBUILDER_OPTS) \
 	-v $(TMP_DIR):/tmp \
 	-v $(ANNO_DATA):/anno/data \
-	-v $(shell pwd)/ops:/anno/ops \
 	$(ANNOBUILDER_IMAGE_NAME) \
 	bash -ic "$(RUN_CMD) $(RUN_CMD_ARGS)"
 endef
@@ -149,7 +148,7 @@ annobuilder:
 		--name $(ANNOBUILDER_CONTAINER_NAME) \
 		-v $(ANNO_DATA):/anno/data \
 		$(ANNOBUILDER_OPTS) \
-		$(ANNO_IMAGE_NAME) \
+		$(ANNOBUILDER_IMAGE_NAME) \
 		sleep infinity
 
 annobuilder-shell:
