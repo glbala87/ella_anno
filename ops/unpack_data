@@ -1,0 +1,69 @@
+#!/bin/bash -euf
+
+COLOROFF='\033[0m'
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+LIGHTGREEN='\033[1;32m'
+
+pushd /anno/data >/dev/null
+
+function cleanup() {
+
+    EXIT_CODE=$?
+    if [ ! $EXIT_CODE -eq 0 ]
+    then
+        echo -e ${RED}"Something went wrong with unpacking data. Reverting changes."${COLOROFF}
+        pushd /anno/data/.tmp >/dev/null
+        find . -type f -exec mv {} /anno/data/{} \;
+        popd >/dev/null
+        rm -r .tmp
+        echo -e ${LIGHTGREEN}"Changes reverted."${COLOROFF}
+    else
+        rm -r .tmp
+    fi
+
+}
+
+trap cleanup EXIT
+
+if [[ ! -f ${TAR_INPUT} ]]; then
+    echo ${RED}"No such file ${TAR_INPUT}"${COLOROFF}
+    exit 1
+fi
+# Move files in overlapping folders to a temporary backup
+echo "Moving files in folders affected to temporary backup folder .tmp"
+mkdir -p .tmp
+tar -tf ${TAR_INPUT} | grep -Ev "/$|sources.json|PACKAGES" | xargs dirname | uniq | xargs -i@ /bin/bash -c "mkdir -p .tmp/@; find @ -type f -exec mv {} .tmp/{} \;"
+cp sources.json .tmp/
+cp vcfanno_config.toml .tmp/
+
+# Extract data from tar (excluding sources.json and vcfanno_config.toml)
+echo "Extracting data from ${TAR_INPUT}"
+tar -xvf ${TAR_INPUT} --exclude sources.json --exclude vcfanno_config.toml
+
+# Update sources.json and vcfanno_config.toml. Avoid overwriting them
+echo "Updating sources.json and vcfanno_config.toml"
+python3 - << EOF
+import tarfile, json, pathlib, os, toml
+os.chdir("/anno/ops")
+from sync_data import update_vcfanno_toml, update_sources
+
+existing_sources = pathlib.Path("/anno/data/sources.json")
+existing_vcfanno_config = pathlib.Path("/anno/data/vcfanno_config.toml")
+with tarfile.open(os.environ["TAR_INPUT"], 'r') as tar_input:
+    tarred_packages = [s.decode('utf-8') for s in tar_input.extractfile("PACKAGES").read().splitlines()]
+    tar_sources = json.load(tar_input.extractfile("sources.json"))
+    for pkg_name, sources in tar_sources.items():
+        if pkg_name not in tarred_packages:
+            print(f"{pkg_name} not in TAR-file. Not updating sources.")
+            continue
+
+        print("Updating sources")
+        update_sources(existing_sources, pkg_name, sources)
+
+        for annotation_data in sources.get("vcfanno", []):
+            update_vcfanno_toml(existing_vcfanno_config, annotation_data)
+EOF
+
+
+echo -e ${LIGHTGREEN}"Data successfully added"${COLOROFF}

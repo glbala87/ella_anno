@@ -108,7 +108,7 @@ RUN pip3 install -U setuptools wheel && \
     pip3 install -r /dist/annobuilder-requirements-py3.txt
 
 COPY ./scripts /anno/scripts/
-COPY ./ops/sync_data.py ./ops/spaces_config.json ./ops/datasets.json ./ops/package_data /anno/ops/
+COPY ./ops/sync_data.py ./ops/spaces_config.json ./ops/datasets.json ./ops/package_data ./ops/unpack_data /anno/ops/
 
 # if do_creds file mounted in, source and export variables for uploading data to DigitalOcean
 RUN echo "if [[ -f /anno/do_creds ]]; then source /anno/do_creds; export SPACES_KEY SPACES_SECRET; fi" | tee -a /home/anno-user/.bashrc >> /root/.bashrc

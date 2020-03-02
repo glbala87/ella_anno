@@ -270,6 +270,7 @@ def update_sources(sources_file, source_name, source_data):
     if source_data != old_data:
         file_json[source_name] = source_data
         sources_file.write_text(json.dumps(file_json, cls=AnnoJSONEncoder, indent=2) + "\n")
+        logger.info(f"Updated  {sources_file} for {source_name}")
     else:
         logger.info(f"Not updating {sources_file} for {source_name}: data is unchanged")
 
@@ -289,7 +290,7 @@ def update_vcfanno_toml(toml_file, annotation_data):
         toml_data["annotation"] = list()
         anno_index = None
 
-    if anno_index and toml_data["annotation"][anno_index] == annotation_data:
+    if anno_index is not None and toml_data["annotation"][anno_index] == annotation_data:
         logger.info(f"Not updating {toml_file} for {annotation_data['file']}: data is unchanged")
     else:
         # append new file data, otherwise update in place
