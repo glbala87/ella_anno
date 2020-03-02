@@ -100,6 +100,7 @@ class Task(object):
 
         validate_target(target)
 
+        # Copy input files to avoid modifying them in place
         input_regions = None
         if regions is not None:
             input_regions = os.path.join(task_dir, "regions.bed")

@@ -12,7 +12,8 @@ RE_GENOMIC = re.compile(
 RE_VCF = re.compile("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO")
 # NM_3532523.2:c.2378A>T
 RE_HGVSC = re.compile(".+:c\..+")
-RE_SEQPILOT = re.compile("Index\tGene\tTranscript")
+
+RE_SEQPILOT = re.compile(".*Transcript.*\tc. HGVS|.*c. HGVS.*\tTranscript")
 
 
 def is_genomic(data):
@@ -23,7 +24,13 @@ def is_genomic(data):
 
 
 def is_seqpilot(data):
-    return RE_SEQPILOT.match(data) is not None
+    header_line = None
+    for l in data.split("\n"):
+        if l and not header_line:
+            header_line = l
+            break
+
+    return RE_SEQPILOT.match(l) is not None
 
 
 def is_hgvsc(data):
