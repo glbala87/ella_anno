@@ -1,0 +1,67 @@
+#!/bin/bash -euf
+
+
+TAR_OUTPUT=${TAR_OUTPUT:-data.tar}
+DATASETS=${DATASETS:-/anno/ops/datasets.json}
+PKG_NAMES=${PKG_NAMES:-}
+
+pushd /anno/data
+tmp=$(tempfile -d $(pwd) -s .tar)
+
+function rm_tmp() {
+    EXIT_CODE=$?
+    if [ ! $EXIT_CODE -eq 0 ]
+    then
+        rm $tmp
+    fi
+}
+
+trap rm_tmp EXIT
+
+PKG_IN_ARCHIVE=$(tempfile)
+if [[ -f ${TAR_OUTPUT} ]]; then
+    cp ${TAR_OUTPUT} $tmp
+    # Read out package names in archive (add them back at the end)
+    tar -xOf $tmp PACKAGES > $PKG_IN_ARCHIVE
+    tar -f $tmp --delete PACKAGES || true
+fi
+
+tar -k -u -f $tmp sources.json
+
+if [[ -z $PKG_NAMES ]]; then
+    echo "No PKG_NAMES specified, tarring all datasets"
+    IFS="\",[]" read -ra _PKG_NAMES_ARRAY <<< $(jq -cr keys $DATASETS)
+else
+    IFS="," read -ra _PKG_NAMES_ARRAY <<< $PKG_NAMES
+fi
+IFS=
+_PKG_NAMES_ARRAY=(${_PKG_NAMES_ARRAY[@]});
+
+for PKG_NAME in "${_PKG_NAMES_ARRAY[@]}"
+do
+    folder=$(jq -r ".${PKG_NAME}.destination" $DATASETS)
+    if [[ "${folder}" == "null" ]]; then
+        echo "Unable to find package $PKG_NAME in $DATASETS. Continuing."
+        continue
+    fi
+
+    echo "Adding $PKG_NAME to archive"
+    tar -k -W -u -f $tmp $folder
+    echo $PKG_NAME >> $PKG_IN_ARCHIVE
+done
+
+
+COLOROFF='\033[0m'
+LIGHTGREEN='\033[1;32m'
+
+echo "Adding package list to archive"
+cat $PKG_IN_ARCHIVE | sort | uniq > PACKAGES
+tar -W -u -f $tmp PACKAGES
+echo "Packages in archive: "
+tar -xOf $tmp PACKAGES
+
+echo -e ${LIGHTGREEN}"\nVerifying temporary file\n\n"$(tar -vdf $tmp)${COLOROFF}
+
+rm PACKAGES
+mv $tmp $TAR_OUTPUT
+echo -e "\nCreated /anno/data/$TAR_OUTPUT"

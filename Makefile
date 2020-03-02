@@ -202,7 +202,14 @@ install-package:
 	$(annobuilder-template)
 
 tar-data:
-	tar cvf data.tar data/
+	$(eval TAR_OUTPUT ?= data.tar)
+	$(eval RUN_CMD := PKG_NAMES=$(PKG_NAMES) DATASETS=$(DATASETS) TAR_OUTPUT=$(TAR_OUTPUT) /anno/ops/package_data)
+	$(annobuilder-template)
+
+untar-data:
+	$(eval TAR_INPUT ?= /anno/data/data.tar)
+	$(eval RUN_CMD := TAR_INPUT=$(TAR_INPUT) /anno/ops/unpack_data)
+	$(annobuilder-template)
 
 
 #---------------------------------------------------------------------
@@ -266,6 +273,10 @@ singularity-stop-dev: singularity-stop
 singularity-shell-dev: singularity-shell
 
 singularity-test-dev: singularity-test
+
+singularity-untar-data:
+	$(eval TAR_INPUT ?= /anno/data/data.tar)
+	singularity exec --cleanenv instance://$(SINGULARITY_INSTANCE_NAME) TAR_INPUT=$(TAR_INPUT) /anno/ops/unpack_data
 
 #---------------------------------------------
 # RELEASE
