@@ -217,8 +217,9 @@ untar-data:
 #---------------------------------------------------------------------
 .PHONY: singularity-test singularity-shell singularity-start singularity-stop
 
+
 singularity-build: gen-singularityfile
-	sudo singularity build $(SINGULARITY_IMAGE_NAME) $(SINGULARITY_DEF_FILE)
+	sudo SINGULARITY_TMPDIR=$(TMP_DIR) singularity build $(SINGULARITY_IMAGE_NAME) $(SINGULARITY_DEF_FILE)
 
 gen-singularityfile:
 	@IMAGE_NAME=$(IMAGE_NAME) ./Singularity_template > $(SINGULARITY_DEF_FILE)
