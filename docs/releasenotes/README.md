@@ -6,13 +6,13 @@ title: Latest release
 
 <!-- See [older releases](/releasenotes/olderreleases.md) for earlier versions.-->
 
-## Version 1.0
+## Version 2.0
 
-Release date: ??
+Release date: [TBD]
 
 ### Highlights
 
-Initial release.
+Initial public release.
 
 <!-- 
 <div style="text-indent: 4%;">

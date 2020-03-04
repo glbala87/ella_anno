@@ -1,7 +1,6 @@
 <div align="center" style="padding-bottom: 20px">
   <a href="http://allel.es">
-    <!-- TODO: update link-->
-    <img width="250px" style="border: 0;" src="https://gitlab.com/alleles/ella-anno/raw/dev/docs/logo_anno_blue.svg"/>
+    <img width="350px" style="border: 0;" src="https://gitlab.com/alleles/ella-anno/raw/dev/docs/logo_anno_blue.svg"/>
   </a>
 </div>
 

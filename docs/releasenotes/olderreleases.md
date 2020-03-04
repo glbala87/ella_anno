@@ -4,7 +4,7 @@ title: Older releases
 
 # Release notes: Older releases
 
-No previous releases.
+No previous public releases.
 
 <!-- 
 |Major versions|Minor versions|
