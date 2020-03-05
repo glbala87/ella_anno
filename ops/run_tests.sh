@@ -4,6 +4,6 @@
 
 while ! pg_isready --host=$PGDATA --dbname=postgres --username=postgres; do sleep 5; done
 
-VERBOSE=0 SAMPLES=/anno/tests/testdata/sample_repo TARGETS=/anno/tests/testdata/targets py.test /anno/tests/ -sv
+VERBOSE=0 SAMPLES=/anno/tests/testdata/sample_repo TARGETS=/anno/tests/testdata/targets py.test /anno/tests/ --ignore /anno/tests/opstests -sv
 
 /anno/ops/pg_shutdown

@@ -1,5 +1,5 @@
 argparse==1.2.1
-biocommons.seqrepo==0.3.5
+biocommons.seqrepo==0.4.5
 blinker==1.4.0
 flake8==3.2.1
 Flask-RESTful==0.3.1
@@ -15,3 +15,10 @@ six==1.11.0
 Werkzeug==0.9.6
 wsgiref==0.1.2
 yoyo-migrations==6.1.0
+
+# builder-specific requirements
+biopython==1.74
+jsonschema==3.1.1
+lxml==4.4.1
+pyfaidx==0.5.5.2
+pysam==0.15.3

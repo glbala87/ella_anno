@@ -1,20 +1,26 @@
 #!/usr/bin/env python3
 
+
 import argparse
 from collections import OrderedDict
 import datetime
 import json
 import os
-import logging
 from pathlib import Path
 import shutil
 import subprocess
+import logging
+
+log_format = "%(asctime)s - %(module)s - %(funcName)s:%(lineno)d - %(levelname)s - %(message)s"
+logging.basicConfig(level=logging.INFO, format=log_format)
+
 from data_spaces import DataManager
 from install_thirdparty import thirdparty_packages
 import time
 import toml
 from util import hash_directory_async, AnnoJSONEncoder, format_obj
 from yaml import load as load_yaml, dump as dump_yaml
+import atexit
 
 # try to use libyaml, then fall back to pure python if not available
 try:
@@ -23,6 +29,7 @@ try:
 except ImportError:
     from yaml import BaseLoader as Loader, Dumper
 
+atexit.register(logging.shutdown)
 
 this_dir = Path(__file__).parent.absolute()
 default_base_dir = this_dir.parent
@@ -34,7 +41,8 @@ default_dataset_file = this_dir / "datasets.json"
 default_spaces_config = this_dir / "spaces_config.json"
 TOUCHFILE = "DATA_READY"
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+log_format = "%(asctime)s - %(pathname)s - %(name)s - %(levelname)s - %(message)s"
+logging.basicConfig(level=logging.INFO, format=log_format)
 logger = logging.getLogger(__name__)
 
 
@@ -97,6 +105,12 @@ def main():
     parser.add_argument("--verbose", action="store_true", help="be extra chatty")
     parser.add_argument("--debug", action="store_true", help="run in debug mode")
     args = parser.parse_args()
+
+    h = logging.FileHandler(args.data_dir / "SYNC_DATA_LOG")
+    h.setFormatter(logging.Formatter(log_format))
+    logger.addHandler(h)
+
+    logger.info(f"Parsed arguments: {args}")
 
     # process args
     if args.debug:
@@ -270,7 +284,7 @@ def update_sources(sources_file, source_name, source_data):
     if source_data != old_data:
         file_json[source_name] = source_data
         sources_file.write_text(json.dumps(file_json, cls=AnnoJSONEncoder, indent=2) + "\n")
-        logger.info(f"Updated  {sources_file} for {source_name}")
+        logger.info(f"Updated  {sources_file} for {source_name} (version: {source_data.get('version', 'N/A')})")
     else:
         logger.info(f"Not updating {sources_file} for {source_name}: data is unchanged")
 

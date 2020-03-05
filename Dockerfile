@@ -68,6 +68,14 @@ RUN apt-get update && \
 
 RUN useradd -ms /bin/bash anno-user
 
+COPY pip-requirements /dist/
+RUN pip install -U setuptools wheel && \
+    pip install -r /dist/pip-requirements
+
+COPY pip-requirements-py3 /dist/
+RUN pip3 install -U setuptools wheel && \
+    pip3 install -r /dist/pip-requirements-py3
+
 #####################
 # Builder - for installing thirdparty and generating / downloading data
 #####################
@@ -92,20 +100,12 @@ RUN apt-get update && \
     libmodule-build-perl \
     pkg-config
 
-COPY annobuilder-requirements-py2.txt /dist/
 WORKDIR /anno
-
-RUN pip install -U setuptools wheel && \
-    pip install -r /dist/annobuilder-requirements-py2.txt
 
 COPY ./ops/install_thirdparty.py ./ops/util.py /anno/ops/
 COPY ./bin /anno/bin
 # install thirdparty packages
 RUN python3 /anno/ops/install_thirdparty.py --clean
-
-COPY annobuilder-requirements-py3.txt /dist/
-RUN pip3 install -U setuptools wheel && \
-    pip3 install -r /dist/annobuilder-requirements-py3.txt
 
 COPY ./scripts /anno/scripts/
 COPY ./ops/sync_data.py ./ops/spaces_config.json ./ops/datasets.json ./ops/package_data ./ops/unpack_data /anno/ops/
@@ -125,9 +125,6 @@ RUN curl -L https://github.com/tianon/gosu/releases/download/1.7/gosu-amd64 -o /
     # Cleanup
     cp -R /usr/share/locale/en\@* /tmp/ && rm -rf /usr/share/locale/* && mv /tmp/en\@* /usr/share/locale/ && \
     rm -rf /usr/share/doc/* /usr/share/man/* /usr/share/groff/* /usr/share/info/* /tmp/* /var/cache/apt/* /root/.cache
-
-COPY pip-requirements /dist/requirements.txt
-RUN pip install -U setuptools wheel && pip install -r /dist/requirements.txt
 
 # Init UTA Postgres database
 ENV UTA_VERSION=uta_20180821 \

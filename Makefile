@@ -116,6 +116,11 @@ test:
 	--name $(CONTAINER_NAME)-test \
 	$(IMAGE_NAME) /anno/ops/run_tests.sh
 
+test-ops:
+	docker run --rm -t \
+	--name $(CONTAINER_NAME)-ops-test \
+	$(IMAGE_NAME) /anno/ops/run_ops_tests.sh
+
 localclean:
 	rm -rf thirdparty/ data/ rawdata/
 
@@ -217,8 +222,9 @@ untar-data:
 #---------------------------------------------------------------------
 .PHONY: singularity-test singularity-shell singularity-start singularity-stop
 
+
 singularity-build: gen-singularityfile
-	sudo singularity build $(SINGULARITY_IMAGE_NAME) $(SINGULARITY_DEF_FILE)
+	sudo SINGULARITY_TMPDIR=$(TMP_DIR) singularity build $(SINGULARITY_IMAGE_NAME) $(SINGULARITY_DEF_FILE)
 
 gen-singularityfile:
 	@IMAGE_NAME=$(IMAGE_NAME) ./Singularity_template > $(SINGULARITY_DEF_FILE)

@@ -1,5 +1,14 @@
 #!/bin/bash -euf
 
+# Log to both file and to stdout with timestamp
+LOG_FILE=/anno/data/UNPACK_DATA_LOG
+exec &> >(tee -a "$LOG_FILE")
+function echo() {
+        command echo -e $(date "+%F %T,%3N") - `basename "$0"` - echo - "$@"
+}
+
+echo "Unpack data triggered"
+
 COLOROFF='\033[0m'
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -7,24 +16,35 @@ LIGHTGREEN='\033[1;32m'
 
 pushd /anno/data >/dev/null
 
-function cleanup() {
 
+function cleanup() {
     EXIT_CODE=$?
+    trap - EXIT SIGINT SIGQUIT SIGTERM
     if [ ! $EXIT_CODE -eq 0 ]
     then
         echo -e ${RED}"Something went wrong with unpacking data. Reverting changes."${COLOROFF}
+        echo "Removing extracted files"
+        # Actually remove files created after TIMESTAMP
+        find . -type f -cnewer .tmp/TIMESTAMP -not -path "./.tmp*" -exec rm {} \;
+        rm .tmp/TIMESTAMP
+        find . -type d -empty -delete
+
         pushd /anno/data/.tmp >/dev/null
+        echo "Applying backup"
+        # First create directories, then move back files
+        find . -type d -exec mkdir -p /anno/data/{} \;
         find . -type f -exec mv {} /anno/data/{} \;
         popd >/dev/null
-        rm -r .tmp
-        echo -e ${LIGHTGREEN}"Changes reverted."${COLOROFF}
+        find . -type d -empty -delete
+        echo ${LIGHTGREEN}"Changes reverted."${COLOROFF}
     else
         rm -r .tmp
     fi
+    exit $EXIT_CODE
 
 }
 
-trap cleanup EXIT
+trap cleanup SIGINT SIGQUIT SIGTERM EXIT
 
 if [[ ! -f ${TAR_INPUT} ]]; then
     echo ${RED}"No such file ${TAR_INPUT}"${COLOROFF}
@@ -33,18 +53,28 @@ fi
 # Move files in overlapping folders to a temporary backup
 echo "Moving files in folders affected to temporary backup folder .tmp"
 mkdir -p .tmp
-tar -tf ${TAR_INPUT} | grep -Ev "/$|sources.json|PACKAGES" | xargs dirname | uniq | xargs -i@ /bin/bash -c "mkdir -p .tmp/@; find @ -type f -exec mv {} .tmp/{} \;"
-cp sources.json .tmp/
-cp vcfanno_config.toml .tmp/
+touch .tmp/TIMESTAMP
+sleep 1 # Add sleep here so files are created after TIMESTAMP (apparently some missing granularity)
+set +e
+tar -tf ${TAR_INPUT} | grep -E '/$' | xargs -i@ /bin/bash -c "[[ -d @ ]] && mkdir -p .tmp/@ && mv @* .tmp/@ && rm -r @"
+set -e
+if [[ -f sources.json ]]; then
+    cp sources.json .tmp/
+fi
+
+if [[ -f vcfanno_config.toml ]]; then
+    cp vcfanno_config.toml .tmp/
+fi
+echo "Done"
 
 # Extract data from tar (excluding sources.json and vcfanno_config.toml)
 echo "Extracting data from ${TAR_INPUT}"
-tar -xvf ${TAR_INPUT} --exclude sources.json --exclude vcfanno_config.toml
+tar -xvf ${TAR_INPUT} --exclude sources.json --exclude PACKAGES
 
 # Update sources.json and vcfanno_config.toml. Avoid overwriting them
 echo "Updating sources.json and vcfanno_config.toml"
 python3 - << EOF
-import tarfile, json, pathlib, os, toml
+import tarfile, json, pathlib, os
 os.chdir("/anno/ops")
 from sync_data import update_vcfanno_toml, update_sources
 
@@ -58,12 +88,10 @@ with tarfile.open(os.environ["TAR_INPUT"], 'r') as tar_input:
             print(f"{pkg_name} not in TAR-file. Not updating sources.")
             continue
 
-        print("Updating sources")
         update_sources(existing_sources, pkg_name, sources)
 
         for annotation_data in sources.get("vcfanno", []):
             update_vcfanno_toml(existing_vcfanno_config, annotation_data)
 EOF
 
-
-echo -e ${LIGHTGREEN}"Data successfully added"${COLOROFF}
+echo ${LIGHTGREEN}"Data successfully added"${COLOROFF}
