@@ -1,11 +1,21 @@
 #!/bin/bash -euf
 
+# Log to both file and to stdout with timestamp
+LOG_FILE=/anno/data/UNPACK_DATA_LOG
+exec &> >(tee -a "$LOG_FILE")
+function echo() {
+        command echo -e $(date "+%F %T,%3N") - `basename "$0"` - echo - "$@"
+}
+
+echo "Unpack data triggered"
+
 COLOROFF='\033[0m'
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 LIGHTGREEN='\033[1;32m'
 
 pushd /anno/data >/dev/null
+
 
 function cleanup() {
     EXIT_CODE=$?
@@ -26,7 +36,7 @@ function cleanup() {
         find . -type f -exec mv {} /anno/data/{} \;
         popd >/dev/null
         find . -type d -empty -delete
-        echo -e ${LIGHTGREEN}"Changes reverted."${COLOROFF}
+        echo ${LIGHTGREEN}"Changes reverted."${COLOROFF}
     else
         rm -r .tmp
     fi
@@ -41,7 +51,7 @@ if [[ ! -f ${TAR_INPUT} ]]; then
     exit 1
 fi
 # Move files in overlapping folders to a temporary backup
-echo "Moving files in folders affected to temporary backup folder .tmp dabla"
+echo "Moving files in folders affected to temporary backup folder .tmp"
 mkdir -p .tmp
 touch .tmp/TIMESTAMP
 sleep 1 # Add sleep here so files are created after TIMESTAMP (apparently some missing granularity)
@@ -59,7 +69,7 @@ echo "Done"
 
 # Extract data from tar (excluding sources.json and vcfanno_config.toml)
 echo "Extracting data from ${TAR_INPUT}"
-tar -xvf ${TAR_INPUT} --exclude sources.json --exclude vcfanno_config.toml
+tar -xvf ${TAR_INPUT} --exclude sources.json --exclude PACKAGES
 
 # Update sources.json and vcfanno_config.toml. Avoid overwriting them
 echo "Updating sources.json and vcfanno_config.toml"
@@ -78,11 +88,10 @@ with tarfile.open(os.environ["TAR_INPUT"], 'r') as tar_input:
             print(f"{pkg_name} not in TAR-file. Not updating sources.")
             continue
 
-        print("Updating sources")
         update_sources(existing_sources, pkg_name, sources)
 
         for annotation_data in sources.get("vcfanno", []):
             update_vcfanno_toml(existing_vcfanno_config, annotation_data)
 EOF
 
-echo -e ${LIGHTGREEN}"Data successfully added"${COLOROFF}
+echo ${LIGHTGREEN}"Data successfully added"${COLOROFF}
