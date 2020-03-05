@@ -116,6 +116,11 @@ test:
 	--name $(CONTAINER_NAME)-test \
 	$(IMAGE_NAME) /anno/ops/run_tests.sh
 
+test-ops:
+	docker run --rm -t \
+	--name $(CONTAINER_NAME)-ops-test \
+	$(IMAGE_NAME) /anno/ops/run_ops_tests.sh
+
 localclean:
 	rm -rf thirdparty/ data/ rawdata/
 

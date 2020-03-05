@@ -1,0 +1,28 @@
+{
+    "dataset1": {
+        "description": "Test dataset 1",
+        "version": "1",
+        "destination": "DATASET1",
+        "generate": [
+            "echo 'SOME TESTDATA FOR DATASET1' > dataset1.vcf",
+            "cp dataset1.vcf {data_dir}"
+        ],
+        "vcfanno": [
+            {
+                "file": "{data_dir}/dataset1.vcf",
+                "fields": ["SOME_FIELD"],
+                "names": ["SOME_FIELD_TRANSLATED"],
+                "ops": ["first"]
+            }
+        ]
+    },
+    "dataset2": {
+        "description": "Test dataset 2",
+        "version": "A",
+        "destination": "datasets/DATASET2",
+        "generate": [
+            "echo 'SOME TESTDATA FOR DATASET2' > dataset2.bed",
+            "cp dataset2.bed {data_dir}"
+        ]
+    }
+}
