@@ -1,5 +1,5 @@
 {
-  "bucket_name": "ella-anno",
-  "is_public": true,
-  "region": "fra1"
+    "bucket_name": "ella-anno",
+    "is_public": true,
+    "region": "fra1"
 }
