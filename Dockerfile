@@ -1,7 +1,3 @@
-
-FROM debian:buster-20191014 AS buildtest
-RUN echo "in container:" && export
-
 FROM debian:buster-20191014 AS base
 LABEL maintainer="OUS AMG <ella-support@medisin.uio.no>"
 
@@ -151,6 +147,7 @@ ENV UTA_DB_URL=postgresql://uta_admin@localhost:5432/uta/${UTA_VERSION} \
 COPY . /anno
 COPY --from=builder /anno/thirdparty /anno/thirdparty
 COPY --from=builder /anno/bin /anno/bin
+RUN [ -d /anno/data ] || mkdir /anno/data
 
 # Set supervisor as default cmd
 CMD /anno/ops/entrypoint.sh

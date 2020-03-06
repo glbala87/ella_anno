@@ -33,6 +33,9 @@ SINGULARITY_LOG_STDOUT = $(SINGULARITY_LOG_DIR)/$(SINGULARITY_INSTANCE_NAME).out
 TMP_DIR ?= /tmp
 UTA_VERSION=uta_20180821
 
+# Use docker buildkit for faster builds
+DOCKER_BUILDKIT := 1
+
 # if DO_CREDS is set, the file should be mounted into the docker container
 ifneq ($(DO_CREDS),)
 ANNOBUILDER_OPTS += -v $(shell realpath $(DO_CREDS)):/anno/do_creds
@@ -77,7 +80,7 @@ any:
 	@true
 
 build:
-	docker build -t $(IMAGE_NAME) $(BUILD_OPTS) --target prod .
+	docker build -t $(IMAGE_NAME) $(BUILD_OPTS) --build-arg BUILDKIT_INLINE_CACHE=1 --target prod .
 
 run:
 	docker run -d \
@@ -117,7 +120,7 @@ test:
 	$(IMAGE_NAME) /anno/ops/run_tests.sh
 
 test-ops:
-	docker run --rm -t \
+	docker run -t --rm \
 	--name $(CONTAINER_NAME)-ops-test \
 	$(IMAGE_NAME) /anno/ops/run_ops_tests.sh
 
@@ -131,8 +134,15 @@ shell:
 # AnnoBuilder: generate / download processed datasets for anno
 #---------------------------------------------------------------------
 
+ifeq ($(CI_REGISTRY_IMAGE),)
+# running locally, use tty
+TERM_OPTS := -it
+else
+TERM_OPTS := -i
+endif
+
 define annobuilder-template
-docker run --rm -it \
+docker run --rm $(TERM_OPTS) \
 	$(ANNOBUILDER_OPTS) \
 	-v $(TMP_DIR):/tmp \
 	-v $(ANNO_DATA):/anno/data \
@@ -144,7 +154,7 @@ build-base:
 	docker build -t local/anno-base --target base .
 
 build-annobuilder:
-	docker build -t $(ANNOBUILDER_IMAGE_NAME) --target builder .
+	docker build -t $(ANNOBUILDER_IMAGE_NAME) $(BUILD_OPTS) --build-arg BUILDKIT_INLINE_CACHE=1 --target builder .
 
 # annobuilder/-shell/-exec are only run when troubleshooting data generation or adding new packages
 annobuilder:

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-
 import argparse
+import atexit
 from collections import OrderedDict
 import datetime
 import json
@@ -11,8 +11,10 @@ import shutil
 import subprocess
 import logging
 
+# set up logging before anything else touches it
 log_format = "%(asctime)s - %(module)s - %(funcName)s:%(lineno)d - %(levelname)s - %(message)s"
 logging.basicConfig(level=logging.INFO, format=log_format)
+logger = logging.getLogger(__name__)
 
 from data_spaces import DataManager
 from install_thirdparty import thirdparty_packages
@@ -20,7 +22,6 @@ import time
 import toml
 from util import hash_directory_async, AnnoJSONEncoder, format_obj
 from yaml import load as load_yaml, dump as dump_yaml
-import atexit
 
 # try to use libyaml, then fall back to pure python if not available
 try:
@@ -40,10 +41,6 @@ default_thirdparty_dir = default_base_dir / "thirdparty"
 default_dataset_file = this_dir / "datasets.json"
 default_spaces_config = this_dir / "spaces_config.json"
 TOUCHFILE = "DATA_READY"
-
-log_format = "%(asctime)s - %(pathname)s - %(name)s - %(levelname)s - %(message)s"
-logging.basicConfig(level=logging.INFO, format=log_format)
-logger = logging.getLogger(__name__)
 
 
 def main():
@@ -109,8 +106,6 @@ def main():
     h = logging.FileHandler(args.data_dir / "SYNC_DATA_LOG")
     h.setFormatter(logging.Formatter(log_format))
     logger.addHandler(h)
-
-    logger.info(f"Parsed arguments: {args}")
 
     # process args
     if args.debug:
