@@ -573,15 +573,9 @@
         "vcfanno": [
             {
                 "file": "{data_dir}/clinvar_{version}.vcf.gz",
-                "fields": [
-                    "CLINVARJSON"
-                ],
-                "names": [
-                    "CLINVARJSON"
-                ],
-                "ops": [
-                    "first"
-                ]
+                "fields": ["CLINVARJSON"],
+                "names": ["CLINVARJSON"],
+                "ops": ["first"]
             }
         ]
     },
