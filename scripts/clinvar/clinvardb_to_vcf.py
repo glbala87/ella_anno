@@ -225,7 +225,7 @@ def clinvar_vcf_check(data, clinvar_vcf):
         )
         logging.debug(
             "clnsig and revstat not matching clinvar vcf for variant id {}:\n".format(variant_id)
-            + "-- ClinVar VCF: {}\n".format(clinvar_vcf[variant_id]["clnsig"], clinvar_vcf[variant_id]["revstat"])
+            + "-- ClinVar VCF: {}\n".format((clinvar_vcf[variant_id]["clnsig"], clinvar_vcf[variant_id]["revstat"]))
             + "-- Fetched from XML: {}".format((data["clnsig"], data["revstat"]))
         )
 
