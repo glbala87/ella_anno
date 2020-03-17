@@ -134,13 +134,20 @@ def main():
         raise FileNotFoundError(f"Specified --spaces-config {args.spaces_config} does not exist")
     spaces_config["skip_validation"] = args.skip_validation
 
+    if args.generate:
+        verb = "Generating"
+    elif args.download:
+        verb = "Downloading"
+    else:
+        verb = "Uploading"
+
     # now we actually start doing things
     sources_json_file = args.data_dir / "sources.json"
     vcfanno_toml_file = args.data_dir / "vcfanno_config.toml"
 
     errs = list()
     for dataset_name, dataset in sync_datasets.items():
-        logger.info(f"Syncing dataset {dataset_name}")
+        logger.info(f"{verb} dataset {dataset_name}")
         raw_dir = args.rawdata_dir.absolute() / dataset_name
         data_dir = args.data_dir.absolute() / dataset.get("destination", dataset_name)
         thirdparty_dir = args.thirdparty_dir.absolute() / dataset.get("thirdparty-name", dataset_name)
@@ -172,7 +179,13 @@ def main():
         if args.generate:
             dataset_ready = data_dir / TOUCHFILE
             if dataset_ready.exists():
-                logger.info(f"Dataset {dataset_name} already complete, skipping\n")
+                dataset_metadata = load_yaml(dataset_ready.open("rt"), Loader=Loader)
+                if dataset_metadata.get("version", "") == dataset_version:
+                    logger.info(f"Dataset {dataset_name} already complete, skipping\n")
+                else:
+                    logger.error(
+                        f"Found existing {dataset_name} version {dataset_metadata['version']}, but trying to generate version {dataset_version}. Please delete {data_dir.relative_to(default_base_dir)} and try again."
+                    )
                 continue
             elif not data_dir.exists():
                 data_dir.mkdir(parents=True)
