@@ -5,7 +5,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LANGUAGE=C.UTF-8 \
     LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
-    PATH=/anno/bin:$PATH
+    PATH=/anno/bin:$PATH \
+    PERL5LIB=/anno/thirdparty/ensembl-vep-release/:/anno/thirdparty/vcftools/lib
 
 RUN echo 'Acquire::ForceIPv4 "true";' | tee /etc/apt/apt.conf.d/99force-ipv4
 
@@ -139,7 +140,6 @@ ENV UTA_DB_URL=postgresql://uta_admin@localhost:5432/uta/${UTA_VERSION} \
     TARGETS_OUT=/targets-out \
     SAMPLES=/samples \
     PATH=/anno/bin:$TARGETS/targets:$PATH \
-    PERL5LIB=/anno/thirdparty/ensembl-vep-release/:/anno/thirdparty/vcftools/lib \
     LD_LIBRARY_PATH=/anno/thirdparty/ensembl-vep-release/htslib \
     WORKFOLDER=/tmp/annowork \
     ANNO_DATA=/anno/data
