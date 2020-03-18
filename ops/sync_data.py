@@ -204,7 +204,9 @@ def main():
                 step_success = False
                 while num_retries <= max_retries:
                     logger.info(f"Running: {step_str}")
-                    step_resp = subprocess.run(step_str, shell=True, cwd=raw_dir, stdout=h.stream, stderr=h.stream)
+                    step_resp = subprocess.run(
+                        step_str, shell=True, cwd=raw_dir, stdout=h.stream, stderr=subprocess.PIPE
+                    )
                     if step_resp.returncode != 0:
                         errs.append((dataset_name, step_str, step_resp.returncode, step_resp.stderr.decode("utf-8")))
                         if num_retries >= max_retries and max_retries > 0:

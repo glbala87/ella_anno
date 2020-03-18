@@ -515,9 +515,9 @@ def main():
     args = parser.parse_args()
 
     if args.debug:
-        logging.basicConfig(level=logging.DEBUG)
+        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
     else:
-        logging.basicConfig(level=logging.INFO)
+        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
     if API_KEY is None:
         logging.warning(
