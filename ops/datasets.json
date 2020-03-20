@@ -565,10 +565,11 @@
     },
     "clinvar": {
         "description": "clinvar variant database",
-        "version": "20191127",
+        "version": "20200319",
         "destination": "variantDBs/clinvar",
         "generate": [
-            "python {root_dir}/scripts/clinvar/clinvardb_to_vcf.py -np {max_procs} -o {data_dir}/clinvar_{version}.vcf -g {root_dir}/data/FASTA/human_g1k_v37_decoy.fasta"
+            "python {root_dir}/scripts/clinvar/clinvardb_to_vcf.py -np {max_procs} -o clinvar_{version}.vcf --no-archive --debug",
+            "mv clinvar_{version}.vcf.gz* {data_dir}"
         ],
         "vcfanno": [
             {
