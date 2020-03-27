@@ -4,11 +4,11 @@
   </a>
 </div>
 
-ELLA anno is the annotation service for the genetic variant interpretation tool [ELLA](http://allel.es). 
+ELLA anno is the annotation service for the genetic variant interpretation tool [ELLA](http://allel.es). It takes annotation data from several sources (gnomAD, ClinVar and VEP by default, but you can also add others) and uses [vcfanno](https://github.com/brentp/vcfanno) to create annotated VCFs. You can then use [ella-anno-target](https://gitlab.com/alleles/ella-anno-target) to prepare additional, ELLA-specific files so that it can be easily imported for interpretation.
 
 ### Setup
 
-For details on how to setup the ELLA annotation service, please see the [technical documentation](http://allel.es/anno-docs/technical/setup.html).
+For details on how to setup and run the ELLA annotation service, please see the [technical documentation](http://allel.es/anno-docs/technical/setup.html).
 
 ### Documentation
 

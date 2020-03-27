@@ -7,22 +7,22 @@ sidebar: false
 		<img width="350px;" src="./anno-docs_blue.svg">
 	</div>
 	<br>
-	<div style="font-size: 80%;">v2.0 | [Date TBD]</div>
+	<div style="font-size: 80%;">v2.0-rc | 27.03.2020</div>
 </div>
 
 These pages describe ELLA's annotation service, which is required by ELLA to import variants and analyses. For documentation about the ELLA application itself, see [allel.es/docs](http://allel.es/docs).
 
 *Features:* 
-- Annotates variants with prediction, population frequencies and external mutation databases.
+- Annotates variants with prediction, population frequencies and external mutation databases (VEP, gnomAD and ClinVar by default).
 - Converts manual import data, with support for HGVS, VCF and SeqPilot formats.
-- Extracts PubMed IDs from ClinVar and HGMD data.
+- Extracts PubMed IDs from ClinVar and (optional) HGMD data.
 
 ## Contents
 
 - [Technical documentation](/technical/): 
 	- [Setup](/technical/setup.md): Instructions for setting up the annotation service.
 	- [Annotation](/technical/annotation.md): Details about annotation sources, and how to update and add your own. 
-	- [System internals](/technical/sysinternals.md): Technical details and inner workings of the annotation service. 
+	- [System internals](/technical/sysinternals.md): Technical details and inner workings of the service. 
 - [Release notes](/releasenotes/): Versions and changes.
 
 

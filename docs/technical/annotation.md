@@ -10,10 +10,9 @@ This documentation is a work in progress and is incomplete.
 Please contact developers for more details.
 :::
 
-Description of the annotation sources included with the service, and how to update them.
+This page describes the default annotation sources included with the service and how to add additional annotation sources.
 
 [[toc]]
-
 
 ## General annotation
 
@@ -74,4 +73,7 @@ Updates should be done quarterly, timed with HGMD's releases. To updated, run ..
 
 ## Custom annotation
 
-To add your own annotation datasets, ...
+If you have other data sources you wish to annotate with, you can easily extend the reference data sources by modifying `/ops/datasets.json` with your custom data sources. See also the [vcfanno documentation](https://github.com/brentp/vcfanno) for the vcfanno section of `datasets.json`.
+
+See the (currently non-existent) `/examples` repo dir for examples on how to extend ELLA anno with your own data.
+

@@ -10,7 +10,7 @@ This documentation is a work in progress and is incomplete.
 Please contact developers for more details.
 :::
 
-Detailed description of the annotation service ...
+ELLA anno takes annotation data from several sources (included by default or custom) and uses [vcfanno](https://github.com/brentp/vcfanno) to create annotated VCFs. You can then use [ella-anno-target](https://gitlab.com/alleles/ella-anno-target) to prepare additional, ELLA-specific files so that it can be easily imported for interpretation.
 
 ## Annotation
 
