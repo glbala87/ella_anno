@@ -48,32 +48,19 @@ check_tmp() {
     df /tmp | perl -lane '$MIN_GB=50;next if ($. == 1);if ($F[3] < $MIN_GB * 1024*1024) { print STDERR " *** ERROR *** Insufficient disk space for sorting gnomAD genomic output, set TMP_DIR when running make commands"; exit 1}'
 }
 
-normalize_exome_chrom() {
+normalize_chrom() {
     chrom="$1"
     input_file="$2"
     output_file="$3"
-    tabix -p vcf -h "$input_file" $chrom \
-        | perl -F'\t' -wlane 'if (substr($F[0], 0, 1) eq "#"){print join("\t", @F)}else{print join("\t", @F[0..6], join(";", (grep { ! /^(GQ_HIST_ALT|DP_HIST_ALT|AB_HIST_ALT|GQ_HIST_ALL|DP_HIST_ALL|AB_HIST_ALL|CSQ)=/ } (split ";", $F[7]))))}' \
-        | vt decompose -s - \
-        | vt normalize -r "${REFERENCE}" -n - \
-        | vcf-sort -t ${TMP_DIR:-/tmp} \
-        > "$output_file" \
-        || bail "Error processing chrom ${chrom} of $input_file, return code: $?"
-    log "Finished processing exome chromosome $chrom"
-}
-
-normalize_genome_chrom() {
-    input_file="$1"
-    output_file="$2"
-    bed_opt="$3"
-    tabix -h $bed_opt "$input_file" \
+    bed_opt="$4"
+    tabix -p vcf -h $bed_opt "$input_file" $chrom \
         | perl -F'\t' -wlane 'if (substr($F[0], 0, 1) eq "#"){print join("\t", @F)}else{print join("\t", @F[0..6], join(";", (grep { ! /^(GQ_HIST_ALT|DP_HIST_ALT|AB_HIST_ALT|GQ_HIST_ALL|DP_HIST_ALL|AB_HIST_ALL|CSQ)=/ } (split ";", $F[7]))))}' \
         | vt decompose -s - \
         | vt normalize -r "${REFERENCE}" -n -w 20000 - \
         | vcf-sort -t ${TMP_DIR:-/tmp} \
         > "$output_file" \
-        || bail "Error processing ${input_file}, return code: $?"
-    log "Finished processing genome file $input_file"
+        || bail "Error processing chrom ${chrom} of $input_file, return code: $?"
+    log "Finished processing chromosome $chrom of $input_file"
 }
 
 while getopts ":v:b:h" opt; do
@@ -138,13 +125,13 @@ for i in {1..22} X Y; do
     if [[ -f $norm_fn ]]; then
         log "skipping existing file $norm_fn"
     else
-        normalize_exome_chrom $i $EXOME_INPUT $norm_fn &
+        normalize_chrom $i $EXOME_INPUT $norm_fn &
     fi
 done
 
 # start processing genome chromosome files
 
-GENOME_OUTPUT="$GNOMAD_DATA_DIR/gnomad.genomes.r${GNOMAD_VERSION}.refgene.norm.vcf.gz"
+GENOME_OUTPUT="$GNOMAD_DATA_DIR/gnomad.genomes.r${GNOMAD_VERSION}.norm.vcf.gz"
 declare -a GENOME_BY_CHR
 for j in {1..22} X; do
     while [[ $(pcnt) -ge $MAX_PCNT ]]; do
@@ -164,7 +151,7 @@ for j in {1..22} X; do
         log "skipping existing file $norm_fn"
     else
         check_tmp || bail
-        normalize_genome_chrom $raw_fn $norm_fn "$bed_opt" &
+        normalize_chrom $j $raw_fn $norm_fn "$bed_opt" &
     fi
 done
 wait

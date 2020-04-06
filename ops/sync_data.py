@@ -165,11 +165,14 @@ def main():
             "thirdparty": str(thirdparty_dir),
             # version info
             "version": dataset_version,
+            "destination": dataset.get("destination", dataset_name),
             # vep version is a special case, since data is retrieved after installing the software in `install_thirdparty.py`
             "vep_version": thirdparty_packages["vep"]["version"],
             # misc settings
             "max_procs": args.max_processes,
         }
+        if dataset.get("vars"):
+            format_opts.update(dataset["vars"])
 
         sources_data = {"version": dataset_version}
         if "hash" in dataset:
@@ -205,7 +208,12 @@ def main():
                 while num_retries <= max_retries:
                     logger.info(f"Running: {step_str}")
                     step_resp = subprocess.run(
-                        step_str, shell=True, cwd=raw_dir, stdout=h.stream, stderr=subprocess.PIPE
+                        step_str,
+                        shell=True,
+                        cwd=raw_dir,
+                        stdout=h.stream,
+                        stderr=subprocess.PIPE,
+                        executable="/bin/bash",
                     )
                     if step_resp.returncode != 0:
                         errs.append((dataset_name, step_str, step_resp.returncode, step_resp.stderr.decode("utf-8")))
