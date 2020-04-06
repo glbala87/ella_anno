@@ -4,6 +4,7 @@ TARGETS_FOLDER ?= $(shell pwd)/anno-targets
 TARGETS_OUT ?= $(shell pwd)/anno-targets-out
 SAMPLE_REPO ?= $(shell pwd)/sample-repo
 ANNO_DATA ?= $(shell pwd)/data
+ANNO_RAWDATA ?= $(shell pwd)/rawdata
 
 RELEASE_TAG ?= $(shell git tag -l --points-at HEAD)
 ifneq ($(RELEASE_TAG),)
@@ -38,7 +39,7 @@ DOCKER_BUILDKIT := 1
 
 # if DO_CREDS is set, the file should be mounted into the docker container
 ifneq ($(DO_CREDS),)
-ANNOBUILDER_OPTS += -v $(shell realpath $(DO_CREDS)):/anno/do_creds
+ANNOBUILDER_OPTS += --env-file $(shell realpath $(DO_CREDS))
 endif
 
 .PHONY: help
@@ -142,6 +143,7 @@ TERM_OPTS := -i
 endif
 
 define annobuilder-template
+mkdir -p $(ANNO_DATA) # ensure directory exists so it's not root owned when created by docker
 docker run --rm $(TERM_OPTS) \
 	$(ANNOBUILDER_OPTS) \
 	-v $(TMP_DIR):/tmp \
@@ -174,14 +176,16 @@ annobuilder-exec:
 	$(annobuilder-template)
 
 download-data:
-	$(eval ANNOBUILDER_OPTS += --user $(shell id -u):$(shell id -g))
+	$(eval ANNOBUILDER_OPTS += -v /etc/passwd:/etc/passwd -e LOCAL_USER=$(shell whoami))
 	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --download)
+	$(eval RUN_CMD_ARGS += ; chown -R \$$$$LOCAL_USER. /anno/data)
 	$(annobuilder-template)
 
 download-package:
 	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to download')
-	$(eval ANNOBUILDER_OPTS += --user $(shell id -u):$(shell id -g))
+	$(eval ANNOBUILDER_OPTS += -v /etc/passwd:/etc/passwd -e LOCAL_USER=$(shell whoami))
 	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --download -d $(PKG_NAME))
+	$(eval RUN_CMD_ARGS += ; chown -R \$$$$LOCAL_USER. /anno/data)
 	$(annobuilder-template)
 
 upload-data:
@@ -197,11 +201,15 @@ upload-package:
 
 generate-data:
 	@$(call check_defined, ENTREZ_API_KEY, 'Make sure ENTREZ_API_KEY is set and exported so clinvar data can be built successfully')
+	mkdir -p $(ANNO_RAWDATA)
+	$(eval ANNOBUILDER_OPTS += -v $(ANNO_RAWDATA):/anno/rawdata)
 	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --generate)
 	$(annobuilder-template)
 
 generate-package:
 	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to generate')
+	mkdir -p $(ANNO_RAWDATA)
+	$(eval ANNOBUILDER_OPTS += -v $(ANNO_RAWDATA):/anno/rawdata)
 	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --generate -d $(PKG_NAME))
 	$(annobuilder-template)
 

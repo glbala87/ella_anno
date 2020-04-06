@@ -32,18 +32,23 @@
     },
     "refgene": {
         "description": "refGene database for slicing gnomAD data",
-        "version": "hg19",
+        "version": "20200319",
         "hash": {
             "type": "md5",
-            "value": "e0de330beb80dc91df475615f7181f8c"
+            "value": "1b028ad27b0c66dfdeb1ef73b9e9ddc1"
+        },
+        "vars": {
+            "hg_build": "hg19"
         },
         "destination": "refGene",
         "generate": [
             "wget http://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/refGene.txt.gz",
             "echo '{hash_value} refGene.txt.gz' | {hash_type}sum -c",
-            "zcat refGene.txt.gz | cut -f 3,5,6 | sed 's/chr//g' | sort -k1,1V -k2,2n | uniq | bedtools merge > refgene_{version}.bed",
-            "mysql --user=genome --host=genome-mysql.cse.ucsc.edu -A -e 'select chrom, size from {version}.chromInfo' | sed 's/chr//g' > {data_dir}/{version}.genome",
-            "bedtools slop -i refgene_{version}.bed -g {data_dir}/{version}.genome -b 10000 > {data_dir}/refgene_{version}_slop_10k.bed"
+            "LATEST=$({root_dir}/scripts/get_versions -p refgene -l); wget https://ella-anno.fra1.digitaloceanspaces.com/data/{destination}/$LATEST/refGeneHistorical.csv.gz",
+            "gunzip refGeneHistorical.csv.gz",
+            "DATE=$(date -d \"$(curl -sI http://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/refGene.txt.gz | grep Last-Mod | cut -f2- -d' ')\" +%Y-%m-%d); zcat refGene.txt.gz | sed -e \"s/$/\t$DATE/\" >> refGeneHistorical.csv",
+            "gzip refGeneHistorical.csv",
+            "cp refGeneHistorical.csv.gz refgene_{hg_build}_{version}.bed {data_dir}/"
         ]
     },
     "refseq": {
@@ -83,12 +88,12 @@
         "version": "2.0.2",
         "destination": "variantDBs/gnomAD",
         "generate": [
-            "{root_dir}/scripts/gnomad/download_gnomad.sh -r {version} -s",
-            "{root_dir}/scripts/gnomad/gnomad_process_data.sh -v {version} -b {base_data_dir}/refGene/refgene_hg19_slop_10k.bed"
+            "{root_dir}/scripts/gnomad/download_gnomad.sh -r {version}",
+            "{root_dir}/scripts/gnomad/gnomad_process_data.sh -v {version} "
         ],
         "vcfanno": [
             {
-                "file": "{data_dir}/gnomad.exomes.r2.0.2.norm.vcf.gz",
+                "file": "{destination}/gnomad.exomes.r2.0.2.norm.vcf.gz",
                 "fields": [
                     "OLD_MULTIALLELIC",
                     "AC",
@@ -325,7 +330,7 @@
                 ]
             },
             {
-                "file": "{data_dir}/gnomad.genomes.r2.0.2.refgene.norm.vcf.gz",
+                "file": "{destination}/gnomad.genomes.r2.0.2.norm.vcf.gz",
                 "fields": [
                     "OLD_MULTIALLELIC",
                     "AC",
@@ -573,7 +578,7 @@
         ],
         "vcfanno": [
             {
-                "file": "{data_dir}/clinvar_{version}.vcf.gz",
+                "file": "{destination}/clinvar_{version}.vcf.gz",
                 "fields": ["CLINVARJSON"],
                 "names": ["CLINVARJSON"],
                 "ops": ["first"]

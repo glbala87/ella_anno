@@ -1,0 +1,82 @@
+#!/bin/bash
+
+usage() {
+    if [[ "$1" ]]; then
+        echo "$1"
+    fi
+    echo
+    echo "    Usage: $0 -p PACKAGE_NAME [ -l ] [ -h ]"
+    echo
+    echo " -p PACKAGE_NAME      The package to the available versions for (required)"
+    echo " -l                   Just give the latest version, not all versions"
+    echo " -h                   Show this help message"
+    echo
+    exit 1
+}
+
+bail() {
+    if [[ "$1" ]]; then
+        echo
+        echo " ** ERROR ** $1"
+    fi
+    echo
+    exit 1
+}
+
+get_list() {
+    if [[ -z $1 ]]; then
+        bail "you must specify a url"
+    fi
+    # use `rev | cut | rev` to cut from the end of the string (get top-most dir)
+    wget -q -O /dev/stdout "$1" \
+        | xpath -q -e './/Contents/Key/text()' \
+        | rev \
+        | cut -d/ -f2 \
+        | rev \
+        | sort \
+        | uniq
+}
+
+THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+ROOT_DIR="$(dirname $THIS_DIR)"
+OPS_DIR="$ROOT_DIR/ops"
+DATASETS="$OPS_DIR/datasets.json"
+BASE_URL="https://ella-anno.fra1.digitaloceanspaces.com/?prefix=data"
+LATEST=
+
+if [[ ! -f $DATASETS ]]; then
+    bail "Could not find datasets.json: $DATASETS"
+fi
+VALID_PACKAGES=($(jq -r 'keys[]' "$DATASETS"))
+
+while getopts ":p:lh" opt; do
+    case "${opt}" in
+        p)
+            if [[ " ${VALID_PACKAGES[*]} " =~ \ $OPTARG\  ]]; then
+                PACKAGE_NAME="$OPTARG"
+                PACKAGE_URL=$(jq -r ".$PACKAGE_NAME.destination" "$DATASETS")
+            else
+                bail "Invalid package: $OPTARG"
+            fi
+            ;;
+        l)
+            LATEST=1
+            ;;
+        h)
+            usage
+            ;;
+        \?)
+            usage "Invalid option: $OPTARG"
+            ;;
+        :)
+            usage "Missing argument for $OPTARG"
+            ;;
+    esac
+done
+
+TARGET_URL="$BASE_URL/$PACKAGE_URL/"
+if [[ -z $LATEST ]]; then
+    get_list "$TARGET_URL"
+else
+    get_list "$TARGET_URL" | tail -1
+fi

@@ -18,6 +18,7 @@ yoyo-migrations==6.1.0
 
 # builder-specific requirements
 biopython==1.74
+crcmod==1.7
 jsonschema==3.1.1
 lxml==4.4.1
 pyfaidx==0.5.5.2
