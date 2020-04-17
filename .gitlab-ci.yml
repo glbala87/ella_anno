@@ -85,31 +85,31 @@ update_anno_latest:
         - bastion
 
 # Gitlab security scans
-
-dependency_scanning:
-    stage: test
-    only:
-        - tags
-        - dev
-        - master
-
-container_scanning:
-    stage: test
-    only:
-        - tags
-        - dev
-        - master
-
-sast:
-    stage: test
-    only:
-        - tags
-        - dev
-        - master
-
-license_scanning:
-    stage: test
-    only:
-        - tags
-        - dev
-        - master
+#
+# dependency_scanning:
+#     stage: test
+#     only:
+#         - tags
+#         - dev
+#         - master
+#
+# container_scanning:
+#     stage: test
+#     only:
+#         - tags
+#         - dev
+#         - master
+#
+# sast:
+#     stage: test
+#     only:
+#         - tags
+#         - dev
+#         - master
+#
+# license_scanning:
+#     stage: test
+#     only:
+#         - tags
+#         - dev
+#         - master
