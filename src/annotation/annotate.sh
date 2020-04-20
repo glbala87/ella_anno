@@ -17,7 +17,8 @@ usage="Usage: `basename $0`
 # Parse arguments
 WORKDIR=$PWD
 CONVERT_ONLY=0
-NUM_PROCESSES=$(nproc)
+NUM_VEP_PROCESSES=${NUM_VEP_PROCESSES:-$(nproc)}
+NUM_VCFANNO_PROCESSES=${NUM_VCFANNO_PROCESSES:-$(nproc)}
 while [ $# -gt 0 ]; do
   case "$1" in
     --vcf)
@@ -48,7 +49,8 @@ while [ $# -gt 0 ]; do
       CONVERT_ONLY=1
       ;;
     --processes|-p)
-      NUM_PROCESSES="$2"
+      NUM_VEP_PROCESSES="$2"
+      NUM_VCFANNO_PROCESSES="$2"
       shift
       ;;
     *)
@@ -276,7 +278,7 @@ then
             --pubmed \
             --symbol \
             --allow_non_variant \
-            --fork=$NUM_PROCESSES \
+            --fork=$NUM_VEP_PROCESSES \
             --vcf \
             --allele_number \
             --no_escape \
@@ -300,7 +302,7 @@ then
     handle_step_start "VCFANNO"
 
     cp $VCFANNO_CONFIG "$WORKDIR_STEP/vcfanno_config.toml"
-    cmd="IRELATE_MAX_GAP=1000 GOGC=1000 vcfanno -p $NUM_PROCESSES -base-path $ANNODATA $WORKDIR_STEP/vcfanno_config.toml $VCF > $OUTPUT_VCF 2> $OUTPUT_LOG"
+    cmd="IRELATE_MAX_GAP=1000 GOGC=1000 vcfanno -p $NUM_VCFANNO_PROCESSES -base-path $ANNODATA $WORKDIR_STEP/vcfanno_config.toml $VCF > $OUTPUT_VCF 2> $OUTPUT_LOG"
     echo $cmd > $OUTPUT_CMD
     bash $OUTPUT_CMD
 
