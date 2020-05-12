@@ -28,6 +28,7 @@ stages:
     - build
     - test
     - update_latest
+    - release
 
 .image_setup:
     before_script:
@@ -84,6 +85,19 @@ update_anno_latest:
     tags:
         - bastion
 
+release_singularity:
+    stage: release
+    extends: .image_setup
+    script:
+        - docker pull $CI_REGISTRY_IMAGE:$PROD_COMMIT_TAG | cat || true
+        - make singularity-release IMAGE_NAME=$CI_REGISTRY_IMAGE
+    artifacts:
+        name: "anno-$CI_COMMIT_REF_NAME-singularity"
+        paths:
+            - release/
+        expire_in: 30 days
+    only:
+        - triggers
 # Gitlab security scans
 #
 # dependency_scanning:
