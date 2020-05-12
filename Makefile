@@ -29,6 +29,7 @@ SINGULARITY_DEF_FILE = Singularity.$(ANNO_BUILD)
 SINGULARITY_LOG_DIR = $(HOME)/.singularity/instances/logs/$(shell hostname)/$(USER)
 SINGULARITY_LOG_STDERR = $(SINGULARITY_LOG_DIR)/$(SINGULARITY_INSTANCE_NAME).err
 SINGULARITY_LOG_STDOUT = $(SINGULARITY_LOG_DIR)/$(SINGULARITY_INSTANCE_NAME).out
+SINGULARITY_ANNO_LOGS := $(shell pwd)/logs
 # Large tmp storage is needed for gnomAD data generation. Set this to somewhere with at least 50GB of space if not
 # available on /tmp's partition
 TMP_DIR ?= /tmp
@@ -247,14 +248,20 @@ singularity-build: gen-singularityfile
 gen-singularityfile:
 	@IMAGE_NAME=$(IMAGE_NAME) ./Singularity_template > $(SINGULARITY_DEF_FILE)
 
-singularity-start:
-	[ -d $(SINGULARITY_DATA) ] || mkdir -p $(SINGULARITY_DATA)
+ensure-singularity-dirs:
+	@mkdir -p $(SINGULARITY_DATA) $(SINGULARITY_ANNO_LOGS)
+
+singularity-start: ensure-singularity-dirs
 	singularity instance start \
 		-B $(ANNO_DATA):/anno/data \
+		-B $(SINGULARITY_ANNO_LOGS):/logs \
 		-B $(shell mktemp -d):/anno/.cache \
 		-B $(SINGULARITY_DATA):/pg_uta \
 		--cleanenv \
 		$(SINGULARITY_IMAGE_NAME) $(SINGULARITY_INSTANCE_NAME)
+
+	ln -sf $(SINGULARITY_LOG_STDOUT) $(SINGULARITY_ANNO_LOGS)/singularity.out
+	ln -sf $(SINGULARITY_LOG_STDERR) $(SINGULARITY_ANNO_LOGS)/singularity.err
 
 singularity-test:
 	-singularity exec --cleanenv instance://$(SINGULARITY_INSTANCE_NAME) supervisorctl -c /anno/ops/supervisor.cfg stop all
@@ -322,17 +329,8 @@ release: tar-data check-release-tag
 		--exclude="*.sif" \
 		./
 
-singularity-release: check-release-tag tar-data singularity-build
+singularity-release: check-release-tag singularity-build
 	mkdir -p release/
 	tar cvf release/anno-$(RELEASE_TAG)-singularity.tar \
 		Makefile \
-		$(SINGULARITY_IMAGE_NAME) \
-		singularity/
-
-#---------------------------------------------
-# CI testing
-#---------------------------------------------
-# CI is currently broken and I'm tired of getting emails, so here's a dummy step
-
-gitlab-ci:
-	@echo "fix the CI tests"
+		$(SINGULARITY_IMAGE_NAME)

@@ -7,7 +7,8 @@ template_vars = {
     "release_tag": os.environ.get("RELEASE_TAG", "latest"),
 }
 
-print("""
+print(
+    """
 Bootstrap: docker-daemon
 From: {image_name}:{release_tag}
 IncludeCmd: yes
@@ -29,10 +30,16 @@ IncludeCmd: yes
 #!/bin/bash
     # if there is  not yet a folder for that user, copy the data out and chmod appropriately before starting
     if [[ ! -d $PGDATA ]] || [[ ! $(ls -A $PGDATA) ]]; then
+        # write to log that data is copying so we know it's started, just busy
+        echo "$(date) Copying PGDATA" >> /logs/postgres.log
         rsync -az /pg_uta_default/ $PGDATA --info=progress2 2>&1
         chmod -R 700 $PGDATA
+        echo "$(date) Finished copying PGDATA" >> /logs/postgres.log
     fi
 
     # run same entrypoint script as docker
     /anno/ops/entrypoint.sh
-""".format(**template_vars))
+""".format(
+        **template_vars
+    )
+)
