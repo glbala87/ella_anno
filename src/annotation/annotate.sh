@@ -19,6 +19,7 @@ WORKDIR=$PWD
 CONVERT_ONLY=0
 NUM_VEP_PROCESSES=${NUM_VEP_PROCESSES:-$(nproc)}
 NUM_VCFANNO_PROCESSES=${NUM_VCFANNO_PROCESSES:-$(nproc)}
+VEP_BUFFER_SIZE=${VEP_BUFFER_SIZE:-5000}
 while [ $# -gt 0 ]; do
   case "$1" in
     --vcf)
@@ -53,6 +54,11 @@ while [ $# -gt 0 ]; do
       NUM_VCFANNO_PROCESSES="$2"
       shift
       ;;
+    --buffersize)
+      VEP_BUFFER_SIZE="$2"
+      shift
+      ;;
+
     *)
       echo "* Error: Invalid argument: $1"
       echo "$usage"
@@ -287,6 +293,7 @@ then
             --hgvsg \
             --no_stats \
             --merged \
+            --buffer_size=$VEP_BUFFER_SIZE \
             --custom ${ANNODATA}/RefSeq/GRCh37_refseq_$(jq -r '.refseq.version' $ANNODATA/sources.json)_VEP.gff.gz,RefSeq_gff,gff,overlap,1, \
             --custom ${ANNODATA}/RefSeq_interim/GRCh37_refseq_interim_$(jq -r '.refseq_interim.version' $ANNODATA/sources.json)_VEP.gff.gz,RefSeq_Interim_gff,gff,overlap,1, \
             -i $VCF \
