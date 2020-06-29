@@ -570,7 +570,7 @@
     },
     "clinvar": {
         "description": "clinvar variant database",
-        "version": "20200514",
+        "version": "20200626",
         "destination": "variantDBs/clinvar",
         "generate": [
             "python {root_dir}/scripts/clinvar/clinvardb_to_vcf.py -np {max_procs} -o clinvar_{version}.vcf --no-archive --debug",
