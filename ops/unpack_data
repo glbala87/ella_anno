@@ -80,8 +80,8 @@ from sync_data import update_vcfanno_toml, update_sources
 
 existing_sources = pathlib.Path("/anno/data/sources.json")
 existing_vcfanno_config = pathlib.Path("/anno/data/vcfanno_config.toml")
-with tarfile.open(os.environ["TAR_INPUT"], 'r') as tar_input:
-    tarred_packages = [s.decode('utf-8') for s in tar_input.extractfile("PACKAGES").read().splitlines()]
+with tarfile.open(os.environ["TAR_INPUT"], "r") as tar_input:
+    tarred_packages = [s.decode("utf-8") for s in tar_input.extractfile("PACKAGES").read().splitlines()]
     tar_sources = json.load(tar_input.extractfile("sources.json"))
     for pkg_name, sources in tar_sources.items():
         if pkg_name not in tarred_packages:
@@ -89,9 +89,10 @@ with tarfile.open(os.environ["TAR_INPUT"], 'r') as tar_input:
             continue
 
         update_sources(existing_sources, pkg_name, sources)
-
-        for annotation_data in sources.get("vcfanno", []):
-            update_vcfanno_toml(existing_vcfanno_config, annotation_data)
+        if sources.get("vcfanno"):
+            dataset = sources.copy()
+            dataset.update({"destination": ""})
+            update_vcfanno_toml(pkg_name, dataset, sources["vcfanno"], existing_vcfanno_config)
 EOF
 
 echo ${LIGHTGREEN}"Data successfully added"${COLOROFF}

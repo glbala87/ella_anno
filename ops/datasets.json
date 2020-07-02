@@ -93,7 +93,7 @@
         ],
         "vcfanno": [
             {
-                "file": "{destination}/gnomad.exomes.r2.0.2.norm.vcf.gz",
+                "file": "{destination}/gnomad.exomes.r{version}.norm.vcf.gz",
                 "fields": [
                     "OLD_MULTIALLELIC",
                     "AC",
@@ -330,7 +330,7 @@
                 ]
             },
             {
-                "file": "{destination}/gnomad.genomes.r2.0.2.norm.vcf.gz",
+                "file": "{destination}/gnomad.genomes.r{version}.norm.vcf.gz",
                 "fields": [
                     "OLD_MULTIALLELIC",
                     "AC",

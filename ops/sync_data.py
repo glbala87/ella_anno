@@ -7,6 +7,7 @@ import datetime
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import logging
@@ -279,9 +280,7 @@ def main():
         if args.generate or args.download:
             if "vcfanno" in dataset:
                 sources_data["vcfanno"] = format_obj(dataset["vcfanno"], format_opts)
-                # some datasets may have multiple files to be added (e.g., gnomAD), so update each of those individually
-                for anno_entry in sources_data["vcfanno"]:
-                    update_vcfanno_toml(vcfanno_toml_file, anno_entry)
+                update_vcfanno_toml(dataset_name, dataset, sources_data["vcfanno"], vcfanno_toml_file)
             update_sources(sources_json_file, dataset_name, sources_data)
 
     if errs:
@@ -307,36 +306,90 @@ def update_sources(sources_file, source_name, source_data):
         logger.info(f"Not updating {sources_file} for {source_name}: data is unchanged")
 
 
-def update_vcfanno_toml(toml_file, annotation_data):
+def update_vcfanno_toml(dataset_name, dataset, vcfanno_entries, toml_file):
     """Update vcfanno_config.toml for the given dataset."""
     if toml_file.exists():
         toml_data = toml.loads(toml_file.read_text(), _dict=OrderedDict)
     else:
         toml_data = OrderedDict()
 
-    # check if entry for file already exists
-    if "annotation" in toml_data.keys():
-        matching_index = [i for i, x in enumerate(toml_data["annotation"]) if x["file"] == annotation_data["file"]]
-        anno_index = matching_index[0] if matching_index else None
-    else:
-        toml_data["annotation"] = list()
+    # some datasets may have multiple files to be added (e.g., gnomAD), so update each of those individually
+    for i, anno_entry in enumerate(vcfanno_entries):
+        exact_match = False
         anno_index = None
+        fuzzy_matches = []
+        old_version = None
 
-    if anno_index is not None and toml_data["annotation"][anno_index] == annotation_data:
-        logger.info(f"Not updating {toml_file} for {annotation_data['file']}: data is unchanged")
-    else:
-        # append new file data, otherwise update in place
-        if anno_index is None:
-            toml_data["annotation"].append(annotation_data)
+        # check if existing entries
+        if "annotation" in toml_data.keys():
+            # check for exact filename match to update vcfanno data if needed
+            matching_index = [i for i, x in enumerate(toml_data["annotation"]) if x["file"] == anno_entry["file"]]
+            if len(matching_index):
+                anno_index = matching_index[0]
+                exact_match = True
+            else:
+                # if no exact match, try for a fuzzy match by removing the version and everything afterwards
+                re_filename = dataset["vcfanno"][i]["file"].format(
+                    destination=dataset.get("destination", dataset_name), version="(.*?)"
+                )
+                for i, anno_data in enumerate(toml_data["annotation"]):
+                    fuzzy_match = re.match(re_filename, anno_data["file"])
+                    if fuzzy_match:
+                        # if version capture group is empty, it will be None but index will still exist
+                        # If old_version stays None, it suggests a poorly formatted filename in the toml
+                        fuzzy_matches.append((i, fuzzy_match.groups(0)))
         else:
-            toml_data["annotation"][anno_index] = annotation_data
+            toml_data["annotation"] = list()
 
-        try:
-            toml_file.write_text(toml.dumps(toml_data))
-            logger.info(f"Updated {toml_file} with entry for {annotation_data['file']}")
-        except IOError as e:
-            logger.error(f"Error writing to {toml_file}")
-            raise e
+        # bail if multiple files match, otherwise set anno_index and old_version appropriately
+        if not exact_match and fuzzy_matches:
+            if len(fuzzy_matches) > 1:
+                err_str = f"Found {len(fuzzy_matches)} possible file matches for {dataset_name}: "
+                err_str += ", ".join([toml_data["annotation"][x[0]]["file"] for x in fuzzy_matches])
+                raise RuntimeError(err_str)
+            else:
+                anno_index, old_version = fuzzy_matches[0]
+
+        rewrite_file = False
+        if anno_index is not None:
+            if exact_match and toml_data["annotation"][anno_index] == anno_entry:
+                # filename matches, vcfanno config matches, do nothing
+                logger.info(
+                    f"Not updating {dataset_name} (version {dataset['version']}) entry in {toml_file}: data is unchanged"
+                )
+            else:
+                # vcfanno config has changed, but filename hasn't
+                if exact_match:
+                    logger.info(f"Updating existing {dataset_name} entry in {toml_file} with new config")
+                    rewrite_file = True
+                else:
+                    # filename changed version, report old_version if found or old file otherwise
+                    if old_version:
+                        logger.info(
+                            f"Updating existing {dataset_name} entry in {toml_file} from "
+                            f"{old_version} to {dataset['version']}"
+                        )
+                    else:
+                        logger.info(
+                            f"Updating existing {dataset_name} entry in {toml_file} from "
+                            f"{toml_data['annotation'][anno_index]['file']} to {anno_entry['file']}"
+                        )
+                rewrite_file = True
+                toml_data["annotation"][anno_index] = anno_entry
+        else:
+            # append new file data
+            logger.info(f"Creating new entry for {dataset_name} in {toml_file} as {anno_entry['file']}")
+            toml_data["annotation"].append(anno_entry)
+            rewrite_file = True
+
+        # rewrite toml file
+        if rewrite_file:
+            try:
+                toml_file.write_text(toml.dumps(toml_data))
+                logger.info(f"Updated {toml_file} successfully")
+            except IOError as e:
+                logger.error(f"Error writing to {toml_file}")
+                raise e
 
 
 ###
