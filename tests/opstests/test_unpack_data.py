@@ -1,11 +1,12 @@
 from __future__ import print_function
 
-import os
 import hashlib
-import subprocess
-import tarfile
+import io
 import json
+import os
+import subprocess
 from StringIO import StringIO
+import tarfile
 from conftest import iterate_testdata_files, empty_testdata, package_return_tar, TAR_FILE, ANNO_DATA
 
 
@@ -34,6 +35,14 @@ def unpack_data(raise_on_error=True):
             return e.output
         else:
             raise
+
+
+def file_length(filename):
+    num_lines = 0
+    with io.open(filename) as f:
+        for line in f:
+            num_lines += 1
+    return num_lines
 
 
 def string_to_tar(tar_file, name, string):
@@ -124,7 +133,7 @@ def test_new_package():
     original_sources_json = json.load(open(os.path.join(ANNO_DATA, "sources.json")))
     packaged_sources_json = json.load(open(os.path.join(ANNO_DATA, "sources.json")))
 
-    packaged_sources_json["dataset1"]["version"] = "SOME NEW VERSION THAT SHOULD NOT BE ADDED BACK"
+    packaged_sources_json["dataset1"]["version"] = "2"
     packaged_sources_json["dataset2"]["version"] = "SOME NEW VERSION THAT SHOULD NOT BE ADDED BACK"
     packaged_sources_json["dataset3"] = {
         "description": "Test dataset 3",
@@ -167,6 +176,38 @@ def test_new_package():
     assert sources_json["dataset1"] == original_sources_json["dataset1"]
     assert sources_json["dataset2"] == original_sources_json["dataset2"]
     assert sources_json["dataset3"] == packaged_sources_json["dataset3"]
+
+
+def test_new_filename():
+    "try to unpack an existing package with a new filename"
+    new_package_tar_file = tarfile.TarFile(TAR_FILE, mode="w")
+    orig_vcfanno_len = file_length(os.path.join(ANNO_DATA, "vcfanno_config.toml"))
+
+    original_sources_json = json.load(open(os.path.join(ANNO_DATA, "sources.json")))
+    packaged_sources_json = json.load(open(os.path.join(ANNO_DATA, "sources.json")))
+
+    new_version = "2"
+    new_filename = "DATASET1/dataset1_v2.vcf"
+    orig_filename = original_sources_json["dataset1"]["vcfanno"][0]["file"]
+    packaged_sources_json["dataset1"]["version"] = new_version
+    packaged_sources_json["dataset1"]["vcfanno"][0]["file"] = new_filename
+
+    assert original_sources_json != packaged_sources_json
+    string_to_tar(new_package_tar_file, "sources.json", json.dumps(packaged_sources_json, indent=2))
+    string_to_tar(new_package_tar_file, "datasets/{}".format(new_filename), "NEW TESTDATA FOR DATASET1\n")
+    string_to_tar(
+        new_package_tar_file,
+        "datasets/{}".format(new_filename),
+        "timestamp: 2020-01-01 00:00:00.000000\nversion: '20200101'",
+    )
+    string_to_tar(new_package_tar_file, "datasets/DATASET1/MD5SUM", "dabla")
+    string_to_tar(new_package_tar_file, "PACKAGES", "dataset1\n")
+    new_package_tar_file.close()
+
+    unpack_data()
+
+    new_vcfanno_len = file_length(os.path.join(ANNO_DATA, "vcfanno_config.toml"))
+    assert orig_vcfanno_len == new_vcfanno_len
 
 
 def test_cleanup():
