@@ -1,3 +1,3 @@
 #!/bin/bash -e
 
-py.test /anno/tests/opstests -v
+python3 -m pytest /anno/tests/opstests -v
