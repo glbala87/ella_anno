@@ -1,13 +1,23 @@
 from __future__ import print_function
 
+from collections import OrderedDict
 import hashlib
 import io
 import json
 import os
+from pathlib import Path
 import subprocess
-from StringIO import StringIO
 import tarfile
-from conftest import iterate_testdata_files, empty_testdata, package_return_tar, TAR_FILE, ANNO_DATA
+import toml
+from conftest import (
+    iterate_testdata_files,
+    empty_testdata,
+    package_return_tar,
+    TAR_FILE,
+    ANNO_DATA,
+    VCFANNO,
+    SOURCES_JSON,
+)
 
 
 def data_md5sum():
@@ -32,23 +42,23 @@ def unpack_data(raise_on_error=True):
         )
     except subprocess.CalledProcessError as e:
         if not raise_on_error:
-            return e.output
+            return e.output.decode("utf-8")
         else:
             raise
 
 
-def file_length(filename):
-    num_lines = 0
-    with io.open(filename) as f:
-        for line in f:
-            num_lines += 1
-    return num_lines
+def data_vcfanno():
+    if VCFANNO.exists():
+        toml_data = toml.load(VCFANNO, _dict=OrderedDict)
+        if "annotation" in toml_data:
+            return toml_data["annotation"]
+    return []
 
 
 def string_to_tar(tar_file, name, string):
-    s = StringIO(string)
+    s = io.BytesIO(string.encode("utf-8"))
     info = tarfile.TarInfo(name=name)
-    info.size = len(s.buf)
+    info.size = len(string)
     tar_file.addfile(tarinfo=info, fileobj=s)
     dirname = os.path.dirname(name)
     if dirname and dirname not in tar_file.getnames():
@@ -93,13 +103,13 @@ def test_new_version():
 
     files_before = set(iterate_testdata_files())
 
-    updated_tar_file = tarfile.TarFile(TAR_FILE, mode="w")
+    updated_tar_file = tarfile.open(TAR_FILE, mode="w")
 
-    sources_json = json.load(open(os.path.join(ANNO_DATA, "sources.json")))
+    sources_json = json.load(open(SOURCES_JSON))
     sources_json["dataset1"]["timestamp"] = "2020-01-01 00:00:00.000000"
     sources_json["dataset1"]["version"] = 2
     sources_json["dataset1"]["vcfanno"][0]["names"] = ["SOME_FIELD_VERSION2_TRANSLATED"]
-    string_to_tar(updated_tar_file, "sources.json", json.dumps(sources_json, indent=2))
+    string_to_tar(updated_tar_file, SOURCES_JSON.name, json.dumps(sources_json, indent=2))
     string_to_tar(updated_tar_file, "DATASET1/dataset1.vcf", "SOME TESTDATA FOR VERSION 2 OF DATASET1\n")
     string_to_tar(updated_tar_file, "DATASET1/DATA_READY", "timestamp: 2020-01-01 00:00:00.000000\nversion: '2'")
     string_to_tar(updated_tar_file, "DATASET1/MD5SUM", "dabla")
@@ -112,7 +122,7 @@ def test_new_version():
     files_after.remove("UNPACK_DATA_LOG")
     assert files_before == files_after
 
-    data_sources_json = json.load(open(os.path.join(ANNO_DATA, "sources.json")))
+    data_sources_json = json.load(SOURCES_JSON.open())
     assert data_sources_json == sources_json
     assert (
         open(os.path.join(ANNO_DATA, "DATASET1/dataset1.vcf"), "r").read()
@@ -128,37 +138,37 @@ def test_new_version():
 def test_new_package():
     "Try to unpack data with a new package"
     files_before = set(iterate_testdata_files())
-    new_package_tar_file = tarfile.TarFile(TAR_FILE, mode="w")
+    new_package_tar_file = tarfile.open(TAR_FILE, mode="w")
 
-    original_sources_json = json.load(open(os.path.join(ANNO_DATA, "sources.json")))
-    packaged_sources_json = json.load(open(os.path.join(ANNO_DATA, "sources.json")))
+    original_sources_json = json.load(SOURCES_JSON.open())
+    packaged_sources_json = json.load(SOURCES_JSON.open())
 
-    packaged_sources_json["dataset1"]["version"] = "2"
+    packaged_sources_json["dataset1"]["version"] = "SOME NEW VERSION THAT SHOULD NOT BE ADDED BACK"
     packaged_sources_json["dataset2"]["version"] = "SOME NEW VERSION THAT SHOULD NOT BE ADDED BACK"
-    packaged_sources_json["dataset3"] = {
-        "description": "Test dataset 3",
+    packaged_sources_json["dataset3"]["version"] = "SOME NEW VERSION THAT SHOULD NOT BE ADDED BACK"
+    packaged_sources_json["dataset4"] = {
+        "description": "Test dataset 4",
         "version": "20200101",
         "timestamp": "2020-01-01 00:00:00.000000",
+        "destination": "DATASET4",
         "vcfanno": [
             {
-                "file": "/anno/test_data/datasets/DATASET3/dataset3.vcf",
-                "fields": ["SOME_FIELD_DATASET3"],
-                "names": ["SOME_FIELD_DATASET3_TRANSLATED"],
+                "file": "{destination}/dataset4.vcf",
+                "fields": ["SOME_FIELD_DATASET4"],
+                "names": ["SOME_FIELD_DATASET4_TRANSLATED"],
                 "ops": ["first"],
             }
         ],
     }
 
     assert original_sources_json != packaged_sources_json
-    string_to_tar(new_package_tar_file, "sources.json", json.dumps(packaged_sources_json, indent=2))
-    string_to_tar(new_package_tar_file, "datasets/DATASET3/dataset3.vcf", "SOME TESTDATA FOR DATASET3\n")
+    string_to_tar(new_package_tar_file, SOURCES_JSON.name, json.dumps(packaged_sources_json, indent=2))
+    string_to_tar(new_package_tar_file, "DATASET4/dataset4.vcf", "SOME TESTDATA FOR DATASET4\n")
     string_to_tar(
-        new_package_tar_file,
-        "datasets/DATASET3/DATA_READY",
-        "timestamp: 2020-01-01 00:00:00.000000\nversion: '20200101'",
+        new_package_tar_file, "DATASET4/DATA_READY", "timestamp: 2020-01-01 00:00:00.000000\nversion: '20200101'",
     )
-    string_to_tar(new_package_tar_file, "datasets/DATASET3/MD5SUM", "dabla")
-    string_to_tar(new_package_tar_file, "PACKAGES", "dataset3\n")
+    string_to_tar(new_package_tar_file, "DATASET4/MD5SUM", "dabla")
+    string_to_tar(new_package_tar_file, "PACKAGES", "dataset4\n")
     new_package_tar_file.close()
 
     unpack_data()
@@ -166,48 +176,49 @@ def test_new_package():
     files_after = set(iterate_testdata_files())
     files_after.remove("UNPACK_DATA_LOG")
     assert files_before - files_after == set()  # No files removed
-    assert files_after - files_before == set(
-        ["datasets/DATASET3/MD5SUM", "datasets/DATASET3/DATA_READY", "datasets/DATASET3/dataset3.vcf"]
-    )
+    assert files_after - files_before == set(["DATASET4/MD5SUM", "DATASET4/DATA_READY", "DATASET4/dataset4.vcf"])
 
     # Check that sources are correctly updated
-    sources_json = json.load(open(os.path.join(ANNO_DATA, "sources.json")))
+    sources_json = json.load(SOURCES_JSON.open())
     assert set(sources_json.keys()) == set(packaged_sources_json.keys())
     assert sources_json["dataset1"] == original_sources_json["dataset1"]
     assert sources_json["dataset2"] == original_sources_json["dataset2"]
-    assert sources_json["dataset3"] == packaged_sources_json["dataset3"]
+    assert sources_json["dataset3"] == original_sources_json["dataset3"]
+    assert sources_json["dataset4"] == packaged_sources_json["dataset4"]
 
 
 def test_new_filename():
     "try to unpack an existing package with a new filename"
-    new_package_tar_file = tarfile.TarFile(TAR_FILE, mode="w")
-    orig_vcfanno_len = file_length(os.path.join(ANNO_DATA, "vcfanno_config.toml"))
+    new_package_tar_file = tarfile.open(TAR_FILE, mode="w")
+    orig_vcfanno = data_vcfanno()
 
-    original_sources_json = json.load(open(os.path.join(ANNO_DATA, "sources.json")))
-    packaged_sources_json = json.load(open(os.path.join(ANNO_DATA, "sources.json")))
+    original_sources_json = json.load(SOURCES_JSON.open())
+    packaged_sources_json = json.load(SOURCES_JSON.open())
 
-    new_version = "2"
-    new_filename = "DATASET1/dataset1_v2.vcf"
-    orig_filename = original_sources_json["dataset1"]["vcfanno"][0]["file"]
-    packaged_sources_json["dataset1"]["version"] = new_version
-    packaged_sources_json["dataset1"]["vcfanno"][0]["file"] = new_filename
+    new_version = "v2.0"
+    packaged_sources_json["dataset3"]["version"] = new_version
+    filename = "DATASET3/dataset3_{}.vcf".format(new_version)
 
     assert original_sources_json != packaged_sources_json
-    string_to_tar(new_package_tar_file, "sources.json", json.dumps(packaged_sources_json, indent=2))
-    string_to_tar(new_package_tar_file, "datasets/{}".format(new_filename), "NEW TESTDATA FOR DATASET1\n")
+    string_to_tar(new_package_tar_file, SOURCES_JSON.name, json.dumps(packaged_sources_json, indent=2))
+    string_to_tar(new_package_tar_file, filename, "NEW TESTDATA FOR DATASET3\n")
     string_to_tar(
         new_package_tar_file,
-        "datasets/{}".format(new_filename),
-        "timestamp: 2020-01-01 00:00:00.000000\nversion: '20200101'",
+        "DATASET3/DATA_READY",
+        "timestamp: 2020-06-06 00:00:00.000000\nversion: '{}'".format(new_version),
     )
-    string_to_tar(new_package_tar_file, "datasets/DATASET1/MD5SUM", "dabla")
-    string_to_tar(new_package_tar_file, "PACKAGES", "dataset1\n")
+    string_to_tar(new_package_tar_file, "DATASET3/MD5SUM", "dabla")
+    string_to_tar(new_package_tar_file, "PACKAGES", "dataset3\n")
     new_package_tar_file.close()
 
-    unpack_data()
+    unpack_log = unpack_data()
+    print("Extraction log:")
+    print(unpack_log.decode("utf-8"))
+    print()
 
-    new_vcfanno_len = file_length(os.path.join(ANNO_DATA, "vcfanno_config.toml"))
-    assert orig_vcfanno_len == new_vcfanno_len
+    new_vcfanno = data_vcfanno()
+    assert len(orig_vcfanno) == len(new_vcfanno)
+    assert [x["file"] for x in orig_vcfanno] != [x["file"] for x in new_vcfanno]
 
 
 def test_cleanup():
@@ -216,12 +227,12 @@ def test_cleanup():
     md5sum_before = data_md5sum()
 
     # Create a tar file with missing PACKAGES-file
-    updated_tar_file = tarfile.TarFile(TAR_FILE, mode="w")
-    sources_json = json.load(open(os.path.join(ANNO_DATA, "sources.json")))
+    updated_tar_file = tarfile.open(TAR_FILE, mode="w")
+    sources_json = json.load(SOURCES_JSON.open())
     sources_json["dataset1"]["timestamp"] = "2020-01-01 00:00:00.000000"
     sources_json["dataset1"]["version"] = 2
     sources_json["dataset1"]["vcfanno"][0]["names"] = ["SOME_FIELD_VERSION2_TRANSLATED"]
-    string_to_tar(updated_tar_file, "sources.json", json.dumps(sources_json, indent=2))
+    string_to_tar(updated_tar_file, SOURCES_JSON.name, json.dumps(sources_json, indent=2))
 
     string_to_tar(updated_tar_file, "DATASET1/dataset1.vcf", "SOME TESTDATA FOR VERSION 2 OF DATASET1\n")
 

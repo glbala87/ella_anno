@@ -9,7 +9,7 @@
         ],
         "vcfanno": [
             {
-                "file": "{data_dir}/dataset1.vcf",
+                "file": "{destination}/dataset1.vcf",
                 "fields": ["SOME_FIELD"],
                 "names": ["SOME_FIELD_TRANSLATED"],
                 "ops": ["first"]
@@ -19,10 +19,27 @@
     "dataset2": {
         "description": "Test dataset 2",
         "version": "A",
-        "destination": "datasets/DATASET2",
+        "destination": "DATASET2",
         "generate": [
             "echo 'SOME TESTDATA FOR DATASET2' > dataset2.bed",
             "cp dataset2.bed {data_dir}"
+        ]
+    },
+    "dataset3": {
+        "description": "Test dataset 3",
+        "version": "v1.0",
+        "destination": "DATASET3",
+        "generate": [
+            "echo 'SOME TESTDATA FOR DATASET3' > dataset3_{version}.vcf",
+            "cp dataset3_{version}.vcf {data_dir}"
+        ],
+        "vcfanno": [
+            {
+                "file": "{destination}/dataset3_{version}.vcf",
+                "fields": ["SOME_FIELD"],
+                "names": ["SOME_FIELD_TRANSLATED"],
+                "ops": ["first"]
+            }
         ]
     }
 }

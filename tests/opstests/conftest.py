@@ -1,14 +1,18 @@
-import pytest
-import os
 import glob
-import subprocess
+import os
+from pathlib import Path
+import pytest
 import shutil
+import subprocess
 import tarfile
 
-ANNO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../.."))
-ANNO_DATA = os.environ["ANNO_DATA"]
-DATASETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_datasets.json")
-TAR_FILE = "/tmp/test_data.tar"
+TEST_DIR = Path(__file__).absolute().parent
+ANNO_ROOT = TEST_DIR.parents[1]
+ANNO_DATA = Path(os.environ["ANNO_DATA"])
+DATASETS = TEST_DIR / "test_datasets.json"
+VCFANNO = ANNO_DATA / "vcfanno_config.toml"
+SOURCES_JSON = ANNO_DATA / "sources.json"
+TAR_FILE = Path("/tmp/test_data.tar")
 
 
 def iterate_testdata_files(relative=True):
@@ -49,8 +53,10 @@ def package_return_tar(PKG_NAMES=None):
 def empty_testdata():
     for path in glob.glob(os.path.join(ANNO_DATA, "*")):
         if os.path.isfile(path):
+            print("Deleting file {}".format(path))
             os.remove(path)
         else:
+            print("Deleting dir {}".format(path))
             shutil.rmtree(path)
 
 
