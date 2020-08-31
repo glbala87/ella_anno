@@ -5,18 +5,19 @@ import hashlib
 import io
 import json
 import os
-from pathlib import Path
 import subprocess
+import sys
 import tarfile
 import toml
 from conftest import (
     iterate_testdata_files,
     empty_testdata,
     package_return_tar,
-    TAR_FILE,
     ANNO_DATA,
-    VCFANNO,
+    DATASETS,
+    TAR_FILE,
     SOURCES_JSON,
+    VCFANNO,
 )
 
 
@@ -38,12 +39,15 @@ def data_empty():
 def unpack_data(raise_on_error=True):
     try:
         return subprocess.check_output(
-            "TAR_INPUT={} /anno/ops/unpack_data".format(TAR_FILE), shell=True, stderr=subprocess.STDOUT
+            "DATASETS_FILE={} TAR_INPUT={} /anno/ops/unpack_data".format(DATASETS, TAR_FILE),
+            shell=True,
+            stderr=subprocess.STDOUT,
         )
     except subprocess.CalledProcessError as e:
         if not raise_on_error:
             return e.output.decode("utf-8")
         else:
+            print(e.output.decode("utf-8"), file=sys.stderr)
             raise
 
 
@@ -150,10 +154,9 @@ def test_new_package():
         "description": "Test dataset 4",
         "version": "20200101",
         "timestamp": "2020-01-01 00:00:00.000000",
-        "destination": "DATASET4",
         "vcfanno": [
             {
-                "file": "{destination}/dataset4.vcf",
+                "file": "DATASET4/dataset4.vcf",
                 "fields": ["SOME_FIELD_DATASET4"],
                 "names": ["SOME_FIELD_DATASET4_TRANSLATED"],
                 "ops": ["first"],
@@ -191,13 +194,21 @@ def test_new_filename():
     "try to unpack an existing package with a new filename"
     new_package_tar_file = tarfile.open(TAR_FILE, mode="w")
     orig_vcfanno = data_vcfanno()
+    orig_vcfanno_files = [x["file"] for x in orig_vcfanno]
 
     original_sources_json = json.load(SOURCES_JSON.open())
     packaged_sources_json = json.load(SOURCES_JSON.open())
 
     new_version = "v2.0"
+    # re-generate the sources.json output manually since we don't want to re-run `sync_data.py --generate`
+    datasets_json = json.load(DATASETS.open())
+    format_opts = {
+        "destination": datasets_json["dataset3"]["destination"],
+        "version": new_version,
+    }
     packaged_sources_json["dataset3"]["version"] = new_version
-    filename = "DATASET3/dataset3_{}.vcf".format(new_version)
+    filename = datasets_json["dataset3"]["vcfanno"][0]["file"].format(**format_opts)
+    packaged_sources_json["dataset3"]["vcfanno"][0]["file"] = filename
 
     assert original_sources_json != packaged_sources_json
     string_to_tar(new_package_tar_file, SOURCES_JSON.name, json.dumps(packaged_sources_json, indent=2))
@@ -212,13 +223,20 @@ def test_new_filename():
     new_package_tar_file.close()
 
     unpack_log = unpack_data()
-    print("Extraction log:")
-    print(unpack_log.decode("utf-8"))
-    print()
 
     new_vcfanno = data_vcfanno()
+    new_vcfanno_files = [x["file"] for x in new_vcfanno]
+
     assert len(orig_vcfanno) == len(new_vcfanno)
     assert [x["file"] for x in orig_vcfanno] != [x["file"] for x in new_vcfanno]
+    assert (
+        packaged_sources_json["dataset3"]["vcfanno"][0]["file"] in new_vcfanno_files
+        and packaged_sources_json["dataset3"]["vcfanno"][0]["file"] not in orig_vcfanno_files
+    )
+    assert (
+        original_sources_json["dataset3"]["vcfanno"][0]["file"] in orig_vcfanno_files
+        and original_sources_json["dataset3"]["vcfanno"][0]["file"] not in new_vcfanno_files
+    )
 
 
 def test_cleanup():
