@@ -53,10 +53,8 @@ def package_return_tar(PKG_NAMES=None):
 def empty_testdata():
     for path in glob.glob(os.path.join(ANNO_DATA, "*")):
         if os.path.isfile(path):
-            print("Deleting file {}".format(path))
             os.remove(path)
         else:
-            print("Deleting dir {}".format(path))
             shutil.rmtree(path)
 
 
