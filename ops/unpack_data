@@ -74,15 +74,12 @@ tar -xvf ${TAR_INPUT} --exclude sources.json --exclude PACKAGES
 # Update sources.json and vcfanno_config.toml. Avoid overwriting them
 echo "Updating sources.json and vcfanno_config.toml"
 python3 - << EOF
-import copy, json, os, pathlib, tarfile
+import json, os, pathlib, tarfile
 os.chdir("/anno/ops")
 from sync_data import update_vcfanno_toml, update_sources
 
 existing_sources = pathlib.Path("/anno/data/sources.json")
 existing_vcfanno_config = pathlib.Path("/anno/data/vcfanno_config.toml")
-# allow using a custom datasets json (for tests)
-existing_datasets = pathlib.Path(os.environ.get("DATASETS_FILE", "/anno/ops/datasets.json"))
-datasets_json = json.load(existing_datasets.open())
 with tarfile.open(os.environ["TAR_INPUT"], "r") as tar_input:
     tarred_packages = [s.decode("utf-8") for s in tar_input.extractfile("PACKAGES").read().splitlines()]
     tar_sources = json.load(tar_input.extractfile("sources.json"))
@@ -93,15 +90,7 @@ with tarfile.open(os.environ["TAR_INPUT"], "r") as tar_input:
 
         update_sources(existing_sources, pkg_name, sources)
         if sources.get("vcfanno"):
-            dataset = copy.deepcopy(sources)
-            # if updating an existing package, get the uninterpolated vcfanno data
-            # for matching existing vcfanno entries
-            if pkg_name in datasets_json:
-                dataset.update({
-                    "destination": datasets_json[pkg_name]["destination"],
-                    "vcfanno": datasets_json[pkg_name]["vcfanno"],
-                })
-            update_vcfanno_toml(pkg_name, dataset, sources["vcfanno"], existing_vcfanno_config)
+            update_vcfanno_toml(pkg_name, sources["vcfanno"], existing_vcfanno_config)
 EOF
 
 echo ${LIGHTGREEN}"Data successfully added"${COLOROFF}
