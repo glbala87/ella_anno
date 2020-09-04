@@ -19,7 +19,7 @@ def test_package_data_all():
     filenames = [f for f in iterate_testdata_files()]
 
     check_tar_contents(filenames, data_tar_filenames, data_tar)
-    assert data_tar.extractfile("PACKAGES").read() == "dataset1\ndataset2\n"
+    assert data_tar.extractfile("PACKAGES").read().decode("utf-8") == "dataset1\ndataset2\ndataset3\n"
     data_tar.close()
 
 
@@ -33,7 +33,7 @@ def test_package_iterations():
         filenames = [f for f in iterate_testdata_files() if any(ds in f.lower() for ds in datasets) or "/" not in f]
 
         check_tar_contents(filenames, data_tar_filenames, data_tar)
-        assert data_tar.extractfile("PACKAGES").read() == "\n".join(datasets) + "\n"
+        assert data_tar.extractfile("PACKAGES").read().decode("utf-8") == "\n".join(datasets) + "\n"
         data_tar.close()
 
 
@@ -44,6 +44,6 @@ def test_package_single_pkg():
         data_tar_filenames = [name for name in data_tar.getnames() if data_tar.getmember(name).isfile()]
         filenames = [f for f in iterate_testdata_files() if dataset in f.lower() or "/" not in f]
         check_tar_contents(filenames, data_tar_filenames, data_tar)
-        assert data_tar.extractfile("PACKAGES").read() == "{}\n".format(dataset)
+        assert data_tar.extractfile("PACKAGES").read().decode("utf-8") == "{}\n".format(dataset)
         data_tar.close()
         os.remove(data_tar.fileobj.name)
