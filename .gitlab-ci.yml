@@ -53,6 +53,15 @@ build_prod:
     tags:
         - bastion
 
+check_do:
+    stage: test
+    extends: .image_setup
+    script:
+        - docker pull $CI_REGISTRY_IMAGE:$BUILDER_COMMIT_TAG | cat || true
+        - make verify-digital-ocean ANNOBUILDER_IMAGE_NAME=$CI_REGISTRY_IMAGE:$BUILDER_COMMIT_TAG
+    tags:
+        - bastion
+
 run_pytest:
     extends: .image_setup
     stage: test
@@ -92,7 +101,7 @@ release_singularity:
         - docker pull $CI_REGISTRY_IMAGE:$PROD_COMMIT_TAG | cat || true
         - make singularity-release IMAGE_NAME=$CI_REGISTRY_IMAGE
     artifacts:
-        name: "anno-$CI_COMMIT_REF_NAME-singularity"
+        name: 'anno-$CI_COMMIT_REF_NAME-singularity'
         paths:
             - release/
         expire_in: 30 days

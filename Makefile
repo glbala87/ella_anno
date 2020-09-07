@@ -214,6 +214,11 @@ generate-package:
 	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --generate -d $(PKG_NAME))
 	$(annobuilder-template)
 
+verify-digital-ocean:
+	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --verify-remote)
+	$(annobuilder-template)
+
+
 # installed directly in Dockerfile, but commands here for reference or local install
 install-thirdparty:
 	$(eval RUN_CMD := python3 /anno/ops/install_thirdparty.py --clean)

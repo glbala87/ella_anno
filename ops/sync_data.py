@@ -52,6 +52,7 @@ def main():
     action_args.add_argument("--download", action="store_true", help="download pre-processed datasets")
     action_args.add_argument("--generate", action="store_true", help="generate processed datasets")
     action_args.add_argument("--upload", action="store_true", help="upload generated data to cloud storage")
+    action_args.add_argument("--verify-remote", action="store_true", help="verify existence of pre-processed datasets")
     parser.add_argument(
         "-f",
         "--dataset-file",
@@ -139,8 +140,10 @@ def main():
         verb = "Generating"
     elif args.download:
         verb = "Downloading"
-    else:
+    elif args.upload:
         verb = "Uploading"
+    else:
+        verb = "Verifying"
 
     # now we actually start doing things
     sources_json_file = args.data_dir / "sources.json"
@@ -247,7 +250,7 @@ def main():
 
             if args.cleanup:
                 shutil.rmtree(raw_dir)
-        elif args.download or args.upload:
+        elif args.download or args.upload or args.verify_remote:
             mgr = DataManager(**spaces_config)
             cmd_args = [dataset_name, dataset_version, data_dir.relative_to(default_base_dir)]
             if args.download:
@@ -272,8 +275,16 @@ def main():
                     subprocess.run(["md5sum", "--quiet", "-c", "MD5SUM"], cwd=data_dir, check=True)
 
                     logger.info(f"All {dataset_name} files validated successfully")
-            else:
+            elif args.upload:
                 mgr.upload_package(*cmd_args)
+            else:
+                if not mgr.check_exists(*cmd_args):
+                    raise RuntimeError(
+                        f"Data for {dataset_name} version {dataset_version} incomplete or non-existent on remote. Check requested/available versions."
+                    )
+                else:
+                    logger.info(f"Data for {dataset_name} version {dataset_version} available on remote.")
+
         else:
             raise Exception("This should never happen, what did you do?!")
 
