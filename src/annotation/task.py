@@ -10,7 +10,7 @@ from functools import wraps
 
 import psutil
 from config import config
-from command import Command
+from .command import Command
 from api.util.util import validate_target
 
 
@@ -68,14 +68,14 @@ class Task(object):
     @staticmethod
     def write_target_files(work_dir, target_data):
         target_files = dict()
-        for k, (filename, content) in target_data["files"].iteritems():
+        for k, (filename, content) in list(target_data["files"].items()):
             filename = os.path.join(work_dir, filename)
             with open(filename, "w") as f:
                 f.write(content)
             target_files[k] = filename
 
         target_env = dict()
-        for k, v in target_files.iteritems():
+        for k, v in list(target_files.items()):
             target_env[k.split(".")[0]] = v
 
         return target_env

@@ -16,7 +16,7 @@ def parse_request(required, special):
             # Fetch files
 
             data["files"].update(
-                {k: (v.filename, v.read()) for k, v in request.files.iteritems()}
+                {k: (v.filename, v.read()) for k, v in list(request.files.items())}
             )
 
             for k in request.form:
@@ -26,7 +26,7 @@ def parse_request(required, special):
 
             # Strip required
             if not all(
-                k in data["files"].keys() + data["variables"].keys() for k in required
+                k in list(data["files"].keys()) + list(data["variables"].keys()) for k in required
             ):
                 raise AssertionError(
                     "One or more required fields are missing: {}".format(required)

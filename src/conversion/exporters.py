@@ -19,8 +19,8 @@ import hgvs.exceptions
 import pysam
 
 from config import config
-from vcf_writer import VcfWriter
-from conversion_utils import (
+from .vcf_writer import VcfWriter
+from .conversion_utils import (
     var_g_to_vcf,
     timeout_handler,
     VcfInvalidVariantError,
@@ -74,7 +74,7 @@ class Exporter(object):
         self.HGVS_PARSER = hgvs.parser.Parser()
         self.UTA_CONNECTION = hgvs.dataproviders.uta.connect()
         self.VARIANT_MAPPER = hgvs.assemblymapper.AssemblyMapper(
-            self.UTA_CONNECTION, assembly_name=u"GRCh37", replace_reference=True
+            self.UTA_CONNECTION, assembly_name="GRCh37", replace_reference=True
         )
 
         self.data = open(input, "r")
@@ -170,7 +170,7 @@ class Exporter(object):
         if self.errors:
             s += "\nErrors:\n"
             for k, v in sorted(
-                self.errors.items(), cmp=lambda x, y: len(y[1]) - len(x[1])
+                list(self.errors.items()), cmp=lambda x, y: len(y[1]) - len(x[1])
             ):
                 s += "{:<30}\t{:>6}\n".format(k, len(v))
         else:

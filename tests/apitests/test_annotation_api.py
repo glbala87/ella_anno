@@ -1,5 +1,5 @@
 import json
-from cStringIO import StringIO
+from io import StringIO
 import pytest
 import os
 import re
@@ -120,7 +120,7 @@ def test_annotate_sample(client):
         open(os.path.join(os.environ["SAMPLES"], "samples.json"), "r")
     )
 
-    sample_id = samples.keys()[0]
+    sample_id = list(samples.keys())[0]
 
     response = client.post_files(
         "samples/annotate",
@@ -146,7 +146,7 @@ def test_target(client, target):
         open(os.path.join(os.environ["SAMPLES"], "samples.json"), "r")
     )
 
-    sample_id = samples.keys()[0]
+    sample_id = list(samples.keys())[0]
     sample = samples[sample_id]
 
     # Post sample, a dummy variable and dummy file, requesting the dummy_target target
@@ -184,7 +184,7 @@ def test_target(client, target):
     # Check that files and variables given in the samples.json are available in the target
     with open(target_env, "r") as f:
         ts = [l.strip() for l in f.readlines()]
-        for k, v in sample.items() + [("dummy_variable", "foo")]:
+        for k, v in list(sample.items()) + [("dummy_variable", "foo")]:
             if k == "vcf":
                 k = "original_vcf"
             vt = next(

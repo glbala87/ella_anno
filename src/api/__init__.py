@@ -24,7 +24,7 @@ logger.info(
 
 def restart_active_tasks():
     all_tasks = Task.get_status_all(full=True)
-    active_tasks = [k for k, v in all_tasks.items() if v["active"]]
+    active_tasks = [k for k, v in list(all_tasks.items()) if v["active"]]
     for id in sorted(active_tasks):
         Task.restart(id)
 

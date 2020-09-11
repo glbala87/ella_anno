@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from __future__ import print_function
+
 
 """
 Read ClinVar XML data and parse into vcf-file.
@@ -41,7 +41,7 @@ Requirements (command line tools):
 
 import argparse
 import base64
-import httplib
+import http.client
 import datetime
 import json
 import jsonschema
@@ -54,9 +54,9 @@ import subprocess
 import sys
 import tarfile
 import traceback
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 from collections import defaultdict
-from cStringIO import StringIO
+from io import StringIO
 from lxml import etree
 from multiprocessing.pool import Pool
 
@@ -87,7 +87,7 @@ API_KEY = os.environ.get("ENTREZ_API_KEY")
 
 # Max retries for each batch, and which errors should trigger a retry
 MAX_RETRIES = 10
-RETRY_ERRORS = [httplib.IncompleteRead, urllib2.HTTPError, urllib2.URLError, TimeoutError]
+RETRY_ERRORS = [http.client.IncompleteRead, urllib.error.HTTPError, urllib.error.URLError, TimeoutError]
 
 # Schema used in ELLA on Clinvar annotation. The dict encoded in the field CLINVARJSON should adher to this schema.
 CLINVAR_V1_SCHEMA = {
@@ -317,7 +317,7 @@ def entrez_fetch_variation_data(ids):
     data = "db=clinvar&rettype=vcv&is_variationid&id={}".format(",".join(ids))
     if API_KEY is not None:
         data += "&api_key={}".format(API_KEY)
-    r = urllib2.urlopen(url, data=data)
+    r = urllib.request.urlopen(url, data=data)
     xml = r.read()
     return xml
 
@@ -404,7 +404,7 @@ def parse_clinvar_file(vcf_file, archive_folder):
 
             clinvar_vcf[variant_id] = {"position": (chrom, pos, ref, alt), "clnsig": clnsig, "revstat": revstat}
 
-    assert len(set([v["position"] for v in clinvar_vcf.values()])) == len(
+    assert len(set([v["position"] for v in list(clinvar_vcf.values())])) == len(
         clinvar_vcf
     ), "Some positions in the clinvar vcf have multiple variant ids associated with it"
     return clinvar_vcf
@@ -479,9 +479,9 @@ def print_summary(vcf_file, clinvar_vcf):
                 len(set(variant_ids) - set(clinvar_vcf.keys()))
             ),
             "-- Variants in official ClinVar VCF not in output: {}".format(set(clinvar_vcf.keys()) - set(variant_ids)),
-            "-- Number of duplicated positions: {}".format(len([v for v in positions.values() if v > 1])),
+            "-- Number of duplicated positions: {}".format(len([v for v in list(positions.values()) if v > 1])),
         ]
-        + ["-- Number of variants with {}: {}".format(w, c) for w, c in warnings.items()]
+        + ["-- Number of variants with {}: {}".format(w, c) for w, c in list(warnings.items())]
     )
     logging.info(summary)
 

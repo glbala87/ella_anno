@@ -111,7 +111,7 @@ class Command(object):
             target_exports["regions"] = input_regions
 
         with open(target_source_file, "w") as f:
-            for k, v in sorted(target_exports.iteritems()):
+            for k, v in sorted(target_exports.items()):
                 f.write('export {}="{}"\n'.format(k.upper(), v))
 
     def _generate_cmd(

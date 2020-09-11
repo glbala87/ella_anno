@@ -40,7 +40,7 @@ def check_output(cmd, on_error="N/A"):
 
 class DiagnoseResource(Resource):
     def get(self):
-        all_task_ids = Task.get_status_all().keys()
+        all_task_ids = list(Task.get_status_all().keys())
         total = len(all_task_ids)
         finalized = 0
         failed = 0
@@ -116,7 +116,7 @@ class DiagnoseResource(Resource):
         res += "\tPERL5LIB {}\n".format(os.environ.get("PERL5LIB", "N/A"))
 
         res += "\nENVIRONMENT\n"
-        N = max(len(k) for k in os.environ.keys())
+        N = max(len(k) for k in list(os.environ.keys()))
         for k in sorted(os.environ):
             res += "\t{:<{width}}\t{}\n".format(k, os.environ[k], width=N + 5)
 

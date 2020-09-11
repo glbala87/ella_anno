@@ -16,13 +16,13 @@ class ListSamplesResources(Resource):
 
         if name_filter:
             samples = {
-                k: v for k, v in samples.iteritems() if name_filter.lower() in k.lower()
+                k: v for k, v in list(samples.items()) if name_filter.lower() in k.lower()
             }
 
         if keys:
             for k in samples:
                 samples[k] = {
-                    key: val for key, val in samples[k].iteritems() if key in keys
+                    key: val for key, val in list(samples[k].items()) if key in keys
                 }
 
         if limit:

@@ -43,7 +43,7 @@ class FlaskClientProxy(object):
             )
 
     def post_files(self, url, files, data=None):
-        _data = {name: (file, "{}".format(name)) for name, file in files.items()}
+        _data = {name: (file, "{}".format(name)) for name, file in list(files.items())}
         if data:
             _data.update(data)
 

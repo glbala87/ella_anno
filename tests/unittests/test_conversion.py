@@ -58,7 +58,7 @@ def test_del(exporter):
         "NM_007294.3:c.3339_3341del": ("17", "41244206", "TTCA", "T"),
     }
 
-    for hgvsc, position in cases.iteritems():
+    for hgvsc, position in cases.items():
         d = exporter.hgvsc_to_vcfdict(hgvsc, "")
         normalized = vt_normalize(d["chr"], d["pos"], d["ref"], d["alt"])
         assert normalized == position
@@ -106,7 +106,7 @@ def test_delins(exporter):
         "NM_005902.3:c.275_281delGGCGATGinsC": ("15", "67457301", "GGCGATG", "C"),
     }
 
-    for hgvsc, position in cases.iteritems():
+    for hgvsc, position in cases.items():
         d = exporter.hgvsc_to_vcfdict(hgvsc, "")
         normalized = vt_normalize(d["chr"], d["pos"], d["ref"], d["alt"])
         assert normalized == position
@@ -122,7 +122,7 @@ def test_ins(exporter):
         "NM_003895.3:c.4215_4216insAATACT": ("21", "34003928", "A", "AAGTATT"),
     }
 
-    for hgvsc, position in cases.iteritems():
+    for hgvsc, position in cases.items():
         d = exporter.hgvsc_to_vcfdict(hgvsc, "")
         normalized = vt_normalize(d["chr"], d["pos"], d["ref"], d["alt"])
         assert normalized == position
@@ -144,7 +144,7 @@ def test_inv(exporter):
         "NM_002878.3:c.234_235invCA": ("17", "33445548", "TG", "CA"),
     }
 
-    for hgvsc, position in cases.iteritems():
+    for hgvsc, position in cases.items():
         d = exporter.hgvsc_to_vcfdict(hgvsc, "")
         normalized = vt_normalize(d["chr"], d["pos"], d["ref"], d["alt"])
         assert normalized == position
@@ -170,7 +170,7 @@ def test_snp(exporter):
         "NM_015909.3:c.758T>G": ("2", "15651463", "A", "C"),
     }
 
-    for hgvsc, position in cases.iteritems():
+    for hgvsc, position in cases.items():
         d = exporter.hgvsc_to_vcfdict(hgvsc, "")
         normalized = vt_normalize(d["chr"], d["pos"], d["ref"], d["alt"])
         assert normalized == position
@@ -189,7 +189,7 @@ def test_dup(exporter):
         "NM_001943.4:c.*611_*612dupTG": ("18", "29127305", "A", "AGT"),
     }
 
-    for hgvsc, position in cases.iteritems():
+    for hgvsc, position in cases.items():
         d = exporter.hgvsc_to_vcfdict(hgvsc, "")
         normalized = vt_normalize(d["chr"], d["pos"], d["ref"], d["alt"])
         assert normalized == position
@@ -201,6 +201,6 @@ def test_identity(exporter):
         "NM_001040108.1:c.2373G=": ("14", "75513986", "C", "C"),
         "NM_004211.4:c.-41G=": ("11", "20621178", "G", "G"),
     }
-    for hgvsc, position in cases.iteritems():
+    for hgvsc, position in cases.items():
         with pytest.raises(VcfInvalidVariantError):
             exporter.hgvsc_to_vcfdict(hgvsc, "")
