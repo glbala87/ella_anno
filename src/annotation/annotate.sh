@@ -185,7 +185,7 @@ then
     handle_step_start "CONVERT"
 
     # Create and run command
-    cmd="python $ANNO/src/conversion/convert.py $HGVSC $OUTPUT_VCF &> $OUTPUT_LOG"
+    cmd="python3 $ANNO/src/conversion/convert.py $HGVSC $OUTPUT_VCF &> $OUTPUT_LOG"
     echo $cmd > $OUTPUT_CMD
     bash $OUTPUT_CMD
 

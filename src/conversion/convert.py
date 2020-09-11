@@ -1,6 +1,6 @@
 
 import re
-from .exporters import SeqPilotExporter, HGVScExporter
+from conversion.exporters import SeqPilotExporter, HGVScExporter
 
 RE_SEQPILOT = re.compile(".*Transcript.*\tc. HGVS|.*c. HGVS.*\tTranscript")
 

@@ -1,7 +1,6 @@
 import signal
 
 from . import vcfhelper
-from string import maketrans
 
 RESEQ_ACCESSION = {
     "hg19": {
@@ -67,7 +66,7 @@ def get_chr(accession):
 
 
 def get_alt_for_inversion(ref):
-    translation_table = maketrans("ACGT", "TGCA")
+    translation_table = str.maketrans("ACGT", "TGCA")
     return "".join(reversed(ref.translate(translation_table)))
 
 

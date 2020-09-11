@@ -33,7 +33,7 @@ def get_size(top, exclude=None):
 
 def check_output(cmd, on_error="N/A"):
     try:
-        return subprocess.check_output(cmd, shell=True)
+        return subprocess.check_output(cmd, shell=True).decode("utf-8")
     except subprocess.CalledProcessError:
         return on_error
 

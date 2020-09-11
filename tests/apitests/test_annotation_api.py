@@ -34,7 +34,7 @@ def return_value(response):
 def test_annotate(client, input, endpoint, wait):
     if wait:
         endpoint += "?wait=True"
-    response = client.post_files(endpoint, {"input": open(input, "r")})
+    response = client.post_files(endpoint, {"input": open(input, "rb")})
     if wait:
         assert response.status_code == 200
         response = client.get("status/")
@@ -90,10 +90,10 @@ def test_slice(client):
 
     response = client.post_files(
         "annotate?wait=True",
-        {"input": open(LARGE_TEST_VCF, "r"), "regions": open(TEST_REGIONS, "r")},
+        {"input": open(LARGE_TEST_VCF, "rb"), "regions": open(TEST_REGIONS, "rb")},
     )
     assert response.status_code == 200
-    output_vcf = response.get_data()
+    output_vcf = response.get_data().decode("utf-8")
 
     # Output contains only variants in slicing regions
     for chrom, pos in get_positions(StringIO(output_vcf)):
@@ -124,7 +124,7 @@ def test_annotate_sample(client):
 
     response = client.post_files(
         "samples/annotate",
-        files={"regions": open(TEST_REGIONS, "r")},
+        files={"regions": open(TEST_REGIONS, "rb")},
         data={"sample_id": "'{}'".format(sample_id)},
     )
     assert response.status_code == 202
@@ -153,13 +153,13 @@ def test_target(client, target):
     # All variables and files available in the sample json should be available in the
     # target, as well as the dummy variable and the dummy file
     tmp = tempfile.NamedTemporaryFile(delete=False)
-    tmp.write("dabla")
+    tmp.write(b"dabla")
     tmp.flush()
     tmp.close()
 
     response = client.post_files(
         "samples/annotate",
-        files={"regions": open(TEST_REGIONS, "r"), "dummy_file": open(tmp.name, "r")},
+        files={"regions": open(TEST_REGIONS, "rb"), "dummy_file": open(tmp.name, "rb")},
         data={
             "sample_id": "'{}'".format(sample_id),
             "targets": "'{}'".format(target),
