@@ -1,4 +1,5 @@
-FROM debian:buster-20191014 AS base
+FROM debian:buster-20200908 AS base
+
 LABEL maintainer="OUS AMG <ella-support@medisin.uio.no>"
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -46,9 +47,6 @@ RUN apt-get update && \
     postgresql-client \
     postgresql-common \
     procps \
-    python \
-    python-dev \
-    python-pip \
     python3 \
     python3-dev \
     python3-pip \
@@ -67,8 +65,8 @@ RUN apt-get update && \
 RUN useradd -ms /bin/bash anno-user
 
 COPY pip-requirements /dist/
-RUN pip install -U setuptools wheel && \
-    pip install -r /dist/pip-requirements
+RUN pip3 install -U setuptools wheel && \
+    pip3 install -r /dist/pip-requirements
 
 COPY pip-requirements-py3 /dist/
 RUN pip3 install -U setuptools wheel && \
