@@ -15,6 +15,7 @@ six==1.11.0
 Werkzeug==0.9.6
 wsgiref==0.1.2
 yoyo-migrations==6.1.0
+pyrsistent==0.15.7
 
 # builder-specific requirements
 biopython==1.74
