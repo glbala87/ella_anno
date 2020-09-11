@@ -19,7 +19,7 @@ class AnnotateSampleResource(Resource):
         samples = read_samples()
         sample = samples[sample_id]
 
-        for k, v in list(sample.items()):
+        for k, v in sample.items():
             path = os.path.join(os.environ["SAMPLES"], v)
             if os.path.isfile(path):
                 data["variables"][k.upper()] = path

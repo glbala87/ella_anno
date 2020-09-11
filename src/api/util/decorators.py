@@ -16,7 +16,7 @@ def parse_request(required, special):
             # Fetch files
 
             data["files"].update(
-                {k: (v.filename, v.read()) for k, v in list(request.files.items())}
+                {k: (v.filename, v.read()) for k, v in request.files.items()}
             )
 
             for k in request.form:

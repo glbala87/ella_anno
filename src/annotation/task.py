@@ -68,14 +68,14 @@ class Task(object):
     @staticmethod
     def write_target_files(work_dir, target_data):
         target_files = dict()
-        for k, (filename, content) in list(target_data["files"].items()):
+        for k, (filename, content) in target_data["files"].items():
             filename = os.path.join(work_dir, filename)
             with open(filename, "w") as f:
                 f.write(content)
             target_files[k] = filename
 
         target_env = dict()
-        for k, v in list(target_files.items()):
+        for k, v in target_files.items():
             target_env[k.split(".")[0]] = v
 
         return target_env

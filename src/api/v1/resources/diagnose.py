@@ -116,7 +116,7 @@ class DiagnoseResource(Resource):
         res += "\tPERL5LIB {}\n".format(os.environ.get("PERL5LIB", "N/A"))
 
         res += "\nENVIRONMENT\n"
-        N = max(len(k) for k in list(os.environ.keys()))
+        N = max(len(k) for k in os.environ.keys())
         for k in sorted(os.environ):
             res += "\t{:<{width}}\t{}\n".format(k, os.environ[k], width=N + 5)
 

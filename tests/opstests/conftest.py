@@ -27,7 +27,7 @@ def iterate_testdata_files(relative=True):
 
 @pytest.fixture(autouse=True, scope="function")
 def reset_testdata():
-    print(("Resetting testdata in {}".format(ANNO_DATA)))
+    print("Resetting testdata in {}".format(ANNO_DATA))
     empty_testdata()
     subprocess.call("python3 {}/ops/sync_data.py --generate -f {}".format(ANNO_ROOT, DATASETS), shell=True)
     os.remove(os.path.join(ANNO_DATA, "SYNC_DATA_LOG"))
