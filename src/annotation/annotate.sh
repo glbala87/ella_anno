@@ -198,6 +198,43 @@ fi
 cp $VCF $WORKDIR/original.vcf
 
 ##################################
+######### VT DECOMPOSE ###########
+##################################
+
+# Set environment variables for step
+handle_step_start "VT_DECOMPOSE"
+
+# Fix wrong header for older GATK
+sed -i 's/##FORMAT=<ID=AD,Number=\./##FORMAT=<ID=AD,Number=R/g' $VCF
+
+cmd="vt decompose -s -o $OUTPUT_VCF $VCF &> $OUTPUT_LOG"
+echo $cmd > $OUTPUT_CMD
+bash $OUTPUT_CMD
+
+handle_step_done
+
+##################################
+######### VT NORMALIZE ###########
+##################################
+handle_step_start "VT_NORMALIZE"
+
+cmd="vt normalize -r $FASTA -o $OUTPUT_VCF $VCF &> $OUTPUT_LOG"
+echo $cmd > $OUTPUT_CMD
+bash $OUTPUT_CMD
+
+handle_step_done
+
+##################################
+############ VCFSORT #############
+##################################
+handle_step_start "VCFSORT"
+cmd="cat $VCF | vcf-sort -c > $OUTPUT_VCF 2> $OUTPUT_LOG"
+echo $cmd > $OUTPUT_CMD
+bash $OUTPUT_CMD
+
+handle_step_done
+
+##################################
 ########### SLICING ##############
 ##################################
 if [ ! -z $REGIONS ]
@@ -227,44 +264,6 @@ handle_step_done
 # Run annotation if not specified to run convert only
 if [ $CONVERT_ONLY = 0 ]
 then
-
-    ##################################
-    ######### VT DECOMPOSE ###########
-    ##################################
-
-    # Set environment variables for step
-    handle_step_start "VT_DECOMPOSE"
-
-    # Fix wrong header for older GATK
-    sed -i 's/##FORMAT=<ID=AD,Number=\./##FORMAT=<ID=AD,Number=R/g' $VCF
-
-    cmd="vt decompose -s -o $OUTPUT_VCF $VCF &> $OUTPUT_LOG"
-    echo $cmd > $OUTPUT_CMD
-    bash $OUTPUT_CMD
-
-    handle_step_done
-
-    ##################################
-    ######### VT NORMALIZE ###########
-    ##################################
-    handle_step_start "VT_NORMALIZE"
-
-    cmd="vt normalize -r $FASTA -o $OUTPUT_VCF $VCF &> $OUTPUT_LOG"
-    echo $cmd > $OUTPUT_CMD
-    bash $OUTPUT_CMD
-
-    handle_step_done
-
-    ##################################
-    ############ VCFSORT #############
-    ##################################
-    handle_step_start "VCFSORT"
-    cmd="cat $VCF | vcf-sort -c > $OUTPUT_VCF 2> $OUTPUT_LOG"
-    echo $cmd > $OUTPUT_CMD
-    bash $OUTPUT_CMD
-
-    handle_step_done
-
     ##################################
     ############## VEP ###############
     ##################################
