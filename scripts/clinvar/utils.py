@@ -50,8 +50,8 @@ def open_file(inputfile):
         logging.info("Downloaded inputfile " + inputfile)
 
     if inputfile.endswith(".gz"):
-        f = gzip.open(inputfile)
+        f = gzip.open(inputfile, "rt")
     else:
-        f = open(inputfile)
+        f = open(inputfile, "rt")
 
     return f

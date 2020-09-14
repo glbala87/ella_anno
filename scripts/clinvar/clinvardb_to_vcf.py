@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-
-
 """
 Read ClinVar XML data and parse into vcf-file.
 
@@ -56,7 +53,7 @@ import tarfile
 import traceback
 import urllib.request, urllib.error, urllib.parse
 from collections import defaultdict
-from io import StringIO
+from io import BytesIO
 from lxml import etree
 from multiprocessing.pool import Pool
 
@@ -240,7 +237,7 @@ def get_vcf_lines(data):
         "variant_description": data["revstat"],
     }
     jsonschema.validate(json_data, CLINVAR_V1_SCHEMA)
-    b16_info = base64.b16encode(json.dumps(json_data, separators=(",", ":")))
+    b16_info = base64.b16encode(json.dumps(json_data, separators=(",", ":")).encode("utf-8"))
     vcf_lines = []
     if not data["variation_warnings"]:
         vcf_variation_warnings = ""
@@ -283,7 +280,7 @@ def xml_to_vcf(xml, clinvar_vcf, archive_folder):
     """
     Read all VariationReport tags and attempt to create one or more vcf lines from it. Return all vcf lines extracted from xml.
     """
-    tree = etree.iterparse(StringIO(xml), tag="VariationArchive", events=["end"])
+    tree = etree.iterparse(BytesIO(xml), tag="VariationArchive", events=["end"])
 
     vcf_lines = []
 
@@ -295,7 +292,7 @@ def xml_to_vcf(xml, clinvar_vcf, archive_folder):
         try:
             data = clinvar_vcf_check(data, clinvar_vcf)
         except IncompatibleDataError as e:
-            logging.debug("Incompatible data: {}".format(e.message))
+            logging.debug("Incompatible data: {}".format(str(e)))
             continue
 
         added_vcf_lines = get_vcf_lines(data)
@@ -317,7 +314,7 @@ def entrez_fetch_variation_data(ids):
     data = "db=clinvar&rettype=vcv&is_variationid&id={}".format(",".join(ids))
     if API_KEY is not None:
         data += "&api_key={}".format(API_KEY)
-    r = urllib.request.urlopen(url, data=data)
+    r = urllib.request.urlopen(url, data=data.encode("utf-8"))
     xml = r.read()
     return xml
 
@@ -380,7 +377,7 @@ def parse_clinvar_file(vcf_file, archive_folder):
     else:
         archive_filename = os.path.join(archive_folder, "clinvar.vcf")
 
-    with open_file(vcf_file) as f, open(archive_filename, "w") as archive_file:
+    with open_file(vcf_file) as f, open(archive_filename, "wt") as archive_file:
         for l in f:
             archive_file.write(l)
             if l.startswith("#"):
@@ -560,7 +557,7 @@ def main():
     padding = 50000
     variant_ids = [str(i) for i in range(max_variant_id + padding)]
 
-    num_batches = len(variant_ids) / batch_size + int(len(variant_ids) % batch_size >= 1)
+    num_batches = len(variant_ids) // batch_size + int(len(variant_ids) % batch_size >= 1)
     logging.info("Submitting {} jobs of length {}".format(num_batches, batch_size))
 
     write_header(outputfile)
@@ -577,9 +574,9 @@ def main():
             ids, variant_ids = (variant_ids[:batch_size], variant_ids[batch_size:])
             batch_number += 1
             data = execute_batch(ids, clinvar_vcf, archive_folder, archive)
-            num_lines = writer(outputfile, data, batch_number=batch_number)
+            writer(outputfile, data)
             logging.info(
-                "Batch {} of {} completed. Wrote {} variants to vcf.".format(batch_number, num_batches, num_lines)
+                "Batch {} of {} completed.".format(batch_number, num_batches)
             )
     else:
         WORKERPOOL = Pool(processes=num_processes)
