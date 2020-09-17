@@ -169,7 +169,7 @@ annobuilder-shell:
 	docker exec -it $(ANNOBUILDER_CONTAINER_NAME) /bin/bash
 
 annobuilder-exec:
-	@$(call check_defined, RUN_CMD, 'Use RUN_CMD="python something.py opt1 ..." to specify command to run')
+	@$(call check_defined, RUN_CMD, 'Use RUN_CMD="python3 something.py opt1 ..." to specify command to run')
 	$(annobuilder-template)
 
 download-data:

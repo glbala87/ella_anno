@@ -83,8 +83,8 @@ class DiagnoseResource(Resource):
         vcfvalidator = "vcf-validator: See vcftools"
         vcfvalidator += " ({})".format(check_output("which vcf-validator"))
 
-        python = check_output("python --version 2>&1")
-        python += " ({})".format(check_output("which python"))
+        python = check_output("python3 --version 2>&1")
+        python += " ({})".format(check_output("which python3"))
 
         perl = check_output("perl --version | perl --version | grep -oP 'This is \K.*'")
         perl += " ({})".format(check_output("which perl"))

@@ -237,7 +237,7 @@ def get_vcf_lines(data):
         "variant_description": data["revstat"],
     }
     jsonschema.validate(json_data, CLINVAR_V1_SCHEMA)
-    b16_info = base64.b16encode(json.dumps(json_data, separators=(",", ":")).encode("utf-8"))
+    b16_info = base64.b16encode(json.dumps(json_data, separators=(",", ":")).encode("utf-8")).decode("utf-8")
     vcf_lines = []
     if not data["variation_warnings"]:
         vcf_variation_warnings = ""
