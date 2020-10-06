@@ -228,7 +228,8 @@ handle_step_done
 ############ VCFSORT #############
 ##################################
 handle_step_start "VCFSORT"
-cmd="cat $VCF | vcf-sort -c > $OUTPUT_VCF 2> $OUTPUT_LOG"
+
+cmd="vcf-sort -c $VCF | uniq > $OUTPUT_VCF 2> $OUTPUT_LOG"
 echo $cmd > $OUTPUT_CMD
 bash $OUTPUT_CMD
 
@@ -242,13 +243,31 @@ then
     # Set environment variables for step
     handle_step_start "SLICE"
 
-    cmd="bedtools intersect -header -wa -u -a $VCF -b $REGIONS > $OUTPUT_VCF 2> $OUTPUT_LOG"
+    # Perform slicing
+    cmd="bedtools intersect -header -wa -u -a $VCF -b $REGIONS > $WORKDIR_STEP/tmp_output.vcf 2> $OUTPUT_LOG"
     echo $cmd > $OUTPUT_CMD
+
+
+    # Ensure that all multiallelic blocks are preserved 
+    # 1. Gather all multiallelic (whole or partial) blocks in a text file
+    cmd="grep -oP '(?<=[\s;])OLD_MULTIALLELIC[^\s;]*' $WORKDIR_STEP/tmp_output.vcf | sort | uniq > $WORKDIR_STEP/tmp_multiallelic_blocks.txt 2> $OUTPUT_LOG"
+    echo $cmd >> $OUTPUT_CMD
+
+    # 2. Grep for these multiallelic sites in the $VCF from the previous step (whole blocks only)
+    # Append these to the temporary file, re-sort and remove duplicates
+    cmd="cat $WORKDIR_STEP/tmp_output.vcf <(grep -F -f $WORKDIR_STEP/tmp_multiallelic_blocks.txt $VCF) | vcf-sort -c | uniq > $OUTPUT_VCF 2> $OUTPUT_LOG"
+
+    
+    echo $cmd >> $OUTPUT_CMD
     bash $OUTPUT_CMD
 
+    rm $WORKDIR_STEP/tmp_multiallelic_blocks.txt $WORKDIR_STEP/tmp_output.vcf
+
     handle_step_done
-    ln -s $WORKDIR/SLICE/output.vcf $WORKDIR/sliced.vcf
+    ln -rsf $WORKDIR/SLICE/output.vcf $WORKDIR/sliced.vcf
 fi
+
+
 
 ##################################
 ########### VALIDATE #############
@@ -316,5 +335,5 @@ then
 fi
 
 # Create link to final vcf
-ln -s $VCF $FINAL_VCF
+ln -rs $VCF $FINAL_VCF
 echo -e "$(date '+%Y-%m-%d %H:%M:%S.%N')\tFINALIZED\t" | tee -a $STATUS_FILE
