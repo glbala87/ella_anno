@@ -198,6 +198,19 @@ fi
 cp $VCF $WORKDIR/original.vcf
 
 ##################################
+###### REMOVE STAR ALLELES #######
+##################################
+handle_step_start "REMOVE_STAR_ALLELES"
+
+cmd="remove_star_alleles --input $VCF --output $OUTPUT_VCF &> $OUTPUT_LOG"
+echo $cmd > $OUTPUT_CMD
+bash $OUTPUT_CMD
+
+handle_step_done
+
+
+
+##################################
 ######### VT DECOMPOSE ###########
 ##################################
 

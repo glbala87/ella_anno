@@ -13,6 +13,7 @@ RUN echo 'Acquire::ForceIPv4 "true";' | tee /etc/apt/apt.conf.d/99force-ipv4
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     bash \
+    bcftools \
     build-essential \
     bzip2 \
     ca-certificates \
