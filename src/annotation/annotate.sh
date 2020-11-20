@@ -264,7 +264,6 @@ then
     rm $WORKDIR_STEP/tmp_multiallelic_blocks.txt $WORKDIR_STEP/tmp_output.vcf
 
     handle_step_done
-    ln -rsf $WORKDIR/SLICE/output.vcf $WORKDIR/sliced.vcf
 fi
 
 
