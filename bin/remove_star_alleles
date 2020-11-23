@@ -42,6 +42,8 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 #    remove alleles not seen in the genotype fields from the ALT column. Note that if no alternate allele remains after trimming, 
 #    the record itself is not removed but ALT is set to ".". If the option -s or -S is given, removes alleles not seen in the subset. 
 #    INFO and FORMAT tags declared as Type=A, G or R will be trimmed as well. 
-
+#
+# PYTHONPATH messes up imports, and no third party is needed in this next line
+unset PYTHONPATH
 python3 $DIR/../src/annotation/remove_star_genotypes.py $INPUT | bcftools view --trim-alt-alleles > $OUTPUT
 
