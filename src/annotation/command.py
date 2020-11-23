@@ -109,7 +109,6 @@ class Command(object):
             target_exports.update(target_env)
         if input_regions:
             target_exports["regions"] = input_regions
-            target_exports["sliced_vcf"] = os.path.join(self.work_dir, "sliced.vcf")
 
         with open(target_source_file, "w") as f:
             for k, v in sorted(target_exports.iteritems()):
