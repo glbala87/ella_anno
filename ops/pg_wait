@@ -1,7 +1,6 @@
-#!/bin/bash -e
+#!/bin/bash
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source ${DIR}/pg_sourceme
 
-pg_uta_sync_data
-pg_start
+pg_wait_for_ready $@

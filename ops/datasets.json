@@ -596,5 +596,21 @@
             "[[ -d {data_dir}/{version} ]] || (echo downloaded version does not match; exit 1)",
             "cd {data_dir}; ln -sf {version} latest"
         ]
+    },
+    "uta": {
+        "description": "biocommons universal transcript archive",
+        "version": "20180821",
+        "destination": "uta",
+        "hash": {
+            "type": "sha1",
+            "value": "490da05278dcfe0485a78df6906f7db3cbaf0c0a"
+        },
+        "generate": [
+            "wget -nc http://dl.biocommons.org/uta/uta_{version}.pgd.gz",
+            "echo '{hash_value} uta_{version}.pgd.gz' | {hash_type}sum -c",
+            "rm -rf $(pwd)/pg_uta",
+            "UTA_VERSION={version} PGDATA=$(pwd)/pg_uta /anno/scripts/uta/restore_from_dump",
+            "mv pg_uta/* {data_dir}"
+        ]
     }
 }

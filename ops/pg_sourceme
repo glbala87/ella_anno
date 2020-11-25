@@ -1,0 +1,58 @@
+#!/bin/bash
+
+if [[ "$(id -u -n)" == "root" ]]; then
+    pg_user=postgres
+else
+    pg_user=$(id -u)
+fi
+
+export PGDATA=${PGDATA:-"/pg_uta/${pg_user}"}
+
+export PG_BIN=/usr/lib/postgresql/11/bin
+function pg_wait_for_ready() {
+    timer=${1:-5}
+    retries=${2:-10}
+    N=0
+    while ! $PG_BIN/pg_isready --dbname=postgres --username=postgres --host localhost; do
+        echo "[$(date +%Y-%m-%d\ %H:%M:%S)] Postgres is unavailable - sleeping for $timer seconds"
+        N=$((N+1))
+        if [[ $N > $retries ]]; then
+            echo "[$(date +%Y-%m-%d\ %H:%M:%S)] Postgres is unavailable - Reached maximum number of retries. Aborting."
+            exit 1
+        fi
+        sleep "$timer"
+    done
+}
+
+
+function pg_shutdown() {
+    echo "Shutting down PostgreSQL"
+    # if pkill fails (no process found, etc), still exit the script
+    if [[ -z $SINGULARITY_NAME ]]; then
+        gosu postgres "$PG_BIN/pg_ctl" stop -m s || exit $?
+    else
+        "$PG_BIN/pg_ctl" stop -m s || exit $?
+    fi
+}
+
+
+function pg_uta_sync_data() {
+    echo "Syncing Postgres UTA data from ${ANNO_DATA}/uta/ to $PGDATA"
+    mkdir -p ${PGDATA}
+    rsync -a --delete ${ANNO_DATA}/uta/ $PGDATA --info=progress2 2>&1
+    chown -R ${pg_user} ${PGDATA}
+    chmod 0700 ${PGDATA}
+}
+
+
+function pg_start() {
+    echo "Starting PostgreSQL"
+    # Enforce a clean shutdown of postgres when process exits
+    trap pg_shutdown EXIT
+    # if not running in singularity container, use gosu for postgres user
+    if [[ "$(id -u -n)" == "root" ]]; then
+        exec gosu $pg_user $PG_BIN/postgres -c autovacuum=off
+    else
+        exec $PG_BIN/postgres -c autovacuum=off
+    fi
+}
