@@ -16,7 +16,7 @@ function pg_wait_for_ready() {
     while ! $PG_BIN/pg_isready --dbname=postgres --username=postgres --host localhost; do
         echo "[$(date +%Y-%m-%d\ %H:%M:%S)] Postgres is unavailable - sleeping for $timer seconds"
         N=$((N+1))
-        if [[ $N > $retries ]]; then
+        if [[ $N -gt $retries ]]; then
             echo "[$(date +%Y-%m-%d\ %H:%M:%S)] Postgres is unavailable - Reached maximum number of retries. Aborting."
             exit 1
         fi
