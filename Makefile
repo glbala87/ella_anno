@@ -32,7 +32,6 @@ SINGULARITY_ANNO_LOGS := $(shell pwd)/logs
 # Large tmp storage is needed for gnomAD data generation. Set this to somewhere with at least 50GB of space if not
 # available on /tmp's partition
 TMP_DIR ?= /tmp
-UTA_VERSION=uta_20180821
 
 # Use docker buildkit for faster builds
 DOCKER_BUILDKIT := 1
@@ -74,7 +73,7 @@ __check_defined = \
 #---------------------------------------------
 # DEVELOPMENT
 #---------------------------------------------
-.PHONY: any build run dev kill shell logs restart automation
+.PHONY: any build run dev kill shell logs restart automation release singularity-release
 
 any:
 	$(eval CONTAINER_NAME = $(shell docker ps | awk '/anno-.*-$(USER)/ {print $$NF}'))
@@ -85,8 +84,6 @@ build:
 
 run:
 	docker run -d \
-	-e UTA_DB_URL=postgresql://uta_admin@localhost:5432/uta/$(UTA_VERSION) \
-	-e UTA_VERSION=$(UTA_VERSION) \
 	-e TARGET_DATA=/target_data \
 	$(ANNO_OPTS) \
 	--restart=always \
