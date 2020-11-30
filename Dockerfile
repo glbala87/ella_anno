@@ -19,7 +19,6 @@ RUN apt-get update && \
     bzip2 \
     ca-certificates \
     curl \
-    cython \
     cython3 \
     file \
     fontconfig \
@@ -51,7 +50,6 @@ RUN apt-get update && \
     python3-dev \
     python3-pip \
     rsync \
-    supervisor \
     vim \
     watch \
     wget \
@@ -67,10 +65,6 @@ RUN useradd -ms /bin/bash anno-user
 COPY pip-requirements /dist/
 RUN pip3 install -U setuptools wheel && \
     pip3 install -r /dist/pip-requirements
-
-COPY pip-requirements-py3 /dist/
-RUN pip3 install -U setuptools wheel && \
-    pip3 install -r /dist/pip-requirements-py3
 
 RUN curl -L https://github.com/tianon/gosu/releases/download/1.7/gosu-amd64 -o /usr/local/bin/gosu && chmod u+x /usr/local/bin/gosu && \
     # Cleanup
