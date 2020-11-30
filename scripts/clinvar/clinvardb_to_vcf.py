@@ -390,12 +390,12 @@ def parse_clinvar_file(vcf_file, archive_folder):
                 continue
 
             try:
-                revstat = re.match(".*CLNREVSTAT=([^;]+).*", info).groups(1)[0].replace("_", " ")
+                revstat = re.match(r".*CLNREVSTAT=([^;]+).*", info).groups(1)[0].replace("_", " ")
             except AttributeError as e:
                 revstat = "N/A"
 
             try:
-                clnsig = re.match(".*CLNSIG=([^;]+).*", info).groups(1)[0].replace("_", " ")
+                clnsig = re.match(r".*CLNSIG=([^;]+).*", info).groups(1)[0].replace("_", " ")
             except AttributeError as e:
                 clnsig = "N/A"
 
@@ -575,9 +575,7 @@ def main():
             batch_number += 1
             data = execute_batch(ids, clinvar_vcf, archive_folder, archive)
             writer(outputfile, data)
-            logging.info(
-                "Batch {} of {} completed.".format(batch_number, num_batches)
-            )
+            logging.info("Batch {} of {} completed.".format(batch_number, num_batches))
     else:
         WORKERPOOL = Pool(processes=num_processes)
         jobs = []

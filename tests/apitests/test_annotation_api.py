@@ -189,7 +189,7 @@ def test_target(client, target):
                 k = "original_vcf"
             vt = next(
                 m
-                for m in [re.match("{}=(.*)".format(k.upper()), l) for l in ts]
+                for m in [re.match(r"{}=(.*)".format(k.upper()), l) for l in ts]
                 if m is not None
             ).group(1)
 
@@ -203,7 +203,7 @@ def test_target(client, target):
 
     # Check that optional files are available in the work folder
     vt = next(
-        m for m in [re.match("DUMMY_FILE=(.*)", l) for l in ts] if m is not None
+        m for m in [re.match(r"DUMMY_FILE=(.*)", l) for l in ts] if m is not None
     ).group(1)
     dummy_file_target = os.path.join(config["work_folder"], task_id, "dummy_file")
     assert os.path.samefile(vt, dummy_file_target)

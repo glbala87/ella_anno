@@ -15,7 +15,7 @@ if __name__ == "__main__":
         for l in f:
             if l.startswith("#"):
                 continue
-            m = re.match(".*?CLINVARJSON=([A-F0-9]*)", l)
+            m = re.match(r".*?CLINVARJSON=([A-F0-9]*)", l)
             data = json.loads(base64.b16decode(m.groups()[0]))
             pubmed_ids |= set(data["pubmed_ids"])
 

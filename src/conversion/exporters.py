@@ -66,7 +66,7 @@ class Exporter(object):
 
     # Pattern to remove gene name from hgvsc, e.g.
     # NM_000059.3(BRCA2):c.486_488delGAG -> NM_000059.3:c.486_488delGAG
-    HGVSC_REPLACE_PATTERN = re.compile("\(.*\)")
+    HGVSC_REPLACE_PATTERN = re.compile(r"\(.*\)")
 
     def __init__(self, input, output_vcf=None):
         # Create the tools required for converting hgvsc to vcf
@@ -106,7 +106,7 @@ class Exporter(object):
             var_g = self.VARIANT_MAPPER.c_to_g(var_c)
         except hgvs.exceptions.HGVSInvalidVariantError as e:
             actual_ref = re.findall(
-                "Variant reference \([ACGT]+\) does not agree with reference sequence \(([ACGT]+)\)",
+                r"Variant reference \([ACGT]+\) does not agree with reference sequence \(([ACGT]+)\)",
                 e.message,
             )
             if config["convert"]["replace_ref_if_mismatch"] and actual_ref:
@@ -183,7 +183,7 @@ class Exporter(object):
 
 
 class HGVScExporter(Exporter):
-    RE_HGVSC = re.compile("(?P<hgvsc>.+:c\.[^\s]+)(\s+\((?P<GT>.+)?\))?")
+    RE_HGVSC = re.compile(r"(?P<hgvsc>.+:c\.[^\s]+)(\s+\((?P<GT>.+)?\))?")
     """
     Class to convert a file of line-separated HGVSc-variants to vcf
     """
@@ -247,7 +247,7 @@ class SeqPilotExporter(Exporter):
                     tx=line["Transcript"], hgvsc=line["c. HGVS"]
                 )
                 try:
-                    gt = re.findall("[ACGT]*\((.*)\)", line["Nuc Change"])[0]
+                    gt = re.findall(r"[ACGT]*\((.*)\)", line["Nuc Change"])[0]
                     gt_vcf = gt_mapping[gt]
                 except Exception:
                     gt_vcf = "./."
