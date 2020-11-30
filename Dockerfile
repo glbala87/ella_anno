@@ -1,4 +1,4 @@
-FROM debian:buster-20200908 AS base
+FROM debian:buster-20201117 AS base
 
 LABEL maintainer="OUS AMG <ella-support@medisin.uio.no>"
 
