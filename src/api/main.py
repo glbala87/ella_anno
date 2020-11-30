@@ -21,33 +21,11 @@ handler = logging.StreamHandler()
 handler.setLevel(loglevel)
 
 # create a logging format
-formatter = logging.Formatter(
-    "%(asctime)s\t%(pathname)s:%(lineno)d - %(levelname)s - %(message)s"
-)
+formatter = logging.Formatter("%(asctime)s\t%(pathname)s:%(lineno)d - %(levelname)s - %(message)s")
 handler.setFormatter(formatter)
 
 # add the handlers to the logger
 logger.addHandler(handler)
-
-
-def wait_for_postgres(retries=100, wait_time=10):
-    if not os.environ.get("PGDATA"):
-        logger.info(
-            "PGDATA environment variable not set. Assuming postgres connection is ready."
-        )
-        return
-    for i in range(retries):
-        if not os.path.isfile(os.path.join(os.environ["PGDATA"], "pgready")):
-            logger.warning("Postgres database is not ready, retrying...")
-            if i == retries - 1:
-                raise RuntimeError()
-            time.sleep(wait_time)
-        else:
-            logger.info("Postgres database is populated and ready")
-            return
-
-
-wait_for_postgres()
 
 
 class ApiErrorHandling(Api):
@@ -79,7 +57,7 @@ if __name__ == "__main__":
     opts["threaded"] = True
     opts["port"] = int(os.getenv("API_PORT", "6000"))
 
-    if os.environ.get('DEBUG'):
+    if os.environ.get("DEBUG"):
         opts["use_reloader"] = True
         opts["reloader_interval"] = 3
         opts["debug"] = True

@@ -25,7 +25,6 @@ SINGULARITY_IMAGE_NAME ?= $(ANNO_BUILD).sif
 SINGULARITY_SANDBOX_PATH = $(ANNO_BUILD)/
 SINGULARITY_INSTANCE_NAME ?= $(ANNO_BUILD)-$(USER)
 SINGULARITY_DATA = $(shell pwd)/singularity
-SINGULARITY_DEF_FILE = Singularity.$(ANNO_BUILD)
 SINGULARITY_LOG_DIR = $(HOME)/.singularity/instances/logs/$(shell hostname)/$(USER)
 SINGULARITY_LOG_STDERR = $(SINGULARITY_LOG_DIR)/$(SINGULARITY_INSTANCE_NAME).err
 SINGULARITY_LOG_STDOUT = $(SINGULARITY_LOG_DIR)/$(SINGULARITY_INSTANCE_NAME).out
@@ -33,7 +32,6 @@ SINGULARITY_ANNO_LOGS := $(shell pwd)/logs
 # Large tmp storage is needed for gnomAD data generation. Set this to somewhere with at least 50GB of space if not
 # available on /tmp's partition
 TMP_DIR ?= /tmp
-UTA_VERSION=uta_20180821
 
 # Use docker buildkit for faster builds
 DOCKER_BUILDKIT := 1
@@ -75,7 +73,7 @@ __check_defined = \
 #---------------------------------------------
 # DEVELOPMENT
 #---------------------------------------------
-.PHONY: any build run dev kill shell logs restart automation
+.PHONY: any build run dev kill shell logs restart automation release singularity-release
 
 any:
 	$(eval CONTAINER_NAME = $(shell docker ps | awk '/anno-.*-$(USER)/ {print $$NF}'))
@@ -86,8 +84,6 @@ build:
 
 run:
 	docker run -d \
-	-e UTA_DB_URL=postgresql://uta_admin@localhost:5432/uta/$(UTA_VERSION) \
-	-e UTA_VERSION=$(UTA_VERSION) \
 	-e TARGET_DATA=/target_data \
 	$(ANNO_OPTS) \
 	--restart=always \
@@ -246,12 +242,14 @@ untar-data:
 #---------------------------------------------------------------------
 .PHONY: singularity-test singularity-shell singularity-start singularity-stop
 
-
-singularity-build: gen-singularityfile
-	sudo SINGULARITY_TMPDIR=$(TMP_DIR) SINGULARITY_CACHEDIR=$(TMP_DIR) singularity build $(SINGULARITY_IMAGE_NAME) $(SINGULARITY_DEF_FILE)
-
-gen-singularityfile:
-	@IMAGE_NAME=$(IMAGE_NAME) ./Singularity_template > $(SINGULARITY_DEF_FILE)
+singularity-build:
+	# Use git archive to create docker context, to prevent modified files from entering the image.
+	@-docker rm -f ella-anno-tmp-registry
+	docker run --rm -d -p 29000:5000 --name ella-anno-tmp-registry registry:2
+	docker tag $(IMAGE_NAME) localhost:29000/$(IMAGE_NAME)
+	docker push localhost:29000/$(IMAGE_NAME)
+	SINGULARITY_NOHTTPS=1 singularity build $(SINGULARITY_IMAGE_NAME) docker://localhost:29000/$(IMAGE_NAME)
+	docker rm -f ella-anno-tmp-registry
 
 ensure-singularity-dirs:
 	@mkdir -p $(SINGULARITY_DATA) $(SINGULARITY_ANNO_LOGS)
@@ -323,19 +321,7 @@ check-release-tag:
 	git rev-parse --verify "refs/tags/$(RELEASE_TAG)^{tag}"
 	git ls-remote --exit-code --tags origin "refs/tags/$(RELEASE_TAG)"
 
-release: tar-data check-release-tag
-	mkdir -p release/
-	tar cvf release/anno-$(RELEASE_TAG)-src.tar \
-		--exclude=thirdparty \
-		--exclude=".git*" \
-		--exclude="*data" \
-		--exclude=release \
-		--exclude=.vscode \
-		--exclude="*.sif" \
-		./
+release:
+	git archive --format tar.gz $(RELEASE_TAG) | docker build -t $(IMAGE_NAME) --target prod -
 
-singularity-release: check-release-tag singularity-build
-	mkdir -p release/
-	tar cvf release/anno-$(RELEASE_TAG)-singularity.tar \
-		Makefile \
-		$(SINGULARITY_IMAGE_NAME)
+singularity-release: release singularity-build

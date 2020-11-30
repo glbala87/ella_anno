@@ -74,6 +74,11 @@ COPY pip-requirements-py3 /dist/
 RUN pip3 install -U setuptools wheel && \
     pip3 install -r /dist/pip-requirements-py3
 
+RUN curl -L https://github.com/tianon/gosu/releases/download/1.7/gosu-amd64 -o /usr/local/bin/gosu && chmod u+x /usr/local/bin/gosu && \
+    # Cleanup
+    cp -R /usr/share/locale/en\@* /tmp/ && rm -rf /usr/share/locale/* && mv /tmp/en\@* /usr/share/locale/ && \
+    rm -rf /usr/share/doc/* /usr/share/man/* /usr/share/groff/* /usr/share/info/* /tmp/* /var/cache/apt/* /root/.cache
+
 #####################
 # Builder - for installing thirdparty and generating / downloading data
 #####################
@@ -107,7 +112,9 @@ COPY ./bin /anno/bin
 RUN python3 /anno/ops/install_thirdparty.py --clean
 
 COPY ./scripts /anno/scripts/
-COPY ./ops/sync_data.py ./ops/spaces_config.json ./ops/datasets.json ./ops/package_data ./ops/unpack_data /anno/ops/
+COPY ./ops/sync_data.py ./ops/spaces_config.json ./ops/datasets.json ./ops/package_data ./ops/unpack_data ./ops/postgresql.conf ./ops/pg_sourceme /anno/ops/
+
+
 
 #####################
 # Production
@@ -117,22 +124,7 @@ FROM base AS prod
 
 WORKDIR /anno
 
-RUN curl -L https://github.com/tianon/gosu/releases/download/1.7/gosu-amd64 -o /usr/local/bin/gosu && chmod u+x /usr/local/bin/gosu && \
-    # Cleanup
-    cp -R /usr/share/locale/en\@* /tmp/ && rm -rf /usr/share/locale/* && mv /tmp/en\@* /usr/share/locale/ && \
-    rm -rf /usr/share/doc/* /usr/share/man/* /usr/share/groff/* /usr/share/info/* /tmp/* /var/cache/apt/* /root/.cache
-
-# Init UTA Postgres database
-ENV UTA_VERSION=uta_20180821 \
-    PGDATA=/pg_uta
-ENV PGHOST=${PGDATA}
-COPY ./ops/pg_startup ./ops/postgresql.conf /anno/ops/
-RUN service postgresql stop && \
-    wget http://dl.biocommons.org/uta/${UTA_VERSION}.pgd.gz -O /${UTA_VERSION}.pgd.gz && \
-    /anno/ops/pg_startup init
-
-ENV UTA_DB_URL=postgresql://uta_admin@localhost:5432/uta/${UTA_VERSION} \
-    ANNO=/anno \
+ENV ANNO=/anno \
     FASTA=/anno/data/FASTA/human_g1k_v37_decoy.fasta.gz \
     PYTHONPATH=/anno/src \
     TARGETS=/targets \
