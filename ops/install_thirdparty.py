@@ -29,7 +29,7 @@ thirdparty_packages = {
         "sha256": "a5140d265b774b628d8aa12bd952dd2331aa7c0ec895a460ee29afe2ce907f30",
         "filename": "bedtools-{version}.tar.gz",
         "src_dir": "bedtools2",
-        "installation": ["make -j {max_procs}"],
+        "installation": ["sed -i 's/@python/@python3/g' Makefile", "make -j {max_procs}"],
     },
     "vcfanno": {
         "url": "https://github.com/brentp/vcfanno",
