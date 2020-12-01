@@ -1,7 +1,6 @@
 import signal
 
-import vcfhelper
-from string import maketrans
+from . import vcfhelper
 
 RESEQ_ACCESSION = {
     "hg19": {
@@ -63,11 +62,11 @@ def get_chr(accession):
     """
     Fetches chromosome from reference accession.
     """
-    return next(k for k, v in RESEQ_ACCESSION["hg19"].iteritems() if v == accession)
+    return next(k for k, v in RESEQ_ACCESSION["hg19"].items() if v == accession)
 
 
 def get_alt_for_inversion(ref):
-    translation_table = maketrans("ACGT", "TGCA")
+    translation_table = str.maketrans("ACGT", "TGCA")
     return "".join(reversed(ref.translate(translation_table)))
 
 

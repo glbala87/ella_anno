@@ -10,7 +10,7 @@ from functools import wraps
 
 import psutil
 from config import config
-from command import Command
+from .command import Command
 from api.util.util import validate_target
 
 
@@ -68,14 +68,14 @@ class Task(object):
     @staticmethod
     def write_target_files(work_dir, target_data):
         target_files = dict()
-        for k, (filename, content) in target_data["files"].iteritems():
+        for k, (filename, content) in target_data["files"].items():
             filename = os.path.join(work_dir, filename)
             with open(filename, "w") as f:
                 f.write(content)
             target_files[k] = filename
 
         target_env = dict()
-        for k, v in target_files.iteritems():
+        for k, v in target_files.items():
             target_env[k.split(".")[0]] = v
 
         return target_env
@@ -212,7 +212,7 @@ class Task(object):
         ts = subprocess.check_output("date '+%Y-%m-%d %H:%M:%S.%N'", shell=True)
         status_file = os.path.join(task_dir, "STATUS")
         with open(status_file, "w") as f:
-            f.write("\t".join([ts.strip(), "QUEUED", ""]) + "\n")
+            f.write("\t".join([ts.decode("utf-8").strip(), "QUEUED", ""]) + "\n")
         from api import WORKERPOOL
 
         if not priority:
@@ -237,12 +237,12 @@ class Task(object):
             return {}
         else:
             if not full:
-                status = subprocess.check_output(["tail", "-1", status_file]).strip()
+                status = subprocess.check_output(["tail", "-1", status_file]).decode("utf-8").strip()
                 status = " ".join(status.split("\t")[1:])
                 return {id: status}
             else:
                 d = OrderedDict()
-                with open(status_file, "r") as s:
+                with open(status_file, "rt") as s:
                     for l in s:
                         vals = l.strip().split("\t")
                         k, v = vals[0], " ".join(vals[1:])

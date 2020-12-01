@@ -1,8 +1,7 @@
-from __future__ import print_function
 import re
-from exporters import SeqPilotExporter, HGVScExporter
+from conversion.exporters import SeqPilotExporter, HGVScExporter
 
-RE_SEQPILOT = re.compile(".*Transcript.*\tc. HGVS|.*c. HGVS.*\tTranscript")
+RE_SEQPILOT = re.compile(r".*Transcript.*\tc. HGVS|.*c. HGVS.*\tTranscript")
 
 
 def _is_seqpilot_format(input):

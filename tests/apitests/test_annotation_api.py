@@ -1,5 +1,5 @@
 import json
-from cStringIO import StringIO
+from io import StringIO
 import pytest
 import os
 import re
@@ -34,7 +34,7 @@ def return_value(response):
 def test_annotate(client, input, endpoint, wait):
     if wait:
         endpoint += "?wait=True"
-    response = client.post_files(endpoint, {"input": open(input, "r")})
+    response = client.post_files(endpoint, {"input": open(input, "rb")})
     if wait:
         assert response.status_code == 200
         response = client.get("status/")
@@ -90,10 +90,10 @@ def test_slice(client):
 
     response = client.post_files(
         "annotate?wait=True",
-        {"input": open(LARGE_TEST_VCF, "r"), "regions": open(TEST_REGIONS, "r")},
+        {"input": open(LARGE_TEST_VCF, "rb"), "regions": open(TEST_REGIONS, "rb")},
     )
     assert response.status_code == 200
-    output_vcf = response.get_data()
+    output_vcf = response.get_data().decode("utf-8")
 
     # Output contains only variants in slicing regions
     for chrom, pos in get_positions(StringIO(output_vcf)):
@@ -120,11 +120,11 @@ def test_annotate_sample(client):
         open(os.path.join(os.environ["SAMPLES"], "samples.json"), "r")
     )
 
-    sample_id = samples.keys()[0]
+    sample_id = list(samples.keys())[0]
 
     response = client.post_files(
         "samples/annotate",
-        files={"regions": open(TEST_REGIONS, "r")},
+        files={"regions": open(TEST_REGIONS, "rb")},
         data={"sample_id": "'{}'".format(sample_id)},
     )
     assert response.status_code == 202
@@ -146,20 +146,20 @@ def test_target(client, target):
         open(os.path.join(os.environ["SAMPLES"], "samples.json"), "r")
     )
 
-    sample_id = samples.keys()[0]
+    sample_id = list(samples.keys())[0]
     sample = samples[sample_id]
 
     # Post sample, a dummy variable and dummy file, requesting the dummy_target target
     # All variables and files available in the sample json should be available in the
     # target, as well as the dummy variable and the dummy file
     tmp = tempfile.NamedTemporaryFile(delete=False)
-    tmp.write("dabla")
+    tmp.write(b"dabla")
     tmp.flush()
     tmp.close()
 
     response = client.post_files(
         "samples/annotate",
-        files={"regions": open(TEST_REGIONS, "r"), "dummy_file": open(tmp.name, "r")},
+        files={"regions": open(TEST_REGIONS, "rb"), "dummy_file": open(tmp.name, "rb")},
         data={
             "sample_id": "'{}'".format(sample_id),
             "targets": "'{}'".format(target),
@@ -184,12 +184,12 @@ def test_target(client, target):
     # Check that files and variables given in the samples.json are available in the target
     with open(target_env, "r") as f:
         ts = [l.strip() for l in f.readlines()]
-        for k, v in sample.items() + [("dummy_variable", "foo")]:
+        for k, v in list(sample.items()) + [("dummy_variable", "foo")]:
             if k == "vcf":
                 k = "original_vcf"
             vt = next(
                 m
-                for m in [re.match("{}=(.*)".format(k.upper()), l) for l in ts]
+                for m in [re.match(r"{}=(.*)".format(k.upper()), l) for l in ts]
                 if m is not None
             ).group(1)
 
@@ -203,7 +203,7 @@ def test_target(client, target):
 
     # Check that optional files are available in the work folder
     vt = next(
-        m for m in [re.match("DUMMY_FILE=(.*)", l) for l in ts] if m is not None
+        m for m in [re.match(r"DUMMY_FILE=(.*)", l) for l in ts] if m is not None
     ).group(1)
     dummy_file_target = os.path.join(config["work_folder"], task_id, "dummy_file")
     assert os.path.samefile(vt, dummy_file_target)

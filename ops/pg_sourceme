@@ -17,7 +17,7 @@ function pg_wait_for_ready() {
         echo "[$(date +%Y-%m-%d\ %H:%M:%S)] Postgres is unavailable - sleeping for $timer seconds"
         N=$((N+1))
         if [[ $N -gt $retries ]]; then
-            echo "[$(date +%Y-%m-%d\ %H:%M:%S)] Postgres is unavailable - Reached maximum number of retries. Aborting."
+            >2 echo "[$(date +%Y-%m-%d\ %H:%M:%S)] Postgres is unavailable - Reached maximum number of retries. Aborting."
             exit 1
         fi
         sleep "$timer"

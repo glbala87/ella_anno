@@ -29,8 +29,10 @@ def vt_normalize(chrom, position, ref, alt):
             stdout=subprocess.PIPE,
             stderr=DEVNULL,
         )
-        p.stdin.write(VCF_TEMPLATE.format(chrom=chrom, pos=position, ref=ref, alt=alt))
-        output = p.communicate()[0]
+        p.stdin.write(
+            bytes(VCF_TEMPLATE.format(chrom=chrom, pos=position, ref=ref, alt=alt).encode("utf-8"))
+        )
+        output = p.communicate()[0].decode("utf-8")
     chrom, position, _, ref, alt, _, _, _ = output.splitlines()[-1].split("\t")
     return chrom, position, ref, alt
 
@@ -47,18 +49,13 @@ def test_del(exporter):
             "CACACAC",
             "GAGAGAGAGAGAGAGAG",
         ),
-        "NM_000098.2:c.72_97del26": (
-            "1",
-            "53662681",
-            "TCGGCCCCTCAGCGCCGGCTCCGGGCC",
-            "T",
-        ),
+        "NM_000098.2:c.72_97del26": ("1", "53662681", "TCGGCCCCTCAGCGCCGGCTCCGGGCC", "T"),
         "NM_014363.5:c.9526_9528del": ("13", "23908486", "ATGT", "A"),
         "NM_000383.3:c.20_24del5": ("21", "45705905", "GCGCTA", "G"),
         "NM_007294.3:c.3339_3341del": ("17", "41244206", "TTCA", "T"),
     }
 
-    for hgvsc, position in cases.iteritems():
+    for hgvsc, position in cases.items():
         d = exporter.hgvsc_to_vcfdict(hgvsc, "")
         normalized = vt_normalize(d["chr"], d["pos"], d["ref"], d["alt"])
         assert normalized == position
@@ -66,19 +63,9 @@ def test_del(exporter):
 
 def test_delins(exporter):
     cases = {
-        "NM_000455.4:c.597+17_597+19delinsCACGTGCTA": (
-            "19",
-            "1220521",
-            "GGG",
-            "CACGTGCTA",
-        ),
+        "NM_000455.4:c.597+17_597+19delinsCACGTGCTA": ("19", "1220521", "GGG", "CACGTGCTA"),
         "NM_003482.3:c.9937_9939delCTTinsA": ("12", "49431200", "AAG", "T"),
-        "NM_002065.6:c.*1910_*1913delAAGAinsTCATTTAAGT": (
-            "1",
-            "182351627",
-            "TCTT",
-            "ACTTAAATGA",
-        ),
+        "NM_002065.6:c.*1910_*1913delAAGAinsTCATTTAAGT": ("1", "182351627", "TCTT", "ACTTAAATGA"),
         "NM_000540.2:c.7835+6_7835+36delinsAGC": (
             "19",
             "38993373",
@@ -91,22 +78,12 @@ def test_delins(exporter):
             "GGTGACCGCTGGGACCCCACGCGACCACCCCGTGCGACGGACACACCAGGCCCAGGCCCAGGCAGCCCCCAGCGGCGG",
             "AGCAGA",
         ),
-        "NM_001271.3:c.2785_2801del17insTG": (
-            "15",
-            "93522422",
-            "GCCAAAAAGAAGATGGT",
-            "TG",
-        ),
-        "NM_000059.3:c.8374_8384delCTTGGATTCTTinsAAG": (
-            "13",
-            "32944581",
-            "CTTGGATTCTT",
-            "AAG",
-        ),
+        "NM_001271.3:c.2785_2801del17insTG": ("15", "93522422", "GCCAAAAAGAAGATGGT", "TG"),
+        "NM_000059.3:c.8374_8384delCTTGGATTCTTinsAAG": ("13", "32944581", "CTTGGATTCTT", "AAG"),
         "NM_005902.3:c.275_281delGGCGATGinsC": ("15", "67457301", "GGCGATG", "C"),
     }
 
-    for hgvsc, position in cases.iteritems():
+    for hgvsc, position in cases.items():
         d = exporter.hgvsc_to_vcfdict(hgvsc, "")
         normalized = vt_normalize(d["chr"], d["pos"], d["ref"], d["alt"])
         assert normalized == position
@@ -122,7 +99,7 @@ def test_ins(exporter):
         "NM_003895.3:c.4215_4216insAATACT": ("21", "34003928", "A", "AAGTATT"),
     }
 
-    for hgvsc, position in cases.iteritems():
+    for hgvsc, position in cases.items():
         d = exporter.hgvsc_to_vcfdict(hgvsc, "")
         normalized = vt_normalize(d["chr"], d["pos"], d["ref"], d["alt"])
         assert normalized == position
@@ -144,7 +121,7 @@ def test_inv(exporter):
         "NM_002878.3:c.234_235invCA": ("17", "33445548", "TG", "CA"),
     }
 
-    for hgvsc, position in cases.iteritems():
+    for hgvsc, position in cases.items():
         d = exporter.hgvsc_to_vcfdict(hgvsc, "")
         normalized = vt_normalize(d["chr"], d["pos"], d["ref"], d["alt"])
         assert normalized == position
@@ -170,7 +147,7 @@ def test_snp(exporter):
         "NM_015909.3:c.758T>G": ("2", "15651463", "A", "C"),
     }
 
-    for hgvsc, position in cases.iteritems():
+    for hgvsc, position in cases.items():
         d = exporter.hgvsc_to_vcfdict(hgvsc, "")
         normalized = vt_normalize(d["chr"], d["pos"], d["ref"], d["alt"])
         assert normalized == position
@@ -189,7 +166,7 @@ def test_dup(exporter):
         "NM_001943.4:c.*611_*612dupTG": ("18", "29127305", "A", "AGT"),
     }
 
-    for hgvsc, position in cases.iteritems():
+    for hgvsc, position in cases.items():
         d = exporter.hgvsc_to_vcfdict(hgvsc, "")
         normalized = vt_normalize(d["chr"], d["pos"], d["ref"], d["alt"])
         assert normalized == position
@@ -201,6 +178,6 @@ def test_identity(exporter):
         "NM_001040108.1:c.2373G=": ("14", "75513986", "C", "C"),
         "NM_004211.4:c.-41G=": ("11", "20621178", "G", "G"),
     }
-    for hgvsc, position in cases.iteritems():
+    for hgvsc, position in cases.items():
         with pytest.raises(VcfInvalidVariantError):
             exporter.hgvsc_to_vcfdict(hgvsc, "")

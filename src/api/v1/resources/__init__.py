@@ -1,12 +1,12 @@
-import annotate
-import process
-import status
-import reset
-import debug
-import cancel
-import diagnose
-import configresource
-import convert
-import annotate_sample
-import list_samples
-import delete
+from . import annotate
+from . import process
+from . import status
+from . import reset
+from . import debug
+from . import cancel
+from . import diagnose
+from . import configresource
+from . import convert
+from . import annotate_sample
+from . import list_samples
+from . import delete

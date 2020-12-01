@@ -40,6 +40,6 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 vcf-validator $INPUT
 
 # Check reference bases match FASTA
-python $DIR/../src/annotation/check_vcf_ref.py $INPUT
+python3 $DIR/../src/annotation/check_vcf_ref.py $INPUT
 
 cp $INPUT $OUTPUT

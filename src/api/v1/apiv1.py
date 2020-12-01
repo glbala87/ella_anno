@@ -1,4 +1,4 @@
-import resources
+from . import resources
 
 
 class ApiV1(object):

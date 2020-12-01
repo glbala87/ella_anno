@@ -6,14 +6,12 @@ import logging
 logger = logging.getLogger("anno")
 
 # 13-32532632-A-G (het)
-RE_GENOMIC = re.compile(
-    "(?P<CHROM>\d+|MT|X|Y)-(?P<POS>\d+)-(?P<REF>[^-]+)-(?P<ALT>[^\s]+)(\s+\((?P<GT>.+)?\))?"
-)
-RE_VCF = re.compile("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO")
+RE_GENOMIC = re.compile(r"(?P<CHROM>\d+|MT|X|Y)-(?P<POS>\d+)-(?P<REF>[^-]+)-(?P<ALT>[^\s]+)(\s+\((?P<GT>.+)?\))?")
+RE_VCF = re.compile(r"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO")
 # NM_3532523.2:c.2378A>T
-RE_HGVSC = re.compile(".+:c\..+")
+RE_HGVSC = re.compile(r".+:c\..+")
 
-RE_SEQPILOT = re.compile(".*Transcript.*\tc. HGVS|.*c. HGVS.*\tTranscript")
+RE_SEQPILOT = re.compile(r".*Transcript.*\tc. HGVS|.*c. HGVS.*\tTranscript")
 
 
 def is_genomic(data):
@@ -95,7 +93,7 @@ def extract_data(data):
     type, data = _get_type_and_convert_data(data)
     if type == "vcf":
         # Replace spaces within columns, due to a VEP bug in VEP 79
-        ptrn = re.compile("\n(?=[^#])", re.M)
+        ptrn = re.compile(r"\n(?=[^#])", re.M)
         header, body = ptrn.split(data, 1)
 
         if "\t" in body:

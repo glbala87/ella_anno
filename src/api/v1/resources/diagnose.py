@@ -33,14 +33,14 @@ def get_size(top, exclude=None):
 
 def check_output(cmd, on_error="N/A"):
     try:
-        return subprocess.check_output(cmd, shell=True)
+        return subprocess.check_output(cmd, shell=True).decode("utf-8")
     except subprocess.CalledProcessError:
         return on_error
 
 
 class DiagnoseResource(Resource):
     def get(self):
-        all_task_ids = Task.get_status_all().keys()
+        all_task_ids = list(Task.get_status_all().keys())
         total = len(all_task_ids)
         finalized = 0
         failed = 0
@@ -83,10 +83,10 @@ class DiagnoseResource(Resource):
         vcfvalidator = "vcf-validator: See vcftools"
         vcfvalidator += " ({})".format(check_output("which vcf-validator"))
 
-        python = check_output("python --version 2>&1")
-        python += " ({})".format(check_output("which python"))
+        python = check_output("python3 --version 2>&1")
+        python += " ({})".format(check_output("which python3"))
 
-        perl = check_output("perl --version | perl --version | grep -oP 'This is \K.*'")
+        perl = check_output(r"perl --version | perl --version | grep -oP 'This is \K.*'")
         perl += " ({})".format(check_output("which perl"))
 
         # vep = subprocess.check_output("vep | grep ' ensembl'", shell=True) # For vep versions >87?
@@ -120,9 +120,7 @@ class DiagnoseResource(Resource):
         for k in sorted(os.environ):
             res += "\t{:<{width}}\t{}\n".format(k, os.environ[k], width=N + 5)
 
-        res += (
-            "\nDisk space used: " + sizeof_fmt(get_size(config["work_folder"])) + "\n"
-        )
+        res += "\nDisk space used: " + sizeof_fmt(get_size(config["work_folder"])) + "\n"
 
         response = make_response(res)
         response.headers["content-type"] = "text/plain"

@@ -13,7 +13,7 @@ class VCFCheckRef(object):
     def check(self, vcf_file):
         with open(vcf_file, "r") as input:
             i = 0
-            for l in input.xreadlines():
+            for l in input:
                 if l.startswith("#") or not l:
                     continue
                 i += 1
