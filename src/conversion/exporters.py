@@ -56,7 +56,8 @@ if "UTA_DB_URL" not in os.environ:
     with open(os.path.join(os.environ["ANNO_DATA"], "sources.json")) as sources_file:
         sources = json.load(sources_file)
         uta_version = sources["uta"]["version"]
-        os.environ["UTA_DB_URL"] = "postgresql://uta_admin@localhost:5432/uta/uta_{}".format(uta_version)
+        port = os.getenv("PGPORT", 5432)
+        os.environ["UTA_DB_URL"] = "postgresql://uta_admin@localhost:{}/uta/uta_{}".format(port, uta_version)
 
 
 class Exporter(object):
