@@ -7,6 +7,7 @@ else
 fi
 
 export PGDATA=${PGDATA:-"/pg_uta/${pg_user}"}
+export PGPORT=${PGPORT:-5432}
 
 export PG_BIN=/usr/lib/postgresql/11/bin
 function pg_wait_for_ready() {
