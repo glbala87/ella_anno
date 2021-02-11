@@ -43,8 +43,7 @@ function pg_uta_sync_data() {
     rsync -a --delete ${ANNO_DATA}/uta/ $PGDATA --info=progress2 2>&1
 
     # Empty folders are not part of the DigitalOcean data, but postgres expects them. Therefore, create them here.
-    mkdir -p $PGDATA/{pg_tblspc,pg_replslot,pg_twophase,pg_commit_ts}
-
+    mkdir -p $PGDATA/{pg_snapshots,pg_tblspc,pg_replslot,pg_serial,pg_dynshmem,pg_twophase,base/pgsql_tmp,pg_stat_tmp,pg_logical/snapshots,pg_logical/mappings,pg_wal/archive_status,pg_commit_ts}
     chown -R ${pg_user} ${PGDATA}
     chmod 0700 ${PGDATA}
 }
