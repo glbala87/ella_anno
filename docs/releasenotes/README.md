@@ -12,6 +12,15 @@ title: Latest release
 
 <!-- See [older releases](/releasenotes/olderreleases.md) for earlier versions.-->
 
+## Version 2.2.2
+
+Release date: 23.02.2021
+
+<!-- MR !53, !56 -->
+- Minor improvements to backend.
+<!-- MR !57 -->
+- Updated ClinVar to version 20210222.
+
 ## Version 2.2.1a
 
 Release date: 17.12.2020
@@ -54,7 +63,7 @@ Release date: 24.11.2020
 Release date: 16.11.2020
 
 <!-- MR !45 -->
-- Ensuring that all multiallelic blocks are complete.
+- Fixed issue with slicing of multiallelic blocks.
 
 ## Version 2.1
 
@@ -70,12 +79,11 @@ Release date: 23.09.2020
 - Added CI-test to check datasets.json against DigitalOcean.
 <!-- MR !36 -->
 - Fixed remaining issues with duplicates in `vcfanno_config.toml`.
+<!-- MR !34 -->
+- Added license
 <!-- MR !35, !40 -->
 - Updated ClinVar to version 20200907.
-<!-- No release notes: 
-- MR !39: Add data MR template 
-- MR !34: Add license
--->
+<!-- No release notes: MR !39: Add data MR template -->
 
 ## Version 2.0.3
 
