@@ -108,7 +108,7 @@ class Exporter(object):
         except hgvs.exceptions.HGVSInvalidVariantError as e:
             actual_ref = re.findall(
                 r"Variant reference \([ACGT]+\) does not agree with reference sequence \(([ACGT]+)\)",
-                e.message,
+                getattr(e, 'message', repr(e)),
             )
             if config["convert"]["replace_ref_if_mismatch"] and actual_ref:
                 logger.warning("%s: %s" % (hgvsc, str(e)))
@@ -133,7 +133,7 @@ class Exporter(object):
             var_g = self.__convert(hgvsc)
         except Exception as e:
             signal.alarm(0)
-            raise type(e)("{}: {}".format(hgvsc, e.message))
+            raise type(e)("{}: {}".format(hgvsc, getattr(e, 'message', repr(e))))
         signal.alarm(0)
         return var_g
 
@@ -212,8 +212,8 @@ class HGVScExporter(Exporter):
                 except Exception as e:
                     if config["convert"]["fail_on_conversion_error"]:
                         raise
-                    logger.warning(e.__class__.__name__, hgvsc, e.message)
-                    self.errors[e.__class__.__name__].append((hgvsc, e.message))
+                    logger.warning(e.__class__.__name__, hgvsc, getattr(e, 'message', repr(e)))
+                    self.errors[e.__class__.__name__].append((hgvsc, getattr(e, 'message', repr(e))))
                     continue
 
                 gt_vcf = gt_mapping.get(gt)
@@ -259,7 +259,7 @@ class SeqPilotExporter(Exporter):
                     if config["convert"]["fail_on_conversion_error"]:
                         raise
                     logger.warning("%s: %s" % (hgvsc, str(e)))
-                    self.errors[e.__class__.__name__].append((hgvsc, e.message))
+                    self.errors[e.__class__.__name__].append((hgvsc, getattr(e, 'message', repr(e))))
                     continue
 
                 vcf_data.update({"gt": gt_vcf})
