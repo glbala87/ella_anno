@@ -299,35 +299,40 @@ then
     ############## VEP ###############
     ##################################
     handle_step_start "VEP"
-    cmd="vep_offline \
-            --fasta $FASTA \
-            --force_overwrite \
-            --sift=b \
-            --polyphen=b \
-            --hgvs \
-            --numbers \
-            --domains \
-            --regulatory \
-            --canonical \
-            --protein \
-            --biotype \
-            --pubmed \
-            --symbol \
-            --allow_non_variant \
-            --fork=$NUM_VEP_PROCESSES \
-            --vcf \
-            --allele_number \
-            --no_escape \
-            --failed=1 \
-            --exclude_predicted \
-            --hgvsg \
-            --no_stats \
-            --merged \
-            --buffer_size=$VEP_BUFFER_SIZE \
-            --custom ${ANNODATA}/RefSeq/GRCh37_refseq_$(jq -r '.refseq.version' $ANNODATA/sources.json)_VEP.gff.gz,RefSeq_gff,gff,overlap,1, \
-            --custom ${ANNODATA}/RefSeq_interim/GRCh37_refseq_interim_$(jq -r '.refseq_interim.version' $ANNODATA/sources.json)_VEP.gff.gz,RefSeq_Interim_gff,gff,overlap,1, \
-            -i $VCF \
-            -o $OUTPUT_VCF &> $OUTPUT_LOG"
+    if [[ "$(grep -c '^#' $VCF)" -eq "$(grep -c '^.' $VCF)" ]]; then
+      # HACK: If there are no variants in the vcf, VEP doesn't write anything..
+      cmd="cp $VCF $OUTPUT_VCF"
+    else
+      cmd="vep_offline \
+              --fasta $FASTA \
+              --force_overwrite \
+              --sift=b \
+              --polyphen=b \
+              --hgvs \
+              --numbers \
+              --domains \
+              --regulatory \
+              --canonical \
+              --protein \
+              --biotype \
+              --pubmed \
+              --symbol \
+              --allow_non_variant \
+              --fork=$NUM_VEP_PROCESSES \
+              --vcf \
+              --allele_number \
+              --no_escape \
+              --failed=1 \
+              --exclude_predicted \
+              --hgvsg \
+              --no_stats \
+              --merged \
+              --buffer_size=$VEP_BUFFER_SIZE \
+              --custom ${ANNODATA}/RefSeq/GRCh37_refseq_$(jq -r '.refseq.version' $ANNODATA/sources.json)_VEP.gff.gz,RefSeq_gff,gff,overlap,1, \
+              --custom ${ANNODATA}/RefSeq_interim/GRCh37_refseq_interim_$(jq -r '.refseq_interim.version' $ANNODATA/sources.json)_VEP.gff.gz,RefSeq_Interim_gff,gff,overlap,1, \
+              -i $VCF \
+              -o $OUTPUT_VCF &> $OUTPUT_LOG"
+    fi
     echo $cmd > $OUTPUT_CMD
     bash $OUTPUT_CMD
 
