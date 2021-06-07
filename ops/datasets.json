@@ -85,7 +85,7 @@
     },
     "gnomad": {
         "description": "gnomAD variant database",
-        "version": "2.0.2",
+        "version": "2.1.1",
         "destination": "variantDBs/gnomAD",
         "generate": [
             "{root_dir}/scripts/gnomad/download_gnomad.sh -r {version}",

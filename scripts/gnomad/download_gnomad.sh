@@ -69,10 +69,11 @@ if [[ -z ${GSUTIL} ]]; then
 fi
 
 # set -x
-mkdir -p "${DATA_DIR}"
-MAX_PCNT=${MAX_PCNT:-$(nproc)}
-mapfile -t GS_FILES <"$(${GSUTIL} ls "gs://gnomad-public/release/${REVISION}/vcf/exomes/gnomad.exomes.r${REVISION}.sites.vcf.bgz"* \
-    "gs://gnomad-public/release/${REVISION}/vcf/genomes/gnomad.genomes.r${REVISION}.sites.chr*.vcf.bgz*")"
+mkdir -p $DATA_DIR
+MAX_PCNT=${MAX_PCNT:-$(grep -c processor /proc/cpuinfo)}
+GS_FILES=($($GSUTIL ls gs://gcp-public-data--gnomad/release/${REVISION}/vcf/exomes/gnomad.exomes.r${REVISION}.sites.*.vcf.bgz* \
+    gs://gcp-public-data--gnomad/release/${REVISION}/vcf/genomes/gnomad.genomes.r${REVISION}.sites.*.vcf.bgz*))
+
 # go through all the files listed remotely and check for any that already exist locally
 # If filename exists, compare filesize and md5sum (unless set to skip md5 check)
 # * If both values match, keep the local file and don't download
