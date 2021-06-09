@@ -589,7 +589,7 @@
     },
     "seqrepo": {
         "description": "biocommons seqrepo data",
-        "version": "2019-06-20",
+        "version": "2021-01-29",
         "destination": "seqrepo",
         "generate": [
             "seqrepo -r {data_dir} -v pull --instance-name {version}",
