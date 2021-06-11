@@ -68,7 +68,7 @@ run_pytest:
     script:
         - docker pull $CI_REGISTRY_IMAGE:$BUILDER_COMMIT_TAG | cat || true
         - docker pull $CI_REGISTRY_IMAGE:$PROD_COMMIT_TAG | cat || true
-        - make download-data ANNOBUILDER_IMAGE_NAME=$CI_REGISTRY_IMAGE:$BUILDER_COMMIT_TAG RUN_CMD_ARGS=--skip-validation
+        - make download-data ANNOBUILDER_IMAGE_NAME=$CI_REGISTRY_IMAGE:$BUILDER_COMMIT_TAG RUN_CMD_ARGS="--skip-validation --force"
         - make test IMAGE_NAME=$CI_REGISTRY_IMAGE:$PROD_COMMIT_TAG
         - make test-ops IMAGE_NAME=$CI_REGISTRY_IMAGE:$PROD_COMMIT_TAG
     tags:
