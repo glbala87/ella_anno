@@ -99,6 +99,7 @@ def main():
         default=default_spaces_config,
         help=f"JSON config for spaces.DataManager. Default: {default_spaces_config}",
     )
+    parser.add_argument("--force", action="store_true", help="Overwrite existing data if versions do not match")
     parser.add_argument("--cleanup", action="store_true", help="clean up raw data after successful processing")
     parser.add_argument("--skip-validation", action="store_true", help="skip md5 validation of downloaded files")
     parser.add_argument("--verbose", action="store_true", help="be extra chatty")
@@ -189,11 +190,17 @@ def main():
                 dataset_metadata = load_yaml(dataset_ready.open("rt"), Loader=Loader)
                 if dataset_metadata.get("version", "") == dataset_version:
                     logger.info(f"Dataset {dataset_name} already complete, skipping\n")
+                    continue
                 else:
-                    logger.error(
-                        f"Found existing {dataset_name} version {dataset_metadata['version']}, but trying to generate version {dataset_version}. Please delete {data_dir.relative_to(default_base_dir)} and try again."
-                    )
-                continue
+                    message = f"Found existing {dataset_name} version {dataset_metadata['version']}, but trying to generate version {dataset_version}"
+                    if args.force:
+                        logger.warning(f"{message}. Deleting {data_dir.relative_to(default_base_dir)}.")
+                        shutil.rmtree(data_dir)
+                    else:
+                        raise RuntimeError(
+                            f"{message}. Please delete {data_dir.relative_to(default_base_dir)} and try again."
+                        )
+
             elif not data_dir.exists():
                 data_dir.mkdir(parents=True)
 
@@ -254,14 +261,24 @@ def main():
             mgr = DataManager(**spaces_config)
             cmd_args = [dataset_name, dataset_version, data_dir.relative_to(default_base_dir)]
             if args.download:
-                mgr.download_package(*cmd_args)
+                should_download = True
                 dataset_touchfile = data_dir / TOUCHFILE
+                if dataset_touchfile.is_file():
+                    dataset_metadata = load_yaml(dataset_touchfile.open("rt"), Loader=Loader)
+                    if dataset_metadata["version"] != dataset_version:
+                        message = f"Data already downloaded for {dataset_name} version {dataset_metadata['version']}, but expected {dataset_version}"
+                        if args.force:
+                            logger.warning(f"{message}. Removing existing data before continuing")
+                            shutil.rmtree(data_dir)
+                        else:
+                            raise RuntimeError(message)
+                    else:
+                        should_download = False
+
+                if should_download:
+                    mgr.download_package(*cmd_args)
+
                 dataset_metadata = load_yaml(dataset_touchfile.open("rt"), Loader=Loader)
-                if dataset_metadata["version"] != dataset_version:
-                    logger.error(
-                        f"Downloaded data for {dataset_name} version {dataset_metadata['version']}, but expected {dataset_version}"
-                    )
-                    continue
                 sources_data["timestamp"] = dataset_metadata["timestamp"]
 
                 if args.skip_validation:
