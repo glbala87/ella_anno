@@ -82,6 +82,9 @@ any:
 build:
 	docker build -t $(IMAGE_NAME) $(BUILD_OPTS) --build-arg BUILDKIT_INLINE_CACHE=1 --target prod .
 
+build-debug:
+	DOCKER_BUILDKIT= docker build -t $(IMAGE_NAME) $(BUILD_OPTS) --target prod .
+
 run:
 	docker run -d \
 	-e TARGET_DATA=/target_data \
