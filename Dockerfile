@@ -146,4 +146,4 @@ COPY --from=builder /anno/bin /anno/bin
 RUN [ -d /anno/data ] || mkdir /anno/data
 
 # Set supervisor as default cmd
-CMD pipenv run /anno/ops/entrypoint.sh
+CMD /anno/ops/entrypoint.sh
