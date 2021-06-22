@@ -117,6 +117,7 @@ kill:
 test:
 	docker run --rm -t \
 	-v $(shell pwd)/data:/anno/data \
+	-v /pg_uta \
 	--name $(CONTAINER_NAME)-test \
 	$(IMAGE_NAME) /anno/ops/run_tests.sh
 
