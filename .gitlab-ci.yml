@@ -30,10 +30,14 @@ stages:
     - update_latest
     - release
 
-.image_setup:
+.image_setup: &image-setup
     before_script:
         - apk add --update make git
         - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    rules:
+        - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+        - if: '$CI_PIPELINE_SOURCE == merge_request_event'
+        - if: '$CI_PIPELINE_SOURCE == push && $CI_COMMIT_TAG'
 
 build_builder:
     stage: build
