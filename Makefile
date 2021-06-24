@@ -33,6 +33,19 @@ SINGULARITY_ANNO_LOGS := $(shell pwd)/logs
 # available on /tmp's partition
 TMP_DIR ?= /tmp
 
+# get user / group ID, since MacOS doesn't use /etc/passwd like every other *nix
+LOCAL_UID := $(shell id -u)
+LOCAL_GID := $(shell id -g)
+
+# if DEBUG is set, only echo commands that will be used instead of running them.
+# only enabled for make directives using annobuilder-template
+# e.g., make download-package PKG_NAME=clinvar DEBUG=1
+ifneq ($(DEBUG),)
+DEBUG_ECHO = echo
+else
+DEBUG_ECHO =
+endif
+
 # Use docker buildkit for faster builds
 DOCKER_BUILDKIT := 1
 
@@ -73,7 +86,7 @@ __check_defined = \
 #---------------------------------------------
 # DEVELOPMENT
 #---------------------------------------------
-.PHONY: any build run dev kill shell logs restart automation release singularity-release
+.PHONY: any build run dev kill shell logs restart automation release singularity-release _fix_download_perms
 
 any:
 	$(eval CONTAINER_NAME = $(shell docker ps | awk '/anno-.*-$(USER)/ {print $$NF}'))
@@ -150,7 +163,7 @@ docker run --rm $(TERM_OPTS) \
 	-v $(TMP_DIR):/tmp \
 	-v $(ANNO_DATA):/anno/data \
 	$(ANNOBUILDER_IMAGE_NAME) \
-	bash -ic "$(RUN_CMD) $(RUN_CMD_ARGS)"
+	bash -ic "$(DEBUG_ECHO) $(RUN_CMD) $(RUN_CMD_ARGS)"
 endef
 
 build-base:
@@ -176,17 +189,13 @@ annobuilder-exec:
 	@$(call check_defined, RUN_CMD, 'Use RUN_CMD="python3 something.py opt1 ..." to specify command to run')
 	$(annobuilder-template)
 
-download-data:
-	$(eval ANNOBUILDER_OPTS += -v /etc/passwd:/etc/passwd -e LOCAL_USER=$(shell whoami))
+download-data: _fix_download_perms
 	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --download)
-	$(eval RUN_CMD_ARGS += ; chown -R \$$$$LOCAL_USER. /anno/data)
 	$(annobuilder-template)
 
-download-package:
+download-package: _fix_download_perms
 	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to download')
-	$(eval ANNOBUILDER_OPTS += -v /etc/passwd:/etc/passwd -e LOCAL_USER=$(shell whoami))
 	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --download -d $(PKG_NAME))
-	$(eval RUN_CMD_ARGS += ; chown -R \$$$$LOCAL_USER. /anno/data)
 	$(annobuilder-template)
 
 upload-data:
@@ -239,6 +248,9 @@ untar-data:
 	$(eval TAR_INPUT ?= /anno/data/data.tar)
 	$(eval RUN_CMD := TAR_INPUT=$(TAR_INPUT) /anno/ops/unpack_data)
 	$(annobuilder-template)
+
+_fix_download_perms:
+	$(eval RUN_CMD_ARGS += ; $(DEBUG_ECHO) chown -R $(LOCAL_UID):$(LOCAL_GID) /anno/data)
 
 
 #---------------------------------------------------------------------
