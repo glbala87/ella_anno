@@ -1,0 +1,74 @@
+{
+    // Reference: https://code.visualstudio.com/docs/remote/devcontainerjson-reference
+
+    "name": "Anno from Dockerfile",
+
+    // Sets the run context to one level up instead of the .devcontainer folder.
+    "context": "..",
+
+    // Update the 'dockerFile' property if you aren't using the standard 'Dockerfile' filename.
+    "dockerFile": "../Dockerfile",
+
+    // Set *default* container specific settings.json values on container create.
+    "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "[python]": {
+            "editor.defaultFormatter": null
+        },
+        "python.linting.flake8Enabled": true,
+        "python.linting.pylintEnabled": false,
+        "python.linting.mypyEnabled": true,
+        "python.linting.enabled": true,
+        "python.formatting.provider": "black",
+        "python.formatting.blackPath": "black",
+        "python.linting.flake8Path": "flake8",
+        "python.languageServer": "Pylance",
+        "python.analysis.extraPaths": ["/anno/src"],
+        "python.testing.pytestEnabled": true,
+        "python.testing.cwd": "/anno"
+    },
+
+    // Add the IDs of extensions you want installed when the container is created.
+    "extensions": [
+        "esbenp.prettier-vscode",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "yzhang.markdown-all-in-one",
+        "ms-azuretools.vscode-docker",
+        "foxundermoon.shs-format",
+        "timonwong.shellcheck"
+    ],
+
+    "build": {
+        "target": "builder"
+    },
+
+    // Do not override command, as this will not start up ELLA
+    "overrideCommand": false,
+
+    "containerEnv": {
+        "ANNO_DATA": "/anno/data",
+        "ANNO": "/anno",
+        "FASTA": "/anno/data/FASTA/human_g1k_v37_decoy.fasta.gz",
+        "LD_LIBRARY_PATH": "/anno/thirdparty/ensembl-vep-release/htslib",
+        "PIPENV_NOSPIN": "",
+        "PYTHONPATH": "/anno/src",
+        "SAMPLES": "/samples",
+        "TARGETS_OUT": "/targets-out",
+        "TARGETS": "/anno/tests/testdata/targets",
+        "WORKFOLDER": "/tmp/annowork"
+    },
+
+    // docker exec directly to container if root access is necessary
+    "containerUser": "anno-user",
+
+    "mounts": [
+        "source=${localWorkspaceFolder},target=/anno,type=bind"
+        // Override workspace settings, tasks and launch configs. Uncomment to keep workspace configs.
+        // "source=${localWorkspaceFolder}/.devcontainer,target=/anno/.vscode,type=bind"
+    ],
+
+    "workspaceFolder": "/anno"
+}
