@@ -360,11 +360,10 @@ singularity-release: release singularity-build ## create a prod Singularity imag
 ## Help / Debugging
 ##  Other vars: VAR_ORIGIN, FILTER_VARS
 ##---------------------------------------------
-.PHONY: help vars
+.PHONY: help vars local-vars
 
 # only use ASCII codes if running in terminal (e.g., not when piped)
-IS_TERM := $(shell [ -t 1 ] && echo terminal)
-ifeq ($(IS_TERM),terminal)
+ifneq ($(MAKE_TERMOUT),)
 _CYAN = \033[36m
 _RESET = \033[0m
 endif
@@ -373,33 +372,30 @@ endif
 # Lines matching /^## / are considered section headers
 # Use a ## at the end of a rule to have it printed out
 # e.g., `some_rule: ## some_rule help text` at the end of a rule to have it included in help output
-
 help: ## prints this help message
 	@grep -E -e '^[a-zA-Z_-]+:.*?## .*$$' -e '^##[ -]' $(MAKEFILE_LIST) \
 		| awk 'BEGIN {prev = ""; FS = ":.*?## "}; {if (match($$1, /^#/) && match(prev, /^#/) == 0) printf "\n"; printf "$(_CYAN)%-30s$(_RESET) %s\n", $$1, $$2; prev = $$1}'
 	@echo
 	@echo "Additional comments available in this Makefile\n"
 
-.PHONY: vars
 NULL_STRING :=
 BLANKSPACE = $(NULL_STRING) # this is how we get a single space
 _IGNORE_VARS += NULL_STRING BLANKSPACE
-vars: _default_var_filter _list_vars ## prints out variables available in the Makefile and the origin of their value
+vars: _list_vars ## prints out variables available in the Makefile and the origin of their value
 	@true
 
 # actually prints out the desired variables, should not be called directly
 # uses environment and environment_override by default, always includes file and command_line
-# ref: https://www.gnu.org/software/make/manual/html_node/Origin-Function.html#Origin-Function
-#      https://stackoverflow.com/a/59097246/5791702
+# ref:
+#        origin:  https://www.gnu.org/software/make/manual/html_node/Origin-Function.html#Origin-Function
+#    .VARIABLES:  https://www.gnu.org/software/make/manual/html_node/Special-Variables.html#Special-Variables
+# overall magic:  https://stackoverflow.com/a/59097246/5791702
+FILTER_VARS ?=
 _list_vars:
+	$(eval filtered_vars = $(sort $(filter-out $(sort $(strip $(FILTER_VARS) $(_IGNORE_VARS))),$(.VARIABLES))))
 	$(eval VAR_ORIGIN ?= environment environment_override)
 	$(eval override VAR_ORIGIN += file command_line)
-	$(foreach v, $(filtered_vars), $(if $(filter $(VAR_ORIGIN),$(subst $(BLANKSPACE),_,$(origin $(v)))), $(info $(v) ($(origin $(v))) = $($(v)))))
-
-FILTER_VARS ?=
-# .VARIABLES ref: https://www.gnu.org/software/make/manual/html_node/Special-Variables.html#Special-Variables
-_default_var_filter:
-	$(eval filtered_vars = $(sort $(filter-out $(FILTER_VARS) $(_IGNORE_VARS),$(.VARIABLES))))
+	$(foreach v, $(filtered_vars), $(if $(filter $(sort $(VAR_ORIGIN)),$(subst $(BLANKSPACE),_,$(origin $(v)))), $(info $(v) ($(origin $(v))) = $($(v)))))
 
 _disable_origins:
 	$(eval VAR_ORIGIN = )
