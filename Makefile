@@ -362,8 +362,12 @@ singularity-release: release singularity-build ## create a prod Singularity imag
 ##---------------------------------------------
 .PHONY: help vars
 
+# only use ASCII codes if running in terminal (e.g., not when piped)
+IS_TERM := $(shell [ -t 1 ] && echo terminal)
+ifeq ($(IS_TERM),terminal)
 _CYAN = \033[36m
 _RESET = \033[0m
+endif
 
 # Using the automatic `make help` generation:
 # Lines matching /^## / are considered section headers
