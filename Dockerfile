@@ -71,7 +71,7 @@ ENV PIPENV_PIPFILE=/anno/Pipfile \
     VIRTUAL_ENV=/dist/anno-python
 
 # needs separate line to get above values
-ENV PATH=${VIRTUAL_ENV}/bin:${PATH}
+ENV PATH=${VIRTUAL_ENV}/bin:/anno/bin:${PATH}
 
 COPY Pipfile Pipfile.lock /anno/
 RUN python3 -m venv ${VIRTUAL_ENV} && \
@@ -110,8 +110,6 @@ RUN apt-get update && \
 
 WORKDIR /anno
 
-ENV PATH=/anno/bin:${PATH}
-
 COPY ./ops/install_thirdparty.py ./ops/util.py /anno/ops/
 COPY ./bin /anno/bin
 # install thirdparty packages
@@ -138,7 +136,7 @@ ENV ANNO=/anno \
     LD_LIBRARY_PATH=/anno/thirdparty/ensembl-vep-release/htslib \
     WORKFOLDER=/tmp/annowork \
     ANNO_DATA=/anno/data
-ENV PATH=/anno/bin:${TARGETS}/targets:${PATH}
+ENV PATH=${TARGETS}/targets:${PATH}
 
 COPY . /anno
 COPY --from=builder /anno/thirdparty /anno/thirdparty
