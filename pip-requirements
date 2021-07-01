@@ -1,5 +1,5 @@
 argparse==1.2.1
-biocommons.seqrepo==0.4.5
+biocommons.seqrepo==0.6.3.post1
 blinker==1.4.0
 flake8==3.2.1
 Flask-RESTful==0.3.1
