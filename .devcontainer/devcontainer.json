@@ -25,47 +25,53 @@
         "python.formatting.blackPath": "black",
         "python.linting.flake8Path": "flake8",
         "python.languageServer": "Pylance",
-        "python.analysis.extraPaths": ["/anno/src"],
+        "python.analysis.extraPaths": ["${containerWorkspaceFolder}/src"],
         "python.testing.pytestEnabled": true,
-        "python.testing.cwd": "/anno"
+        "python.testing.cwd": "${containerWorkspaceFolder}"
     },
 
-    // Add the IDs of extensions you want installed when the container is created.
+    // Extensions are cached on a docker volume (see mounts)
+    // This volume must be deleted to see extension updates/changes
     "extensions": [
         "esbenp.prettier-vscode",
+        "foxundermoon.shs-format",
+        "gitlab.gitlab-workflow",
+        "ms-azuretools.vscode-docker",
         "ms-python.python",
         "ms-python.vscode-pylance",
-        "yzhang.markdown-all-in-one",
-        "ms-azuretools.vscode-docker",
-        "foxundermoon.shs-format",
-        "timonwong.shellcheck"
+        "timonwong.shellcheck",
+        "yzhang.markdown-all-in-one"
     ],
 
     "build": {
         "target": "builder"
     },
 
-    // Do not override command, as this will not start up ELLA
-    "overrideCommand": false,
-
     "containerEnv": {
-        "ANNO_DATA": "/anno/data",
-        "ANNO": "/anno",
-        "FASTA": "/anno/data/FASTA/human_g1k_v37_decoy.fasta.gz",
-        "LD_LIBRARY_PATH": "/anno/thirdparty/ensembl-vep-release/htslib",
-        "PIPENV_NOSPIN": "",
-        "PYTHONPATH": "/anno/src",
-        "SAMPLES": "/samples",
-        "TARGETS_OUT": "/targets-out",
-        "TARGETS": "/anno/tests/testdata/targets",
+        // doesn't seem to be a good way to avoid duplicating certain base paths
+        // in variable definitions below. Values taken from Makefile var defaults and `make run`
+        "ANNO_DATA": "${containerWorkspaceFolder}/data",
+        "ANNO_RAWDATA": "${containerWorkspaceFolder}/rawdata",
+        "ANNO": "${containerWorkspaceFolder}",
+        "API_PORT": "6000",
+        "FASTA": "${containerWorkspaceFolder}/data/FASTA/human_g1k_v37_decoy.fasta.gz",
+        "LD_LIBRARY_PATH": "${containerWorkspaceFolder}/thirdparty/ensembl-vep-release/htslib",
+        "PIPENV_NOSPIN": "1",
+        "PYTHONPATH": "${containerWorkspaceFolder}/src",
+        "SAMPLES": "${containerWorkspaceFolder}/sample-repo",
+        "TARGETS_OUT": "${containerWorkspaceFolder}/anno-targets-out",
+        "TARGETS": "${containerWorkspaceFolder}/tests/testdata/targets",
         "WORKFOLDER": "/tmp/annowork"
     },
 
     // docker exec directly to container if root access is necessary
     "containerUser": "anno-user",
+    "forwardPorts": [6000],
 
+    "workspaceMount": "source=${localWorkspaceFolder},target=/anno,type=bind",
+    // cache extensions to save time on container rebuild
     "mounts": [
-        "source=${localWorkspaceFolder},target=/anno,type=bind"
+        "source=${localWorkspaceFolderBasename}-exts,target=/home/vscode/.vscode-server/extensions,type=volume"
         // Override workspace settings, tasks and launch configs. Uncomment to keep workspace configs.
         // "source=${localWorkspaceFolder}/.devcontainer,target=/anno/.vscode,type=bind"
     ],

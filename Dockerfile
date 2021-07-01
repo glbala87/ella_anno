@@ -133,7 +133,9 @@ RUN python3 /anno/ops/install_thirdparty.py --clean
 COPY --chown=${ANNO_USER}:${ANNO_USER} ./scripts /anno/scripts/
 COPY --chown=${ANNO_USER}:${ANNO_USER} ./ops /anno/ops/
 
-CMD ["sleep", "infinity"]
+# set up perms for extension volume/cache
+RUN mkdir -p /home/anno-user/.vscode-server/extensions && \
+    chown -R anno-user:anno-user /home/anno-user
 
 
 #####################
