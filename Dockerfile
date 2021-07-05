@@ -1,4 +1,5 @@
-FROM debian:buster-20201117 AS base
+# debian:bullseye-20210511
+FROM debian@sha256:f230ae5ea58822057728fbc43b207f4fb02ab1c32c75c08d25e8e511bfc83446 AS base
 
 LABEL maintainer="OUS AMG <ella-support@medisin.uio.no>"
 
@@ -6,8 +7,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LANGUAGE=C.UTF-8 \
     LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
-    PATH=/anno/bin:$PATH \
-    PERL5LIB=/anno/thirdparty/ensembl-vep-release/:/anno/thirdparty/vcftools/lib
+    PERL5LIB=/anno/thirdparty/ensembl-vep-release:/anno/thirdparty/vcftools/lib
 
 RUN echo 'Acquire::ForceIPv4 "true";' | tee /etc/apt/apt.conf.d/99force-ipv4
 
@@ -49,7 +49,9 @@ RUN apt-get update && \
     python3 \
     python3-dev \
     python3-pip \
+    python3-venv \
     rsync \
+    tcl \
     vim \
     watch \
     wget \
@@ -62,9 +64,19 @@ RUN apt-get update && \
 
 RUN useradd -ms /bin/bash anno-user
 
-COPY pip-requirements /dist/
-RUN pip3 install -U setuptools wheel && \
-    pip3 install -r /dist/pip-requirements
+ARG pipenv_version=2021.5.29
+
+ENV PIPENV_PIPFILE=/anno/Pipfile \
+    PIPENV_NOSPIN=1 \
+    VIRTUAL_ENV=/dist/anno-python
+
+# needs separate line to get above values
+ENV PATH=${VIRTUAL_ENV}/bin:/anno/bin:${PATH}
+
+COPY Pipfile Pipfile.lock /anno/
+RUN python3 -m venv ${VIRTUAL_ENV} && \
+    ${VIRTUAL_ENV}/bin/pip install --no-cache-dir pipenv==$pipenv_version && \
+    ${VIRTUAL_ENV}/bin/pipenv install --deploy --dev
 
 RUN curl -L https://github.com/tianon/gosu/releases/download/1.7/gosu-amd64 -o /usr/local/bin/gosu && chmod u+x /usr/local/bin/gosu && \
     # Cleanup
@@ -107,7 +119,6 @@ COPY ./scripts /anno/scripts/
 COPY ./ops/sync_data.py ./ops/spaces_config.json ./ops/datasets.json ./ops/package_data ./ops/unpack_data ./ops/postgresql.conf ./ops/pg_sourceme /anno/ops/
 
 
-
 #####################
 # Production
 #####################
@@ -118,14 +129,14 @@ WORKDIR /anno
 
 ENV ANNO=/anno \
     FASTA=/anno/data/FASTA/human_g1k_v37_decoy.fasta.gz \
-    PYTHONPATH=/anno/src \
     TARGETS=/targets \
+    PYTHONPATH=/anno/src \
     TARGETS_OUT=/targets-out \
     SAMPLES=/samples \
-    PATH=/anno/bin:$TARGETS/targets:$PATH \
     LD_LIBRARY_PATH=/anno/thirdparty/ensembl-vep-release/htslib \
     WORKFOLDER=/tmp/annowork \
     ANNO_DATA=/anno/data
+ENV PATH=${TARGETS}/targets:${PATH}
 
 COPY . /anno
 COPY --from=builder /anno/thirdparty /anno/thirdparty

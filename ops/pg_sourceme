@@ -6,25 +6,24 @@ else
     pg_user=$(id -u)
 fi
 
-export PGDATA=${PGDATA:-"/pg_uta/${pg_user}"}
+export PGDATA=${PGDATA:-"/pg_uta/$pg_user"}
 export PGPORT=${PGPORT:-5432}
 
-export PG_BIN=/usr/lib/postgresql/11/bin
+export PG_BIN=/usr/lib/postgresql/13/bin
 function pg_wait_for_ready() {
     timer=${1:-5}
     retries=${2:-10}
     N=0
     while ! $PG_BIN/pg_isready --dbname=postgres --username=postgres --host localhost; do
         echo "[$(date +%Y-%m-%d\ %H:%M:%S)] Postgres is unavailable - sleeping for $timer seconds"
-        N=$((N+1))
+        N=$((N + 1))
         if [[ $N -gt $retries ]]; then
-            >2 echo "[$(date +%Y-%m-%d\ %H:%M:%S)] Postgres is unavailable - Reached maximum number of retries. Aborting."
+            echo >&2 "[$(date +%Y-%m-%d\ %H:%M:%S)] Postgres is unavailable - Reached maximum number of retries. Aborting."
             exit 1
         fi
         sleep "$timer"
     done
 }
-
 
 function pg_shutdown() {
     echo "Shutting down PostgreSQL"
@@ -36,18 +35,32 @@ function pg_shutdown() {
     fi
 }
 
-
 function pg_uta_sync_data() {
-    echo "Syncing Postgres UTA data from ${ANNO_DATA}/uta/ to $PGDATA"
-    mkdir -p ${PGDATA}
-    rsync -a --delete ${ANNO_DATA}/uta/ $PGDATA --info=progress2 2>&1
+    echo "Syncing Postgres UTA data from $ANNO_DATA/uta/ to $PGDATA"
+    mkdir -p "$PGDATA"
+    rsync -a --delete "$ANNO_DATA/uta/" "$PGDATA" --info=progress2 2>&1
 
     # Empty folders are not part of the DigitalOcean data, but postgres expects them. Therefore, create them here.
-    mkdir -p $PGDATA/{pg_snapshots,pg_tblspc,pg_replslot,pg_serial,pg_dynshmem,pg_twophase,base/pgsql_tmp,pg_stat_tmp,pg_logical/snapshots,pg_logical/mappings,pg_wal/archive_status,pg_commit_ts}
-    chown -R ${pg_user} ${PGDATA}
-    chmod 0700 ${PGDATA}
+    pushd "$PGDATA" || exit $?
+    PG_FOLDERS=(
+        base/pgsql_tmp
+        pg_commit_ts
+        pg_dynshmem
+        pg_logical/{mappings,snapshots}
+        pg_notify
+        pg_replslot
+        pg_serial
+        pg_snapshots
+        pg_stat_tmp
+        pg_tblspc
+        pg_twophase
+        pg_wal/archive_status
+    )
+    mkdir -p "${PG_FOLDERS[@]}"
+    chown -R "$pg_user" "$PGDATA"
+    chmod 0700 "$PGDATA"
+    popd || exit $?
 }
-
 
 function pg_start() {
     echo "Starting PostgreSQL"
@@ -55,8 +68,8 @@ function pg_start() {
     trap pg_shutdown EXIT
     # if not running in singularity container, use gosu for postgres user
     if [[ "$(id -u -n)" == "root" ]]; then
-        exec gosu $pg_user $PG_BIN/postgres -c autovacuum=off
+        exec gosu "$pg_user" "$PG_BIN/postgres" -c autovacuum=off
     else
-        exec $PG_BIN/postgres -c autovacuum=off
+        exec "$PG_BIN/postgres" -c autovacuum=off
     fi
 }

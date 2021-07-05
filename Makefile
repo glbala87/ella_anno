@@ -1,3 +1,7 @@
+SHELL ?= /bin/bash
+PAGER ?= less
+
+_IGNORE_VARS =
 BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD)
 API_PORT ?= 6000-6100
 TARGETS_FOLDER ?= $(shell pwd)/anno-targets
@@ -20,7 +24,7 @@ CONTAINER_NAME ?= $(ANNO_BUILD)-$(USER)
 IMAGE_NAME ?= local/$(ANNO_BUILD)
 ANNOBUILDER_CONTAINER_NAME ?= $(BUILDER_BUILD)
 ANNOBUILDER_IMAGE_NAME ?= local/$(BUILDER_BUILD)
-ANNOBUILDER_OPTS += -e ENTREZ_API_KEY=$(ENTREZ_API_KEY)
+override ANNOBUILDER_OPTS += -e ENTREZ_API_KEY=$(ENTREZ_API_KEY)
 SINGULARITY_IMAGE_NAME ?= $(ANNO_BUILD).sif
 SINGULARITY_SANDBOX_PATH = $(ANNO_BUILD)/
 SINGULARITY_INSTANCE_NAME ?= $(ANNO_BUILD)-$(USER)
@@ -33,26 +37,26 @@ SINGULARITY_ANNO_LOGS := $(shell pwd)/logs
 # available on /tmp's partition
 TMP_DIR ?= /tmp
 
+# get user / group ID, since MacOS doesn't use /etc/passwd like every other *nix
+LOCAL_UID ?= $(shell id -u)
+LOCAL_GID ?= $(shell id -g)
+
+# if DEBUG is set, only echo commands that will be used instead of running them.
+# only enabled for make directives using annobuilder-template
+# e.g., make download-package PKG_NAME=clinvar DEBUG=1
+ifneq ($(DEBUG),)
+DEBUG_ECHO = echo
+else
+DEBUG_ECHO =
+endif
+
 # Use docker buildkit for faster builds
 DOCKER_BUILDKIT := 1
 
 # if DO_CREDS is set, the file should be mounted into the docker container
 ifneq ($(DO_CREDS),)
-ANNOBUILDER_OPTS += --env-file $(shell realpath $(DO_CREDS))
+override ANNOBUILDER_OPTS += --env-file $(shell realpath $(DO_CREDS))
 endif
-
-.PHONY: help
-
-help :
-	@echo ""
-	@echo "-- DEV COMMANDS --"
-	@echo "make build		- build image $(IMAGE_NAME)"
-	@echo "make dev			- run image $(IMAGE_NAME), with container name $(CONTAINER_NAME) :: API_PORT and ANNO_OPTS available as variables"
-	@echo "make kill		- stop and remove $(CONTAINER_NAME)"
-	@echo "make shell		- get a bash shell into $(CONTAINER_NAME)"
-	@echo "make logs		- tail logs from $(CONTAINER_NAME)"
-	@echo "make restart		- restart container $(CONTAINER_NAME)"
-	@echo "make test		- run tests in container $(CONTAINER_NAME)"
 
 # Check that given variables are set and all have non-empty values,
 # die with an error otherwise.
@@ -69,20 +73,35 @@ __check_defined = \
     $(if $(value $1),, \
       $(error Undefined $1$(if $2, ($2))))
 
+# don't print this with make vars, they don't process right
+_IGNORE_VARS += check_defined __check_defined
 
-#---------------------------------------------
-# DEVELOPMENT
-#---------------------------------------------
-.PHONY: any build run dev kill shell logs restart automation release singularity-release
+# if no rules / all given, just print help
+.DEFAULT_GOAL := help
+all: help
 
+##---------------------------------------------
+## General Development
+##   Docker commands run in $IMAGE_NAME named $CONTAINER_NAME
+##   Other vars: BUILD_OPTS, API_PORT, ANNO_DATA
+##---------------------------------------------
+.PHONY: any build run kill shell logs restart release singularity-release _fix_download_perms
+
+# used to override the default CONTAINER_NAME to anything matching /anno-.*-$(USER)/
+# must be placed _before_ the desired action
+# e.g., to stop and rm the first matching container: make any kill
 any:
 	$(eval CONTAINER_NAME = $(shell docker ps | awk '/anno-.*-$(USER)/ {print $$NF}'))
 	@true
 
-build:
+build: ## build Docker image of 'prod' target named $IMAGE_NAME
 	docker build -t $(IMAGE_NAME) $(BUILD_OPTS) --build-arg BUILDKIT_INLINE_CACHE=1 --target prod .
 
-run:
+# like build, but buildkit is disabled to allow access to intermediate layers for easier debugging
+build-debug:
+	DOCKER_BUILDKIT= docker build -t $(IMAGE_NAME) $(BUILD_OPTS) --target prod .
+
+run: ## run image $IMAGE_NAME, with container named $CONTAINER_NAME :: API_PORT and ANNO_OPTS available as variables"
 	docker run -d \
 	-e TARGET_DATA=/target_data \
 	$(ANNO_OPTS) \
@@ -97,40 +116,43 @@ run:
 	-v $(SENSITIVE_DB):/target_data/sensitive-db \
 	$(IMAGE_NAME)
 
-dev: run
+shell: ## get a bash shell in $CONTAINER_NAME
+	docker exec -it $(CONTAINER_NAME) bash
 
-logs:
+logs: ## tail logs from $CONTAINER_NAME
 	docker logs -f $(CONTAINER_NAME)
 
-stop:
+stop: ## stop $CONTAINER_NAME
 	docker stop $(CONTAINER_NAME) || :
 
-restart: stop
+restart: stop ## restart $CONTAINER_NAME
 	docker start $(CONTAINER_NAME) || :
 
-kill:
+kill: ## forcibly stop and remove $CONTAINER_NAME
 	docker rm -f -v $(CONTAINER_NAME) || :
 
-test:
+test: ## run tests with $IMAGE_NAME named $CONTAINER_NAME, requires all current data
 	docker run --rm -t \
-	-v $(shell pwd)/data:/anno/data \
+	-v $(ANNO_DATA):/anno/data \
+	--tmpfs /pg_uta \
 	--name $(CONTAINER_NAME)-test \
 	$(IMAGE_NAME) /anno/ops/run_tests.sh
 
-test-ops:
+test-ops: ## run the ops tests in $IMAGE_NAME. WARNING: will overwrite data dir if attached and running manually
 	docker run -t --rm \
 	--name $(CONTAINER_NAME)-ops-test \
 	$(IMAGE_NAME) /anno/ops/run_ops_tests.sh
 
-localclean:
+localclean: ## remove data, rawdata, thirdparty dirs
 	rm -rf thirdparty/ data/ rawdata/
 
-shell:
-	docker exec -it $(CONTAINER_NAME) bash
-
-#---------------------------------------------------------------------
-# AnnoBuilder: generate / download processed datasets for anno
-#---------------------------------------------------------------------
+##---------------------------------------------------------------------
+## AnnoBuilder: generate / download processed datasets for anno
+##   Docker commands run in $ANNOBUILDER_IMAGE_NAME named $ANNOBUILDER_CONTAINER_NAME
+##   Other variables: PKG_NAME, DO_CREDS, ENTREZ_API_KEY, RUN_CMD_ARGS, ANNO_DATA, ANNO_RAWDATA, DEBUG
+##---------------------------------------------------------------------
+.PHONY: build-annobuilder annobuilder annobuilder-shell annobuilder-exec download-data download-package upload-data upload-package
+.PHONY: generate-data generate-package verify-digital-ocean install-thirdparty install-package tar-data untar-data _fix_download_perms
 
 ifeq ($(CI_REGISTRY_IMAGE),)
 # running locally, use tty
@@ -146,17 +168,15 @@ docker run --rm $(TERM_OPTS) \
 	-v $(TMP_DIR):/tmp \
 	-v $(ANNO_DATA):/anno/data \
 	$(ANNOBUILDER_IMAGE_NAME) \
-	bash -ic "$(RUN_CMD) $(RUN_CMD_ARGS)"
+	bash -ic "$(DEBUG_ECHO) $(RUN_CMD) $(RUN_CMD_ARGS)"
 endef
+_IGNORE_VARS += annobuilder-template
 
-build-base:
-	docker build -t local/anno-base --target base .
-
-build-annobuilder:
+build-annobuilder: ## build Docker image of 'builder' target named $ANNOBUILDER_IMAGE_NAME
 	docker build -t $(ANNOBUILDER_IMAGE_NAME) $(BUILD_OPTS) --build-arg BUILDKIT_INLINE_CACHE=1 --target builder .
 
 # annobuilder/-shell/-exec are only run when troubleshooting data generation or adding new packages
-annobuilder:
+annobuilder: ## run image $ANNOBUILDER_IMAGE_NAME named $ANNOBUILDER_CONTAINER_NAME
 	docker run -td \
 		--restart=always \
 		--name $(ANNOBUILDER_CONTAINER_NAME) \
@@ -165,45 +185,41 @@ annobuilder:
 		$(ANNOBUILDER_IMAGE_NAME) \
 		sleep infinity
 
-annobuilder-shell:
+annobuilder-shell: ## get a bash shell in $ANNOBUILDER_CONTAINER_NAME
 	docker exec -it $(ANNOBUILDER_CONTAINER_NAME) /bin/bash
 
-annobuilder-exec:
+annobuilder-exec: ## run a single command in $ANNOBUILDER_CONTAINER_NAME
 	@$(call check_defined, RUN_CMD, 'Use RUN_CMD="python3 something.py opt1 ..." to specify command to run')
 	$(annobuilder-template)
 
-download-data:
-	$(eval ANNOBUILDER_OPTS += -v /etc/passwd:/etc/passwd -e LOCAL_USER=$(shell whoami))
+download-data: _fix_download_perms ## download all datasets from DigitalOcean
 	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --download)
-	$(eval RUN_CMD_ARGS += ; chown -R \$$$$LOCAL_USER. /anno/data)
 	$(annobuilder-template)
 
-download-package:
+download-package: _fix_download_perms ## download the dataset for $PKG_NAME
 	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to download')
-	$(eval ANNOBUILDER_OPTS += -v /etc/passwd:/etc/passwd -e LOCAL_USER=$(shell whoami))
 	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --download -d $(PKG_NAME))
-	$(eval RUN_CMD_ARGS += ; chown -R \$$$$LOCAL_USER. /anno/data)
 	$(annobuilder-template)
 
-upload-data:
+upload-data: ## upload all new/updated datasets to DigitalOcean using $DO_CREDS credential file
 	@$(call check_defined, DO_CREDS, 'Use DO_CREDS to specify a file containing SPACES_KEY and SPACES_SECRET')
 	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --upload)
 	$(annobuilder-template)
 
-upload-package:
+upload-package: ## upload new/updated dataset for $PKG_NAME to DigitalOcean using $DO_CREDS credential file
 	@$(call check_defined, DO_CREDS, 'Use DO_CREDS to specify the absolute path to a file containing SPACES_KEY and SPACES_SECRET')
 	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to download')
 	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --upload -d $(PKG_NAME))
 	$(annobuilder-template)
 
-generate-data:
+generate-data: ## generate all new/updated datasets based on the version in datasets.json
 	@$(call check_defined, ENTREZ_API_KEY, 'Make sure ENTREZ_API_KEY is set and exported so clinvar data can be built successfully')
 	mkdir -p $(ANNO_RAWDATA)
 	$(eval ANNOBUILDER_OPTS += -v $(ANNO_RAWDATA):/anno/rawdata)
 	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --generate)
 	$(annobuilder-template)
 
-generate-package:
+generate-package: ## generate new/updated dataset for $PKG_NAME based on the version in datasets.json
 	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to generate')
 	mkdir -p $(ANNO_RAWDATA)
 	$(eval ANNOBUILDER_OPTS += -v $(ANNO_RAWDATA):/anno/rawdata)
@@ -216,33 +232,42 @@ verify-digital-ocean:
 
 
 # installed directly in Dockerfile, but commands here for reference or local install
-install-thirdparty:
+install-thirdparty: ## installs thirdparty packages locally instead of in Docker
 	$(eval RUN_CMD := python3 /anno/ops/install_thirdparty.py --clean)
 	$(annobuilder-template)
 
 # installed directly in Dockerfile, but commands here for reference or local install
-install-package:
+install-package: ## installs thirdparty package $PKG_NAME locally instead of in Docker
 	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to install')
 	$(eval RUN_CMD := python3 /anno/ops/install_thirdparty.py --clean -p $(PKG_NAME))
 	$(annobuilder-template)
 
-tar-data:
+tar-data: ## packages the contents of $ANNO_DATA into $TAR_OUTPUT for use on a different server
 	$(eval TAR_OUTPUT ?= data.tar)
 	$(eval RUN_CMD := PKG_NAMES=$(PKG_NAMES) DATASETS=$(DATASETS) TAR_OUTPUT=$(TAR_OUTPUT) /anno/ops/package_data)
 	$(annobuilder-template)
 
-untar-data:
+untar-data: ## extracts $TAR_INPUT into existing $ANNO_DATA, updating sources.json and vcfanno_config.json as needed
 	$(eval TAR_INPUT ?= /anno/data/data.tar)
 	$(eval RUN_CMD := TAR_INPUT=$(TAR_INPUT) /anno/ops/unpack_data)
 	$(annobuilder-template)
 
+# ensures that files generated / downloaded inside docker are user owned instead of root owned
+_fix_download_perms:
+	$(eval override RUN_CMD_ARGS += ; $(DEBUG_ECHO) chown -R $(LOCAL_UID):$(LOCAL_GID) /anno/data)
 
-#---------------------------------------------------------------------
-# SINGULARITY
-#---------------------------------------------------------------------
+
+##---------------------------------------------------------------------
+## Singularity
+##   Like the above sections, but using Singularity $SINGULARITY_IMAGE_NAME instance named 
+##   $SINGULARITY_INSTANCE_NAME.
+##   Other vars: SINGULARITY_DATA, ANNO_DATA, SINGULARITY_ANNO_LOGS
+##---------------------------------------------------------------------
 .PHONY: singularity-test singularity-shell singularity-start singularity-stop
 
-singularity-build:
+# NOTE: how many of the singularity rules are even used?
+
+singularity-build: ## builds a singularity image from the Docker image $IMAGE_NAME 
 	# Use git archive to create docker context, to prevent modified files from entering the image.
 	@-docker rm -f ella-anno-tmp-registry
 	docker run --rm -d -p 29000:5000 --name ella-anno-tmp-registry registry:2
@@ -251,10 +276,11 @@ singularity-build:
 	SINGULARITY_NOHTTPS=1 singularity build $(SINGULARITY_IMAGE_NAME) docker://localhost:29000/$(IMAGE_NAME)
 	docker rm -f ella-anno-tmp-registry
 
+# creates additional directories necessary when using read-only Singularity image
 ensure-singularity-dirs:
 	@mkdir -p $(SINGULARITY_DATA) $(SINGULARITY_ANNO_LOGS)
 
-singularity-start: ensure-singularity-dirs
+singularity-start: ensure-singularity-dirs ## start a local Singularity instance of $SINGULARITY_IMAGE_NAME named $SINGULARITY_INSTANCE_NAME
 	singularity instance start \
 		-B $(ANNO_DATA):/anno/data \
 		-B $(SINGULARITY_ANNO_LOGS):/logs \
@@ -266,24 +292,26 @@ singularity-start: ensure-singularity-dirs
 	ln -sf $(SINGULARITY_LOG_STDOUT) $(SINGULARITY_ANNO_LOGS)/singularity.out
 	ln -sf $(SINGULARITY_LOG_STDERR) $(SINGULARITY_ANNO_LOGS)/singularity.err
 
-singularity-test:
+singularity-test: ## run tests in a running $SINGULARITY_INSTANCE_NAME
 	-singularity exec --cleanenv instance://$(SINGULARITY_INSTANCE_NAME) supervisorctl -c /anno/ops/supervisor.cfg stop all
 	singularity exec --cleanenv instance://$(SINGULARITY_INSTANCE_NAME) /anno/ops/run_tests.sh
 	singularity exec --cleanenv instance://$(SINGULARITY_INSTANCE_NAME) supervisorctl -c /anno/ops/supervisor.cfg start all
 
-singularity-stop:
+singularity-stop: ## stop the singularity instance $SINGULARITY_INSTANCE_NAME
 	singularity exec --cleanenv instance://$(SINGULARITY_INSTANCE_NAME) supervisorctl -c /anno/ops/supervisor.cfg stop all
 	singularity instance stop $(SINGULARITY_INSTANCE_NAME)
 
-singularity-shell:
+singularity-shell: ## get a bash shell in $SINGULARITY_INSTANCE_NAME
 	singularity shell --cleanenv instance://$(SINGULARITY_INSTANCE_NAME)
 
-singularity-tail-logs:
+singularity-tail-logs: ## tail logs from $SINGULARITY_INSTANCE_NAME
 	tail -f $(SINGULARITY_LOG_STDOUT) $(SINGULARITY_LOG_STDERR)
 
+# load the stderr log for $SINGULARITY_INSTANCE_NAME in $PAGER (default: less)
 singularity-errlog:
 	cat $(SINGULARITY_LOG_STDERR) | $(PAGER)
 
+# load the stdout log for $SINGULARITY_INSTANCE_NAME in $PAGER (default: less)
 singularity-log:
 	cat $(SINGULARITY_LOG_STDOUT) | $(PAGER)
 
@@ -296,7 +324,7 @@ singularity-build-dev: gen-singularityfile
 singularity-start-dev:
 	[ -d $(SINGULARITY_DATA) ] || mkdir -p $(SINGULARITY_DATA)
 	singularity -v instance start \
-		-B $(shell pwd)/data:/anno/data \
+		-B $(ANNO_DATA):/anno/data \
 		-B $(shell mktemp -d):/anno/.cache \
 		-B $(SINGULARITY_DATA):/pg_uta \
 		--cleanenv \
@@ -308,20 +336,70 @@ singularity-shell-dev: singularity-shell
 
 singularity-test-dev: singularity-test
 
-singularity-untar-data:
+singularity-untar-data: ## untar
 	$(eval TAR_INPUT ?= /anno/data/data.tar)
 	singularity exec --cleanenv instance://$(SINGULARITY_INSTANCE_NAME) TAR_INPUT=$(TAR_INPUT) /anno/ops/unpack_data
 
-#---------------------------------------------
-# RELEASE
-#---------------------------------------------
+##---------------------------------------------
+## Releases
+##   Create release artifacts locally and on Gitlab
+##   Variables: RELEASE_TAG, IMAGE_NAME, SINGULARITY_IMAGE_NAME
+##---------------------------------------------
 
 check-release-tag:
 	@$(call check_defined, RELEASE_TAG, 'Missing tag. Please provide a value on the command line')
 	git rev-parse --verify "refs/tags/$(RELEASE_TAG)^{tag}"
 	git ls-remote --exit-code --tags origin "refs/tags/$(RELEASE_TAG)"
 
-release:
+release: ## create a clean prod Docker $IMAGE_NAME for using git tag $RELEASE_TAG
 	git archive --format tar.gz $(RELEASE_TAG) | docker build -t $(IMAGE_NAME) --target prod -
 
-singularity-release: release singularity-build
+singularity-release: release singularity-build ## create a prod Singularity image SINGULARITY_IMAGE_NAME based on IMAGE_NAME
+
+##---------------------------------------------
+## Help / Debugging
+##  Other vars: VAR_ORIGIN, FILTER_VARS
+##---------------------------------------------
+.PHONY: help vars local-vars
+
+# only use ASCII codes if running in terminal (e.g., not when piped)
+ifneq ($(MAKE_TERMOUT),)
+_CYAN = \033[36m
+_RESET = \033[0m
+endif
+
+# Using the automatic `make help` generation:
+# Lines matching /^## / are considered section headers
+# Use a ## at the end of a rule to have it printed out
+# e.g., `some_rule: ## some_rule help text` at the end of a rule to have it included in help output
+help: ## prints this help message
+	@grep -E -e '^[a-zA-Z_-]+:.*?## .*$$' -e '^##[ -]' $(MAKEFILE_LIST) \
+		| awk 'BEGIN {prev = ""; FS = ":.*?## "}; {if (match($$1, /^#/) && match(prev, /^#/) == 0) printf "\n"; printf "$(_CYAN)%-30s$(_RESET) %s\n", $$1, $$2; prev = $$1}'
+	@echo
+	@echo "Additional comments available in this Makefile\n"
+
+NULL_STRING :=
+BLANKSPACE = $(NULL_STRING) # this is how we get a single space
+_IGNORE_VARS += NULL_STRING BLANKSPACE
+vars: _list_vars ## prints out variables available in the Makefile and the origin of their value
+	@true
+
+# actually prints out the desired variables, should not be called directly
+# uses environment and environment_override by default, always includes file and command_line
+# ref:
+#        origin:  https://www.gnu.org/software/make/manual/html_node/Origin-Function.html#Origin-Function
+#    .VARIABLES:  https://www.gnu.org/software/make/manual/html_node/Special-Variables.html#Special-Variables
+# overall magic:  https://stackoverflow.com/a/59097246/5791702
+FILTER_VARS ?=
+_list_vars:
+	$(eval filtered_vars = $(sort $(filter-out $(sort $(strip $(FILTER_VARS) $(_IGNORE_VARS))),$(.VARIABLES))))
+	$(eval VAR_ORIGIN ?= environment environment_override)
+	$(eval override VAR_ORIGIN += file command_line)
+	$(foreach v, $(filtered_vars), $(if $(filter $(sort $(VAR_ORIGIN)),$(subst $(BLANKSPACE),_,$(origin $(v)))), $(info $(v) ($(origin $(v))) = $($(v)))))
+
+_disable_origins:
+	$(eval VAR_ORIGIN = )
+
+ENV = $(shell which env)
+local-vars: _disable_origins _list_vars ## print out vars set by command line and in the Makefile
+	@true

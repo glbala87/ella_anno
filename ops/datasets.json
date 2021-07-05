@@ -599,11 +599,11 @@
     },
     "uta": {
         "description": "biocommons universal transcript archive",
-        "version": "20201027",
+        "version": "20210129",
         "destination": "uta",
         "hash": {
             "type": "sha1",
-            "value": "489b4442968070d894e71879d37ed84ebaa8f391"
+            "value": "479e5eb667475ceb08170cf03daf3744e7c99b09"
         },
         "generate": [
             "wget -nc http://dl.biocommons.org/uta/uta_{version}.pgd.gz",
