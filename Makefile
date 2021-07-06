@@ -3,6 +3,8 @@ PAGER ?= less
 
 _IGNORE_VARS =
 BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD)
+COMMIT_HASH = $(shell git describe --always --dirty --abbrev=8 | sed -e 's/.*g//')
+REPO_URL = $(shell git remote get-url origin)
 API_PORT ?= 6000-6100
 TARGETS_FOLDER ?= $(shell pwd)/anno-targets
 TARGETS_OUT ?= $(shell pwd)/anno-targets-out
@@ -14,11 +16,12 @@ RELEASE_TAG ?= $(shell git tag -l --points-at HEAD)
 ifneq ($(RELEASE_TAG),)
 ANNO_BUILD := anno-$(RELEASE_TAG)
 BUILDER_BUILD := annobuilder-$(RELEASE_TAG)
-BUILD_OPTS += -t local/anno:$(RELEASE_TAG)
+override BUILD_OPTS += -t local/anno:$(RELEASE_TAG)
 else
 ANNO_BUILD := anno-$(BRANCH)
 BUILDER_BUILD = annobuilder-$(BRANCH)
 endif
+override BUILD_OPTS += --label git.repo_url=$(REPO_URL) --label git.commit_hash=$(COMMIT_HASH)
 
 CONTAINER_NAME ?= $(ANNO_BUILD)-$(USER)
 IMAGE_NAME ?= local/$(ANNO_BUILD)
@@ -37,18 +40,8 @@ SINGULARITY_ANNO_LOGS := $(shell pwd)/logs
 # available on /tmp's partition
 TMP_DIR ?= /tmp
 
-# get user / group ID, since MacOS doesn't use /etc/passwd like every other *nix
-LOCAL_UID ?= $(shell id -u)
-LOCAL_GID ?= $(shell id -g)
-
-# if DEBUG is set, only echo commands that will be used instead of running them.
-# only enabled for make directives using annobuilder-template
-# e.g., make download-package PKG_NAME=clinvar DEBUG=1
-ifneq ($(DEBUG),)
-DEBUG_ECHO = echo
-else
-DEBUG_ECHO =
-endif
+# get user / group ID so data generated/downloaded isn't root owned
+DOCKER_USER ?= $(shell id -u):$(shell id -g)
 
 # Use docker buildkit for faster builds
 DOCKER_BUILDKIT := 1
@@ -143,8 +136,9 @@ test-ops: ## run the ops tests in $IMAGE_NAME. WARNING: will overwrite data dir 
 	--name $(CONTAINER_NAME)-ops-test \
 	$(IMAGE_NAME) /anno/ops/run_ops_tests.sh
 
-localclean: ## remove data, rawdata, thirdparty dirs
+localclean: ## remove data, rawdata, thirdparty dirs and docker volumes
 	rm -rf thirdparty/ data/ rawdata/
+	-docker volume rm ella-anno-exts
 
 ##---------------------------------------------------------------------
 ## AnnoBuilder: generate / download processed datasets for anno
@@ -161,16 +155,21 @@ else
 TERM_OPTS := -i
 endif
 
+# ensure $ANNO_DATA exists so it's not created as root owned by docker
+# in case FASTA is a symlink, resolve its path, mount directly and set env var in container
 define annobuilder-template
-mkdir -p $(ANNO_DATA) # ensure directory exists so it's not root owned when created by docker
+mkdir -p $(ANNO_DATA) 
+ifneq ($(FASTA),)
+override ANNOBUILDER_OPTS += -v $(shell readlink -e $(FASTA)):/fasta.fa -e FASTA=/fasta.fa
+endif
 docker run --rm $(TERM_OPTS) \
 	$(ANNOBUILDER_OPTS) \
+	-u "$(DOCKER_USER)" \
 	-v $(TMP_DIR):/tmp \
 	-v $(ANNO_DATA):/anno/data \
 	$(ANNOBUILDER_IMAGE_NAME) \
-	bash -ic "$(DEBUG_ECHO) $(RUN_CMD) $(RUN_CMD_ARGS)"
+	bash -ic "$(RUN_CMD) $(RUN_CMD_ARGS)"
 endef
-_IGNORE_VARS += annobuilder-template
 
 build-annobuilder: ## build Docker image of 'builder' target named $ANNOBUILDER_IMAGE_NAME
 	docker build -t $(ANNOBUILDER_IMAGE_NAME) $(BUILD_OPTS) --build-arg BUILDKIT_INLINE_CACHE=1 --target builder .
@@ -254,7 +253,8 @@ untar-data: ## extracts $TAR_INPUT into existing $ANNO_DATA, updating sources.js
 
 # ensures that files generated / downloaded inside docker are user owned instead of root owned
 _fix_download_perms:
-	$(eval override RUN_CMD_ARGS += ; $(DEBUG_ECHO) chown -R $(LOCAL_UID):$(LOCAL_GID) /anno/data)
+	@true
+#(eval override RUN_CMD_ARGS += ; $(PRE_RUN_CMD) chown -R $(LOCAL_UID):$(LOCAL_GID) /anno/data)
 
 
 ##---------------------------------------------------------------------

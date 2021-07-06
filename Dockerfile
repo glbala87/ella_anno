@@ -118,6 +118,11 @@ RUN python3 /anno/ops/install_thirdparty.py --clean
 COPY ./scripts /anno/scripts/
 COPY ./ops/sync_data.py ./ops/spaces_config.json ./ops/datasets.json ./ops/package_data ./ops/unpack_data ./ops/postgresql.conf ./ops/pg_sourceme /anno/ops/
 
+# create default ANNO_DATA / ANNO_RAWDATA dirs and set permissions to let data actions be run without root
+RUN mkdir -p /anno/data /anno/rawdata && chown -R anno-user /anno && chmod -R ugo+rwX /anno
+
+USER anno-user
+
 
 #####################
 # Production
@@ -141,7 +146,7 @@ ENV PATH=${TARGETS}/targets:${PATH}
 COPY . /anno
 COPY --from=builder /anno/thirdparty /anno/thirdparty
 COPY --from=builder /anno/bin /anno/bin
-RUN [ -d /anno/data ] || mkdir /anno/data
+RUN mkdir -p /anno/data /anno/rawdata && chown -R anno-user /anno && chmod -R ugo+rwX /anno
 
 # Set supervisor as default cmd
 CMD /anno/ops/entrypoint.sh
