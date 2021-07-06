@@ -95,6 +95,14 @@ check_do:
     tags:
         - bastion
 
+check_pipenv:
+    stage: test
+    extends: .image_setup
+    script:
+        - pipenv check
+    tags:
+        - bastion
+
 run_pytest:
     extends: .image_setup
     stage: test

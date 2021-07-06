@@ -66,26 +66,31 @@ ARG default_user=anno-user
 RUN useradd -ms /bin/bash ${default_user}
 
 ARG pipenv_version=2021.5.29
+RUN pip3 install -U pip setuptools wheel pipenv==${pipenv_version}
 
 ENV PIPENV_PIPFILE=/anno/Pipfile \
     PIPENV_NOSPIN=1 \
     PIPENV_VERBOSITY=-1 \
+    WORKON_HOME=/dist \
     VIRTUAL_ENV=/dist/anno-python
 
 # needs separate line to get above values
 ENV PATH=${VIRTUAL_ENV}/bin:/anno/bin:${PATH}
 
 # create default ANNO_DATA / ANNO_RAWDATA dirs and set permissions to let data actions be run without root
-RUN mkdir -p /dist /anno/data /anno/rawdata && \
-    chown ${default_user}. /dist /anno/data /anno/rawdata && \
-    chmod +s /dist /anno/data /anno/rawdata
+RUN mkdir -p /dist /anno/data /anno/rawdata /anno/thirdparty && \
+    chown ${default_user}. /dist /anno /anno/data /anno/rawdata /anno/thirdparty && \
+    chmod +s /dist /anno/data /anno/rawdata /anno/thirdparty
+
+WORKDIR ${WORKON_HOME}
 
 # do all copying / installing as anno-user
 USER ${default_user}
 COPY --chown=${default_user}:${default_user} Pipfile Pipfile.lock /anno/
-RUN python3 -m venv ${VIRTUAL_ENV} && \
-    ${VIRTUAL_ENV}/bin/pip install --no-cache-dir pipenv==$pipenv_version && \
-    ${VIRTUAL_ENV}/bin/pipenv install --deploy --dev
+RUN VIRTUAL_ENV= pipenv install --deploy && \
+    ln -s anno-NiVSU3vV ${VIRTUAL_ENV}
+# the hash after anno is deterministic and won't change as long the Pipfile is in the same place
+# ref: https://pipenv.pypa.io/en/latest/install/#virtualenv-mapping-caveat
 
 USER root
 RUN curl -L https://github.com/tianon/gosu/releases/download/1.7/gosu-amd64 -o /usr/local/bin/gosu && chmod u+x /usr/local/bin/gosu && \
@@ -120,6 +125,7 @@ RUN apt-get update && \
 
 WORKDIR /anno
 USER ${default_user}
+RUN pipenv install --dev
 
 COPY --chown=${default_user}:${default_user} ./ops/install_thirdparty.py ./ops/util.py /anno/ops/
 COPY --chown=${default_user}:${default_user} ./bin /anno/bin

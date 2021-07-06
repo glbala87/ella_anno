@@ -6,7 +6,7 @@ name = "pypi"
 [packages]
 # general
 setuptools = "*"
-pip = "*"
+pip = ">=21.1"
 wheel = "*"
 # anno
 "biocommons.seqrepo" = "==0.4.5"
@@ -38,13 +38,11 @@ lxml = "*"
 pyfaidx = "*"
 
 [dev-packages]
-black = "*"
+# set black version explicitly so we can avoid allow_prerelease = true
+black = "==21.6b0"
 flake8 = "*"
 ipython = "*"
 pytest = "*"
-
-[pipenv]
-allow_prereleases = true
 
 [requires]
 python_version = "3.9"

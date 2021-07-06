@@ -22,12 +22,14 @@ ANNO_BUILD := anno-$(BRANCH)
 BUILDER_BUILD = annobuilder-$(BRANCH)
 endif
 override BUILD_OPTS += --label git.repo_url=$(REPO_URL) --label git.commit_hash=$(COMMIT_HASH)
+ifneq ($(ENTREZ_API_KEY),)
+override ANNOBUILDER_OPTS += -e ENTREZ_API_KEY=$(ENTREZ_API_KEY)
+endif
 
 CONTAINER_NAME ?= $(ANNO_BUILD)-$(USER)
 IMAGE_NAME ?= local/$(ANNO_BUILD)
 ANNOBUILDER_CONTAINER_NAME ?= $(BUILDER_BUILD)
 ANNOBUILDER_IMAGE_NAME ?= local/$(BUILDER_BUILD)
-override ANNOBUILDER_OPTS += -e ENTREZ_API_KEY=$(ENTREZ_API_KEY)
 SINGULARITY_IMAGE_NAME ?= $(ANNO_BUILD).sif
 SINGULARITY_SANDBOX_PATH = $(ANNO_BUILD)/
 SINGULARITY_INSTANCE_NAME ?= $(ANNO_BUILD)-$(USER)
@@ -78,7 +80,7 @@ all: help
 ##   Docker commands run in $IMAGE_NAME named $CONTAINER_NAME
 ##   Other vars: BUILD_OPTS, API_PORT, ANNO_DATA
 ##---------------------------------------------
-.PHONY: any build run kill shell logs restart release singularity-release _fix_download_perms
+.PHONY: any build run kill shell logs restart release singularity-release
 
 # used to override the default CONTAINER_NAME to anything matching /anno-.*-$(USER)/
 # must be placed _before_ the desired action
@@ -146,22 +148,31 @@ localclean: ## remove data, rawdata, thirdparty dirs and docker volumes
 ##   Other variables: PKG_NAME, DO_CREDS, ENTREZ_API_KEY, RUN_CMD_ARGS, ANNO_DATA, ANNO_RAWDATA, DEBUG
 ##---------------------------------------------------------------------
 .PHONY: build-annobuilder annobuilder annobuilder-shell annobuilder-exec download-data download-package upload-data upload-package
-.PHONY: generate-data generate-package verify-digital-ocean install-thirdparty install-package tar-data untar-data _fix_download_perms
+.PHONY: generate-data generate-package verify-digital-ocean install-thirdparty install-package tar-data untar-data
 
-ifeq ($(CI_REGISTRY_IMAGE),)
-# running locally, use tty
+ifeq ($(CI),)
+# running locally, use interactive/tty
 TERM_OPTS := -it
-else
-TERM_OPTS := -i
 endif
 
 # ensure $ANNO_DATA exists so it's not created as root owned by docker
-# in case FASTA is a symlink, resolve its path, mount directly and set env var in container
+# if FASTA is set, resolve its path in case of symlink, check it exists, add to docker mounts and
+# set env var in container. Use override to prevent FASTA_PATH/FASTA_EXISTS being set by user/env
+# NOTE: multiple if statements and evals used for clarity, can also condensed to a single $(if ...)
 define annobuilder-template
-mkdir -p $(ANNO_DATA) 
-ifneq ($(FASTA),)
-override ANNOBUILDER_OPTS += -v $(shell readlink -e $(FASTA)):/fasta.fa -e FASTA=/fasta.fa
-endif
+mkdir -p $(ANNO_DATA)
+$(if $(FASTA),
+	$(eval override FASTA_PATH = $(shell readlink -f $(FASTA))),
+	$(eval override FASTA_PATH=)
+)
+$(if $(FASTA_PATH),
+	$(eval override FASTA_EXISTS = $(shell test -e $(FASTA_PATH) && echo exists || true)),
+	$(eval override FASTA_EXISTS=)
+)
+$(if
+	$(and $(FASTA_PATH),$(FASTA_EXISTS)),
+	$(eval override ANNOBUILDER_OPTS += -v $(FASTA_PATH):/fasta.fa -e FASTA=/fasta.fa)
+)
 docker run --rm $(TERM_OPTS) \
 	$(ANNOBUILDER_OPTS) \
 	-u "$(DOCKER_USER)" \
@@ -191,11 +202,11 @@ annobuilder-exec: ## run a single command in $ANNOBUILDER_CONTAINER_NAME
 	@$(call check_defined, RUN_CMD, 'Use RUN_CMD="python3 something.py opt1 ..." to specify command to run')
 	$(annobuilder-template)
 
-download-data: _fix_download_perms ## download all datasets from DigitalOcean
+download-data: ## download all datasets from DigitalOcean
 	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --download)
 	$(annobuilder-template)
 
-download-package: _fix_download_perms ## download the dataset for $PKG_NAME
+download-package: ## download the dataset for $PKG_NAME
 	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to download')
 	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --download -d $(PKG_NAME))
 	$(annobuilder-template)
@@ -251,11 +262,16 @@ untar-data: ## extracts $TAR_INPUT into existing $ANNO_DATA, updating sources.js
 	$(eval RUN_CMD := TAR_INPUT=$(TAR_INPUT) /anno/ops/unpack_data)
 	$(annobuilder-template)
 
-# ensures that files generated / downloaded inside docker are user owned instead of root owned
-_fix_download_perms:
-	@true
-#(eval override RUN_CMD_ARGS += ; $(PRE_RUN_CMD) chown -R $(LOCAL_UID):$(LOCAL_GID) /anno/data)
-
+# For consistency, the Docker container must be used when updating Pipfile dependencies.
+# Otherwise, it will go off your local python's settings which may not match. This can happen even
+# if using a Pipenv venv locally.
+update-pipfile: ## updates Pipfile.lock using $IMAGE_NAME
+	docker run --rm -it \
+		-u anno-user \
+		-v $(PWD):/local_anno \
+		$(IMAGE_NAME) \
+		/bin/bash
+		# /anno/ops/update_pipfile.sh
 
 ##---------------------------------------------------------------------
 ## Singularity
