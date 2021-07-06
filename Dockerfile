@@ -69,6 +69,7 @@ ARG pipenv_version=2021.5.29
 
 ENV PIPENV_PIPFILE=/anno/Pipfile \
     PIPENV_NOSPIN=1 \
+    PIPENV_VERBOSITY=-1 \
     VIRTUAL_ENV=/dist/anno-python
 
 # needs separate line to get above values
