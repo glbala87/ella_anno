@@ -62,7 +62,8 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/* && \
     rm -rf /usr/share/doc/* /usr/share/man/* /usr/share/groff/* /usr/share/info/* /tmp/* /var/cache/apt/* /root/.cache
 
-RUN useradd -ms /bin/bash anno-user
+ARG default_user=anno-user
+RUN useradd -ms /bin/bash ${default_user}
 
 ARG pipenv_version=2021.5.29
 
@@ -73,11 +74,19 @@ ENV PIPENV_PIPFILE=/anno/Pipfile \
 # needs separate line to get above values
 ENV PATH=${VIRTUAL_ENV}/bin:/anno/bin:${PATH}
 
-COPY Pipfile Pipfile.lock /anno/
+# create default ANNO_DATA / ANNO_RAWDATA dirs and set permissions to let data actions be run without root
+RUN mkdir -p /dist /anno/data /anno/rawdata && \
+    chown ${default_user}. /dist /anno/data /anno/rawdata && \
+    chmod +s /dist /anno/data /anno/rawdata
+
+# do all copying / installing as anno-user
+USER ${default_user}
+COPY --chown=${default_user}:${default_user} Pipfile Pipfile.lock /anno/
 RUN python3 -m venv ${VIRTUAL_ENV} && \
     ${VIRTUAL_ENV}/bin/pip install --no-cache-dir pipenv==$pipenv_version && \
     ${VIRTUAL_ENV}/bin/pipenv install --deploy --dev
 
+USER root
 RUN curl -L https://github.com/tianon/gosu/releases/download/1.7/gosu-amd64 -o /usr/local/bin/gosu && chmod u+x /usr/local/bin/gosu && \
     # Cleanup
     cp -R /usr/share/locale/en\@* /tmp/ && rm -rf /usr/share/locale/* && mv /tmp/en\@* /usr/share/locale/ && \
@@ -109,19 +118,15 @@ RUN apt-get update && \
     pkg-config
 
 WORKDIR /anno
+USER ${default_user}
 
-COPY ./ops/install_thirdparty.py ./ops/util.py /anno/ops/
-COPY ./bin /anno/bin
+COPY --chown=${default_user}:${default_user} ./ops/install_thirdparty.py ./ops/util.py /anno/ops/
+COPY --chown=${default_user}:${default_user} ./bin /anno/bin
 # install thirdparty packages
 RUN python3 /anno/ops/install_thirdparty.py --clean
 
-COPY ./scripts /anno/scripts/
-COPY ./ops/sync_data.py ./ops/spaces_config.json ./ops/datasets.json ./ops/package_data ./ops/unpack_data ./ops/postgresql.conf ./ops/pg_sourceme /anno/ops/
-
-# create default ANNO_DATA / ANNO_RAWDATA dirs and set permissions to let data actions be run without root
-RUN mkdir -p /anno/data /anno/rawdata && chown -R anno-user /anno && chmod -R ugo+rwX /anno
-
-USER anno-user
+COPY --chown=${default_user}:${default_user} ./scripts /anno/scripts/
+COPY --chown=${default_user}:${default_user} ./ops/sync_data.py ./ops/spaces_config.json ./ops/datasets.json ./ops/package_data ./ops/unpack_data ./ops/postgresql.conf ./ops/pg_sourceme /anno/ops/
 
 
 #####################
@@ -143,10 +148,9 @@ ENV ANNO=/anno \
     ANNO_DATA=/anno/data
 ENV PATH=${TARGETS}/targets:${PATH}
 
-COPY . /anno
-COPY --from=builder /anno/thirdparty /anno/thirdparty
-COPY --from=builder /anno/bin /anno/bin
-RUN mkdir -p /anno/data /anno/rawdata && chown -R anno-user /anno && chmod -R ugo+rwX /anno
+COPY --chown=${default_user} . /anno
+COPY --chown=${default_user}:${default_user} --from=builder /anno/thirdparty /anno/thirdparty
+COPY --chown=${default_user}:${default_user} --from=builder /anno/bin /anno/bin
 
 # Set supervisor as default cmd
 CMD /anno/ops/entrypoint.sh
