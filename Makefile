@@ -147,8 +147,9 @@ localclean: ## remove data, rawdata, thirdparty dirs and docker volumes
 ##   Docker commands run in $ANNOBUILDER_IMAGE_NAME named $ANNOBUILDER_CONTAINER_NAME
 ##   Other variables: PKG_NAME, DO_CREDS, ENTREZ_API_KEY, RUN_CMD_ARGS, ANNO_DATA, ANNO_RAWDATA, DEBUG
 ##---------------------------------------------------------------------
-.PHONY: build-annobuilder annobuilder annobuilder-shell annobuilder-exec download-data download-package upload-data upload-package
-.PHONY: generate-data generate-package verify-digital-ocean install-thirdparty install-package tar-data untar-data
+.PHONY: build-annobuilder annobuilder annobuilder-shell annobuilder-exec download-data download-package
+.PHONY: upload-data upload-package generate-data generate-package verify-digital-ocean install-thirdparty
+.PHONY: install-package tar-data untar-data pipenv-update pipenv-check
 
 ifeq ($(CI),)
 # running locally, use interactive/tty
@@ -265,7 +266,7 @@ untar-data: ## extracts $TAR_INPUT into existing $ANNO_DATA, updating sources.js
 # For consistency, the Docker container must be used when updating Pipfile dependencies.
 # Otherwise, it will go off your local python's settings which may not match. This can happen even
 # if using a Pipenv venv locally.
-update-pipfile: ## updates Pipfile.lock using $IMAGE_NAME
+pipenv-update: ## updates Pipfile.lock using $IMAGE_NAME, under development
 	docker run --rm -it \
 		-u anno-user \
 		-v $(PWD):/local_anno \
@@ -273,9 +274,15 @@ update-pipfile: ## updates Pipfile.lock using $IMAGE_NAME
 		/bin/bash
 		# /anno/ops/update_pipfile.sh
 
+# uses annobuilder image to check dev and prod dependencies
+pipenv-check: ## uses pipenv to check for package vulnerabilities
+	$(eval RUN_CMD := pipenv check)
+	$(annobuilder-template)
+
+
 ##---------------------------------------------------------------------
 ## Singularity
-##   Like the above sections, but using Singularity $SINGULARITY_IMAGE_NAME instance named 
+##   Like the above sections, but using Singularity $SINGULARITY_IMAGE_NAME instance named
 ##   $SINGULARITY_INSTANCE_NAME.
 ##   Other vars: SINGULARITY_DATA, ANNO_DATA, SINGULARITY_ANNO_LOGS
 ##---------------------------------------------------------------------
@@ -283,7 +290,7 @@ update-pipfile: ## updates Pipfile.lock using $IMAGE_NAME
 
 # NOTE: how many of the singularity rules are even used?
 
-singularity-build: ## builds a singularity image from the Docker image $IMAGE_NAME 
+singularity-build: ## builds a singularity image from the Docker image $IMAGE_NAME
 	# Use git archive to create docker context, to prevent modified files from entering the image.
 	@-docker rm -f ella-anno-tmp-registry
 	docker run --rm -d -p 29000:5000 --name ella-anno-tmp-registry registry:2

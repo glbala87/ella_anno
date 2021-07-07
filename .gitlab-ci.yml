@@ -99,7 +99,7 @@ check_pipenv:
     stage: test
     extends: .image_setup
     script:
-        - pipenv check
+        - make pipenv-check
     tags:
         - bastion
 

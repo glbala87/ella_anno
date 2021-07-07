@@ -4,9 +4,6 @@
 
 # tell pipenv where Pipfile is so it doesn't have to search
 export PIPENV_PIPFILE=${PIPENV_PIPFILE:-/anno/Pipfile}
-# override the values set in the Dockerfile so pipenv doesn't get confused
-export PATH=$HOME/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-unset VIRTUAL_ENV
 
 check_packages() {
     if pipenv update --outdated --dev; then
