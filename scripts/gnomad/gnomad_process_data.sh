@@ -54,7 +54,7 @@ normalize_chrom() {
     output_file="$3"
     bed_opt="$4"
     tabix -p vcf -h $bed_opt "$input_file" $chrom \
-        | perl -F'\t' -wlane 'if (substr($F[0], 0, 1) eq "#"){print join("\t", @F)}else{print join("\t", @F[0..1], ".", @F[3..6], join(";", (grep { /^(AF|AN|AC|nhomalt).*=/ } (split ";", $F[7]))))}' \
+        | python3 ${THIS_DIR}/filter_info.py \
         | vt normalize -r "${REFERENCE}" -n -w 20000 - \
         | vcf-sort -t "${TMP_DIR:-/tmp}" \
             >"${output_file}" \
