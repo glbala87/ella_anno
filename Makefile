@@ -4,7 +4,7 @@ PAGER ?= less
 _IGNORE_VARS =
 BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD)
 COMMIT_HASH = $(shell git describe --always --dirty --abbrev=8 | sed -e 's/.*g//')
-REPO_URL = $(shell git remote get-url origin)
+REPO_URL = $(shell git remote get-url origin | sed -e 's/.*\?@//; s/:/\//g')
 API_PORT ?= 6000-6100
 TARGETS_FOLDER ?= $(shell pwd)/anno-targets
 TARGETS_OUT ?= $(shell pwd)/anno-targets-out
@@ -26,10 +26,17 @@ ifneq ($(ENTREZ_API_KEY),)
 override ANNOBUILDER_OPTS += -e ENTREZ_API_KEY=$(ENTREZ_API_KEY)
 endif
 
-CONTAINER_NAME ?= $(ANNO_BUILD)-$(USER)
+# set USE_REGISTRY to use the gitlab images rather than locally built
+ifeq ($(USE_REGISTRY),)
 IMAGE_NAME ?= local/$(ANNO_BUILD)
-ANNOBUILDER_CONTAINER_NAME ?= $(BUILDER_BUILD)
 ANNOBUILDER_IMAGE_NAME ?= local/$(BUILDER_BUILD)
+else
+REGISTRY_BASE := registry.gitlab.com/alleles/ella-anno
+IMAGE_NAME = $(REGISTRY_BASE):prod-$(BRANCH)
+ANNOBUILDER_IMAGE_NAME = $(REGISTRY_BASE):builder-$(BRANCH)
+endif
+CONTAINER_NAME ?= $(ANNO_BUILD)-$(USER)
+ANNOBUILDER_CONTAINER_NAME ?= $(BUILDER_BUILD)
 SINGULARITY_IMAGE_NAME ?= $(ANNO_BUILD).sif
 SINGULARITY_SANDBOX_PATH = $(ANNO_BUILD)/
 SINGULARITY_INSTANCE_NAME ?= $(ANNO_BUILD)-$(USER)
@@ -46,7 +53,7 @@ TMP_DIR ?= /tmp
 DOCKER_USER ?= $(shell id -u):$(shell id -g)
 
 # Use docker buildkit for faster builds
-DOCKER_BUILDKIT := 1
+DOCKER_BUILDKIT ?= 1
 
 # if DO_CREDS is set, the file should be mounted into the docker container
 ifneq ($(DO_CREDS),)
@@ -174,7 +181,7 @@ $(if
 	$(and $(FASTA_PATH),$(FASTA_EXISTS)),
 	$(eval override ANNOBUILDER_OPTS += -v $(FASTA_PATH):/fasta.fa -e FASTA=/fasta.fa)
 )
-docker run --rm $(TERM_OPTS) \
+docker run --rm -it \
 	$(ANNOBUILDER_OPTS) \
 	-u "$(DOCKER_USER)" \
 	-v $(TMP_DIR):/tmp \

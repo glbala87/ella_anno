@@ -62,41 +62,43 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/* && \
     rm -rf /usr/share/doc/* /usr/share/man/* /usr/share/groff/* /usr/share/info/* /tmp/* /var/cache/apt/* /root/.cache
 
-ARG default_user=anno-user
-RUN useradd -ms /bin/bash ${default_user}
+ENV ANNO_USER=anno-user
+RUN useradd -ms /bin/bash ${ANNO_USER}
 
 ARG pipenv_version=2021.5.29
 RUN pip3 install -U pip setuptools wheel pipenv==${pipenv_version}
 
+# create default ANNO_DATA / ANNO_RAWDATA dirs and set permissions to let data actions be run without root
+RUN mkdir -p /dist /anno/data /anno/rawdata /anno/thirdparty && \
+    chown ${ANNO_USER}. /dist /anno /anno/data /anno/rawdata /anno/thirdparty && \
+    chmod +s /dist /anno/data /anno/rawdata /anno/thirdparty
+
+# do all copying / installing as anno-user
+USER ${ANNO_USER}
+
 ENV PIPENV_PIPFILE=/anno/Pipfile \
     PIPENV_NOSPIN=1 \
     PIPENV_VERBOSITY=-1 \
-    WORKON_HOME=/dist \
-    VIRTUAL_ENV=/dist/anno-python
-
-# needs separate line to get above values
-ENV PATH=${VIRTUAL_ENV}/bin:/anno/bin:${PATH}
-
-# create default ANNO_DATA / ANNO_RAWDATA dirs and set permissions to let data actions be run without root
-RUN mkdir -p /dist /anno/data /anno/rawdata /anno/thirdparty && \
-    chown ${default_user}. /dist /anno /anno/data /anno/rawdata /anno/thirdparty && \
-    chmod +s /dist /anno/data /anno/rawdata /anno/thirdparty
+    WORKON_HOME=/dist
+ENV VIRTUAL_ENV=${WORKON_HOME}/anno-python
 
 WORKDIR ${WORKON_HOME}
-
-# do all copying / installing as anno-user
-USER ${default_user}
-COPY --chown=${default_user}:${default_user} Pipfile Pipfile.lock /anno/
+COPY --chown=${ANNO_USER}:${ANNO_USER} Pipfile Pipfile.lock /anno/
+# we want VIRTUAL_ENV available for the eventual symlink, but it gets in the way during
+# initial installation as there is nothing there yet
 RUN VIRTUAL_ENV= pipenv install --deploy && \
     ln -s anno-NiVSU3vV ${VIRTUAL_ENV}
 # the hash after anno is deterministic and won't change as long the Pipfile is in the same place
 # ref: https://pipenv.pypa.io/en/latest/install/#virtualenv-mapping-caveat
 
 USER root
+
 RUN curl -L https://github.com/tianon/gosu/releases/download/1.7/gosu-amd64 -o /usr/local/bin/gosu && chmod u+x /usr/local/bin/gosu && \
     # Cleanup
     cp -R /usr/share/locale/en\@* /tmp/ && rm -rf /usr/share/locale/* && mv /tmp/en\@* /usr/share/locale/ && \
     rm -rf /usr/share/doc/* /usr/share/man/* /usr/share/groff/* /usr/share/info/* /tmp/* /var/cache/apt/* /root/.cache
+
+ENV PATH=${VIRTUAL_ENV}/bin:/anno/bin:${PATH}
 
 #####################
 # Builder - for installing thirdparty and generating / downloading data
@@ -124,16 +126,16 @@ RUN apt-get update && \
     pkg-config
 
 WORKDIR /anno
-USER ${default_user}
-RUN pipenv install --dev
+USER ${ANNO_USER}
+RUN pipenv install --dev --deploy
 
-COPY --chown=${default_user}:${default_user} ./ops/install_thirdparty.py ./ops/util.py /anno/ops/
-COPY --chown=${default_user}:${default_user} ./bin /anno/bin
+COPY --chown=${ANNO_USER}:${ANNO_USER} ./ops/install_thirdparty.py ./ops/util.py /anno/ops/
+COPY --chown=${ANNO_USER}:${ANNO_USER} ./bin /anno/bin
 # install thirdparty packages
 RUN python3 /anno/ops/install_thirdparty.py --clean
 
-COPY --chown=${default_user}:${default_user} ./scripts /anno/scripts/
-COPY --chown=${default_user}:${default_user} ./ops/sync_data.py ./ops/spaces_config.json ./ops/datasets.json ./ops/package_data ./ops/unpack_data ./ops/postgresql.conf ./ops/pg_sourceme /anno/ops/
+COPY --chown=${ANNO_USER}:${ANNO_USER} ./scripts /anno/scripts/
+COPY --chown=${ANNO_USER}:${ANNO_USER} ./ops/sync_data.py ./ops/spaces_config.json ./ops/datasets.json ./ops/package_data ./ops/unpack_data ./ops/postgresql.conf ./ops/pg_sourceme /anno/ops/
 
 
 #####################
@@ -143,6 +145,10 @@ COPY --chown=${default_user}:${default_user} ./ops/sync_data.py ./ops/spaces_con
 FROM base AS prod
 
 WORKDIR /anno
+
+COPY --chown=${ANNO_USER}:${ANNO_USER} --from=builder /anno/thirdparty /anno/thirdparty
+COPY --chown=${ANNO_USER}:${ANNO_USER} --from=builder /anno/bin /anno/bin
+COPY --chown=${ANNO_USER} . /anno
 
 ENV ANNO=/anno \
     FASTA=/anno/data/FASTA/human_g1k_v37_decoy.fasta.gz \
@@ -154,10 +160,6 @@ ENV ANNO=/anno \
     WORKFOLDER=/tmp/annowork \
     ANNO_DATA=/anno/data
 ENV PATH=${TARGETS}/targets:${PATH}
-
-COPY --chown=${default_user} . /anno
-COPY --chown=${default_user}:${default_user} --from=builder /anno/thirdparty /anno/thirdparty
-COPY --chown=${default_user}:${default_user} --from=builder /anno/bin /anno/bin
 
 # Set supervisor as default cmd
 CMD /anno/ops/entrypoint.sh

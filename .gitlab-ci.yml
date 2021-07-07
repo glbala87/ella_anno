@@ -99,7 +99,7 @@ check_pipenv:
     stage: test
     extends: .image_setup
     script:
-        - make pipenv-check
+        - make pipenv-check ANNOBUILDER_IMAGE_NAME=$CI_REGISTRY_IMAGE:$BUILDER_COMMIT_TAG
     tags:
         - bastion
 
