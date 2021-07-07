@@ -3,9 +3,9 @@
 include:
     - template: 'Workflows/MergeRequest-Pipelines.gitlab-ci.yml'
 
-image: docker:19.03.7
+image: docker:20.10.7
 services:
-    - docker:19.03.7-dind
+    - docker:20.10.7-dind
 
 variables:
     BRANCH: $CI_COMMIT_REF_NAME
@@ -14,13 +14,16 @@ variables:
     DOCKER_TLS_CERTDIR: /certs
     DOCKER_DRIVER: overlay2
     DOCKER_BUILDKIT: 1
-    # docker build
+    # show useful build info
+    BUILDKIT_PROGRESS: plain
+
     # we can only build to one image name, everything has to be done under tags
     BUILDER_COMMIT_TAG: builder-$CI_COMMIT_REF_SLUG
     BUILDER_LATEST_TAG: builder-latest
     PROD_COMMIT_TAG: prod-$CI_COMMIT_REF_SLUG
     PROD_LATEST_TAG: prod-latest
     PIPELINE_ID: anno-$CI_PIPELINE_ID
+    USE_REGISTRY: 1
 
 # include:
 #     - template: Container-Scanning.gitlab-ci.yml
@@ -68,21 +71,15 @@ stages:
         - apk add --update make git
         - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
 
-build_builder:
+# build both at once to reuse local cache
+build_docker:
     stage: build
     extends: .image_setup
     script:
-        - make build-annobuilder ANNOBUILDER_IMAGE_NAME="$CI_REGISTRY_IMAGE:$BUILDER_COMMIT_TAG" BUILD_OPTS="--cache-from $CI_REGISTRY_IMAGE:$BUILDER_COMMIT_TAG --cache-from $CI_REGISTRY_IMAGE:$BUILDER_LATEST_TAG --cache-from=$CI_REGISTRY_IMAGE:$PROD_LATEST_TAG"
-        - docker push $CI_REGISTRY_IMAGE:$BUILDER_COMMIT_TAG
-    tags:
-        - bastion
-
-build_prod:
-    stage: build
-    extends: .image_setup
-    script:
-        - make build IMAGE_NAME="$CI_REGISTRY_IMAGE:$PROD_COMMIT_TAG" BUILD_OPTS="--cache-from=$CI_REGISTRY_IMAGE:$PROD_COMMIT_TAG --cache-from=$CI_REGISTRY_IMAGE:$PROD_LATEST_TAG --cache-from=$CI_REGISTRY_IMAGE:$BUILDER_LATEST_TAG"
+        - make build BUILD_OPTS="--cache-from=$CI_REGISTRY_IMAGE:$PROD_COMMIT_TAG --cache-from=$CI_REGISTRY_IMAGE:$PROD_LATEST_TAG --cache-from=$CI_REGISTRY_IMAGE:$BUILDER_LATEST_TAG"
+        - make build-annobuilder BUILD_OPTS="--cache-from=$CI_REGISTRY_IMAGE:$BUILDER_COMMIT_TAG --cache-from=$CI_REGISTRY_IMAGE:$PROD_COMMIT_TAG --cache-from=$CI_REGISTRY_IMAGE:$BUILDER_LATEST_TAG"
         - docker push $CI_REGISTRY_IMAGE:$PROD_COMMIT_TAG
+        - docker push $CI_REGISTRY_IMAGE:$BUILDER_COMMIT_TAG
     tags:
         - bastion
 
@@ -91,7 +88,7 @@ check_do:
     extends: .image_setup
     script:
         - docker pull $CI_REGISTRY_IMAGE:$BUILDER_COMMIT_TAG | cat || true
-        - make verify-digital-ocean ANNOBUILDER_IMAGE_NAME=$CI_REGISTRY_IMAGE:$BUILDER_COMMIT_TAG
+        - make verify-digital-ocean
     tags:
         - bastion
 
@@ -99,7 +96,7 @@ check_pipenv:
     stage: test
     extends: .image_setup
     script:
-        - make pipenv-check ANNOBUILDER_IMAGE_NAME=$CI_REGISTRY_IMAGE:$BUILDER_COMMIT_TAG
+        - make pipenv-check
     tags:
         - bastion
 
@@ -109,9 +106,9 @@ run_pytest:
     script:
         - docker pull $CI_REGISTRY_IMAGE:$BUILDER_COMMIT_TAG | cat || true
         - docker pull $CI_REGISTRY_IMAGE:$PROD_COMMIT_TAG | cat || true
-        - make download-data ANNOBUILDER_IMAGE_NAME=$CI_REGISTRY_IMAGE:$BUILDER_COMMIT_TAG RUN_CMD_ARGS="--skip-validation --force"
-        - make test IMAGE_NAME=$CI_REGISTRY_IMAGE:$PROD_COMMIT_TAG
-        - make test-ops IMAGE_NAME=$CI_REGISTRY_IMAGE:$PROD_COMMIT_TAG
+        - make download-data RUN_CMD_ARGS="--skip-validation --force"
+        - make test
+        - make test-ops
     tags:
         - do-large
 

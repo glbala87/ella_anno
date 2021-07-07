@@ -26,6 +26,7 @@ RUN apt-get update && \
     gcc \
     git \
     gnupg2 \
+    gosu \
     htop \
     jq \
     less \
@@ -93,11 +94,6 @@ RUN VIRTUAL_ENV= pipenv install --deploy && \
 
 USER root
 
-RUN curl -L https://github.com/tianon/gosu/releases/download/1.7/gosu-amd64 -o /usr/local/bin/gosu && chmod u+x /usr/local/bin/gosu && \
-    # Cleanup
-    cp -R /usr/share/locale/en\@* /tmp/ && rm -rf /usr/share/locale/* && mv /tmp/en\@* /usr/share/locale/ && \
-    rm -rf /usr/share/doc/* /usr/share/man/* /usr/share/groff/* /usr/share/info/* /tmp/* /var/cache/apt/* /root/.cache
-
 ENV PATH=${VIRTUAL_ENV}/bin:/anno/bin:${PATH}
 
 #####################
@@ -161,5 +157,8 @@ ENV ANNO=/anno \
     ANNO_DATA=/anno/data
 ENV PATH=${TARGETS}/targets:${PATH}
 
+RUN umask 000 && mkdir -p ${TARGETS} ${TARGETS_OUT} ${SAMPLES} /scratch && \
+    chown ${ANNO_USER}:${ANNO_USER} ${TARGETS} ${TARGETS_OUT} ${SAMPLES} /scratch
+
 # Set supervisor as default cmd
-CMD /anno/ops/entrypoint.sh
+CMD ["/anno/ops/entrypoint.sh"]

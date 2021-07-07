@@ -161,6 +161,10 @@ localclean: ## remove data, rawdata, thirdparty dirs and docker volumes
 ifeq ($(CI),)
 # running locally, use interactive/tty
 TERM_OPTS := -it
+BASH_I = -i
+else
+BASH_I :=
+TERM_OPTS :=
 endif
 
 # ensure $ANNO_DATA exists so it's not created as root owned by docker
@@ -181,13 +185,13 @@ $(if
 	$(and $(FASTA_PATH),$(FASTA_EXISTS)),
 	$(eval override ANNOBUILDER_OPTS += -v $(FASTA_PATH):/fasta.fa -e FASTA=/fasta.fa)
 )
-docker run --rm -it \
+docker run --rm $(TERM_OPTS) \
 	$(ANNOBUILDER_OPTS) \
 	-u "$(DOCKER_USER)" \
 	-v $(TMP_DIR):/tmp \
 	-v $(ANNO_DATA):/anno/data \
 	$(ANNOBUILDER_IMAGE_NAME) \
-	bash -ic "$(RUN_CMD) $(RUN_CMD_ARGS)"
+	bash $(BASH_I) -c "$(RUN_CMD) $(RUN_CMD_ARGS)"
 endef
 
 build-annobuilder: ## build Docker image of 'builder' target named $ANNOBUILDER_IMAGE_NAME
