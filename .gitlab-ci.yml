@@ -1,5 +1,5 @@
 ---
-# ref: https://docs.gitlab.com/ee/ci/yaml/README.html#workflowrules-templates
+# ref: https://docs.gitlab.com/ee/ci/yaml/index.html#workflowrules-templates
 include:
     - template: 'Workflows/MergeRequest-Pipelines.gitlab-ci.yml'
 
@@ -135,13 +135,14 @@ update_anno_latest:
 release_singularity:
     stage: release
     extends: .image_setup
+    variables:
+        RELEASE_TAG: $CI_COMMIT_TAG
     script:
-        - docker pull $CI_REGISTRY_IMAGE:$PROD_COMMIT_TAG | cat || true
-        - make singularity-release IMAGE_NAME=$CI_REGISTRY_IMAGE
+        - make release
     artifacts:
         name: 'anno-$CI_COMMIT_REF_NAME-singularity'
         paths:
             - release/
         expire_in: 30 days
     rules:
-        - if: '$CI_PIPELINE_SOURCE == "api"'
+        - if: '$CI_COMMIT_TAG'

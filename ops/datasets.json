@@ -42,11 +42,11 @@
         },
         "destination": "refGene",
         "generate": [
-            "wget http://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/refGene.txt.gz",
+            "wget http://hgdownload.soe.ucsc.edu/goldenPath/{hg_build}/database/refGene.txt.gz",
             "echo '{hash_value} refGene.txt.gz' | {hash_type}sum -c",
             "LATEST=$({root_dir}/scripts/get_versions -p refgene -l); wget https://ella-anno.fra1.digitaloceanspaces.com/data/{destination}/$LATEST/refGeneHistorical.csv.gz",
             "gunzip refGeneHistorical.csv.gz",
-            "DATE=$(date -d \"$(curl -sI http://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/refGene.txt.gz | grep Last-Mod | cut -f2- -d' ')\" +%Y-%m-%d); zcat refGene.txt.gz | sed -e \"s/$/\t$DATE/\" >> refGeneHistorical.csv",
+            "DATE=$(date -d \"$(curl -sI http://hgdownload.soe.ucsc.edu/goldenPath/{hg_build}/database/refGene.txt.gz | grep Last-Mod | cut -f2- -d' ')\" +%Y-%m-%d); zcat refGene.txt.gz | sed -e \"s/$/\t$DATE/\" >> refGeneHistorical.csv",
             "gzip refGeneHistorical.csv",
             "cp refGeneHistorical.csv.gz refgene_{hg_build}_{version}.bed {data_dir}/"
         ]

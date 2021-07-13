@@ -15,5 +15,7 @@ singularity/
 *.simg
 Singularity
 Singularity.*
+*.Singularity
 
 .vscode/
+TODO

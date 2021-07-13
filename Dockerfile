@@ -1,8 +1,6 @@
 # debian:bullseye-20210511
 FROM debian@sha256:f230ae5ea58822057728fbc43b207f4fb02ab1c32c75c08d25e8e511bfc83446 AS base
 
-LABEL maintainer="OUS AMG <ella-support@medisin.uio.no>"
-
 ENV DEBIAN_FRONTEND=noninteractive \
     LANGUAGE=C.UTF-8 \
     LANG=C.UTF-8 \
@@ -93,6 +91,8 @@ RUN VIRTUAL_ENV= pipenv install --deploy && \
 # ref: https://pipenv.pypa.io/en/latest/install/#virtualenv-mapping-caveat
 
 USER root
+
+LABEL org.opencontainers.image.authors="OUS AMG <ella-support@medisin.uio.no>"
 
 ENV PATH=${VIRTUAL_ENV}/bin:/anno/bin:${PATH}
 

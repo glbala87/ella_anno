@@ -3,7 +3,9 @@ PAGER ?= less
 
 _IGNORE_VARS =
 BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD)
-COMMIT_HASH = $(shell git describe --always --dirty --abbrev=8 | sed -e 's/.*g//')
+COMMIT_HASH = $(shell git rev-parse --short=8 HEAD)
+COMMIT_DATE = $(shell git log -1 --pretty=format:'%cI')
+# sed is important to strip out any creds (i.e., CI token) from repo URL
 REPO_URL = $(shell git remote get-url origin | sed -e 's/.*\?@//; s/:/\//g')
 API_PORT ?= 6000-6100
 TARGETS_FOLDER ?= $(shell pwd)/anno-targets
@@ -12,8 +14,20 @@ SAMPLE_REPO ?= $(shell pwd)/sample-repo
 ANNO_DATA ?= $(shell pwd)/data
 ANNO_RAWDATA ?= $(shell pwd)/rawdata
 
+# Docker/Singularity labels should follow OCI standard
+# ref: https://github.com/opencontainers/image-spec/blob/main/annotations.md
+OCI_BASE_LABEL = org.opencontainers.image
+ANNO_BASE_LABEL = io.ousamg.anno
+override BUILD_OPTS += --label $(OCI_BASE_LABEL).url=https://allel.es/anno-docs/ \
+	--label $(OCI_BASE_LABEL).revision="$(COMMIT_HASH)" \
+	--label $(ANNO_BASE_LABEL).git.url="$(REPO_URL)" \
+	--label $(ANNO_BASE_LABEL).git.commit_date="$(COMMIT_DATE)" \
+	--label $(ANNO_BASE_LABEL).git.branch="$(BRANCH)" \
+	--label $(ANNO_BASE_LABEL).datasets=/anno/ops/datasets.json
+
 RELEASE_TAG ?= $(shell git tag -l --points-at HEAD)
 ifneq ($(RELEASE_TAG),)
+override BUILD_OPTS += --label $(OCI_BASE_LABEL).version=$(RELEASE_TAG)
 ANNO_BUILD := anno-$(RELEASE_TAG)
 BUILDER_BUILD := annobuilder-$(RELEASE_TAG)
 override BUILD_OPTS += -t local/anno:$(RELEASE_TAG)
@@ -21,7 +35,6 @@ else
 ANNO_BUILD := anno-$(BRANCH)
 BUILDER_BUILD = annobuilder-$(BRANCH)
 endif
-override BUILD_OPTS += --label git.repo_url=$(REPO_URL) --label git.commit_hash=$(COMMIT_HASH)
 ifneq ($(ENTREZ_API_KEY),)
 override ANNOBUILDER_OPTS += -e ENTREZ_API_KEY=$(ENTREZ_API_KEY)
 endif
@@ -32,9 +45,15 @@ IMAGE_NAME ?= local/$(ANNO_BUILD)
 ANNOBUILDER_IMAGE_NAME ?= local/$(BUILDER_BUILD)
 else
 REGISTRY_BASE := registry.gitlab.com/alleles/ella-anno
+ifeq ($(RELEASE_TAG),)
 IMAGE_NAME = $(REGISTRY_BASE):prod-$(BRANCH)
 ANNOBUILDER_IMAGE_NAME = $(REGISTRY_BASE):builder-$(BRANCH)
+else
+IMAGE_NAME = $(REGISTRY_BASE):$(RELEASE_TAG)
+ANNOBUILDER_IMAGE_NAME = $(REGISTRY_BASE):builder-$(RELEASE_TAG)
 endif
+endif
+
 CONTAINER_NAME ?= $(ANNO_BUILD)-$(USER)
 ANNOBUILDER_CONTAINER_NAME ?= $(BUILDER_BUILD)
 SINGULARITY_IMAGE_NAME ?= $(ANNO_BUILD).sif
@@ -99,6 +118,16 @@ any:
 build: ## build Docker image of 'prod' target named $IMAGE_NAME
 	docker build -t $(IMAGE_NAME) $(BUILD_OPTS) --build-arg BUILDKIT_INLINE_CACHE=1 --target prod .
 
+pull: pull-builder pull-prod ## pull IMAGE_NAME and ANNOBUILDER_IMAGE_NAME from registry, requires USE_REGISTRY
+
+pull-prod: ## pull IMAGE_NAME from registry, requires USE_REGISTRY
+	$(call check_defined, USE_REGISTRY, You must set USE_REGISTRY to pull remote images)
+	docker pull $(IMAGE_NAME)
+
+pull-builder: ## pull ANNOBUILDER_IMAGE_NAME from registry, requires USE_REGISTRY
+	$(call check_defined, USE_REGISTRY, You must set USE_REGISTRY to pull remote images)
+	docker pull $(ANNOBUILDER_IMAGE_NAME)
+
 # like build, but buildkit is disabled to allow access to intermediate layers for easier debugging
 build-debug:
 	DOCKER_BUILDKIT= docker build -t $(IMAGE_NAME) $(BUILD_OPTS) --target prod .
@@ -162,15 +191,18 @@ ifeq ($(CI),)
 # running locally, use interactive/tty
 TERM_OPTS := -it
 BASH_I = -i
+SUDO = sudo -E
 else
 BASH_I :=
 TERM_OPTS :=
+SUDO =
 endif
 
 # ensure $ANNO_DATA exists so it's not created as root owned by docker
 # if FASTA is set, resolve its path in case of symlink, check it exists, add to docker mounts and
 # set env var in container. Use override to prevent FASTA_PATH/FASTA_EXISTS being set by user/env
 # NOTE: multiple if statements and evals used for clarity, can also condensed to a single $(if ...)
+# TODO: add _ to FASTA_PATH, FASTA_EXISTS
 define annobuilder-template
 mkdir -p $(ANNO_DATA)
 $(if $(FASTA),
@@ -299,16 +331,17 @@ pipenv-check: ## uses pipenv to check for package vulnerabilities
 ##---------------------------------------------------------------------
 .PHONY: singularity-test singularity-shell singularity-start singularity-stop
 
-# NOTE: how many of the singularity rules are even used?
+# Singularity supports labels but does not inherit them from the docker container (dumb)
+# So here we generate a simple definition file just to add the labels from the source container
+_generate_definition:
+	$(eval SOURCE_IMAGE ?= $(IMAGE_NAME))
+	$(eval DEF_FILE ?= Singularity)
+	$(if $(DEF_FORCE),$(eval override DEF_FORCE = --force))
+	$(if $(DEF_USE_LOCAL),$(eval override DEF_USE_LOCAL = --local))
+	python3 ops/gen_definition_labels.py -i '$(SOURCE_IMAGE)' -o '$(DEF_FILE)' $(DEF_FORCE) $(DEF_USE_LOCAL)
 
-singularity-build: ## builds a singularity image from the Docker image $IMAGE_NAME
-	# Use git archive to create docker context, to prevent modified files from entering the image.
-	@-docker rm -f ella-anno-tmp-registry
-	docker run --rm -d -p 29000:5000 --name ella-anno-tmp-registry registry:2
-	docker tag $(IMAGE_NAME) localhost:29000/$(IMAGE_NAME)
-	docker push localhost:29000/$(IMAGE_NAME)
-	SINGULARITY_NOHTTPS=1 singularity build $(SINGULARITY_IMAGE_NAME) docker://localhost:29000/$(IMAGE_NAME)
-	docker rm -f ella-anno-tmp-registry
+singularity-build: _generate_definition ## builds a singularity image from the Docker image $IMAGE_NAME
+	$(SUDO) singularity build $(SINGULARITY_IMAGE_NAME) $(DEF_FILE)
 
 # creates additional directories necessary when using read-only Singularity image
 ensure-singularity-dirs:
@@ -385,10 +418,13 @@ check-release-tag:
 	git rev-parse --verify "refs/tags/$(RELEASE_TAG)^{tag}"
 	git ls-remote --exit-code --tags origin "refs/tags/$(RELEASE_TAG)"
 
-release: ## create a clean prod Docker $IMAGE_NAME for using git tag $RELEASE_TAG
-	git archive --format tar.gz $(RELEASE_TAG) | docker build -t $(IMAGE_NAME) --target prod -
+# also used for generating release artifacts via CI
+release: check-release-tag pull-prod singularity-build ## build a release SINGULARITY_IMAGE_NAME for RELEASE_TAG based on IMAGE_NAME pulled from the remote registry
 
-singularity-release: release singularity-build ## create a prod Singularity image SINGULARITY_IMAGE_NAME based on IMAGE_NAME
+release-local: DEF_USE_LOCAL = 1
+release-local: check-release-tag ## build a release SINGULARITY_IMAGE_NAME for RELEASE_TAG based on a clean/newly built IMAGE_NAME
+	git archive --format tar.gz $(RELEASE_TAG) | docker build -t $(IMAGE_NAME) --target prod -
+	$(MAKE) singularity-build
 
 ##---------------------------------------------
 ## Help / Debugging
