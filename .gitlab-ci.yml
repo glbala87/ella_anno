@@ -1,7 +1,11 @@
 ---
 # ref: https://docs.gitlab.com/ee/ci/yaml/index.html#workflowrules-templates
-include:
-    - template: 'Workflows/MergeRequest-Pipelines.gitlab-ci.yml'
+# tag pipeline > MR pipeline > dev pipeline
+workflow:
+    rules:
+        - if: $CI_COMMIT_TAG
+        - if: $CI_MERGE_REQUEST_IID
+        - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 image: docker:20.10.7
 services:
@@ -20,8 +24,8 @@ variables:
     # we can only build to one image name, everything has to be done under tags
     BUILDER_COMMIT_TAG: builder-$CI_COMMIT_REF_SLUG
     BUILDER_LATEST_TAG: builder-latest
-    PROD_COMMIT_TAG: prod-$CI_COMMIT_REF_SLUG
-    PROD_LATEST_TAG: prod-latest
+    PROD_COMMIT_TAG: $CI_COMMIT_REF_SLUG
+    PROD_LATEST_TAG: latest
     PIPELINE_ID: anno-$CI_PIPELINE_ID
     USE_REGISTRY: 1
 
@@ -136,13 +140,19 @@ release_singularity:
     stage: release
     extends: .image_setup
     variables:
-        RELEASE_TAG: $CI_COMMIT_TAG
+        DEF_USE_LOCAL: 1
+        RELEASE_TAG: $CI_COMMIT_REF_NAME
     script:
-        - make release
+        - make pull-prod release
     artifacts:
-        name: 'anno-$CI_COMMIT_REF_NAME-singularity'
+        name: anno-$CI_COMMIT_REF_NAME.sif
         paths:
             - release/
         expire_in: 30 days
     rules:
-        - if: '$CI_COMMIT_TAG'
+        # automatically generate release artifacts for tags and dev
+        - if: '$CI_COMMIT_TAG || $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+        # allow manual triggering on merge requests to avoid creating fake tags when testing changes
+        # to release process/artifacts.
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+          when: manual

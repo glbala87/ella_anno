@@ -22,8 +22,7 @@ override BUILD_OPTS += --label $(OCI_BASE_LABEL).url=https://allel.es/anno-docs/
 	--label $(OCI_BASE_LABEL).revision="$(COMMIT_HASH)" \
 	--label $(ANNO_BASE_LABEL).git.url="$(REPO_URL)" \
 	--label $(ANNO_BASE_LABEL).git.commit_date="$(COMMIT_DATE)" \
-	--label $(ANNO_BASE_LABEL).git.branch="$(BRANCH)" \
-	--label $(ANNO_BASE_LABEL).datasets=/anno/ops/datasets.json
+	--label $(ANNO_BASE_LABEL).git.branch="$(BRANCH)"
 
 RELEASE_TAG ?= $(shell git tag -l --points-at HEAD)
 ifneq ($(RELEASE_TAG),)
@@ -46,7 +45,7 @@ ANNOBUILDER_IMAGE_NAME ?= local/$(BUILDER_BUILD)
 else
 REGISTRY_BASE := registry.gitlab.com/alleles/ella-anno
 ifeq ($(RELEASE_TAG),)
-IMAGE_NAME = $(REGISTRY_BASE):prod-$(BRANCH)
+IMAGE_NAME = $(REGISTRY_BASE):$(BRANCH)
 ANNOBUILDER_IMAGE_NAME = $(REGISTRY_BASE):builder-$(BRANCH)
 else
 IMAGE_NAME = $(REGISTRY_BASE):$(RELEASE_TAG)
@@ -76,7 +75,11 @@ DOCKER_BUILDKIT ?= 1
 
 # if DO_CREDS is set, the file should be mounted into the docker container
 ifneq ($(DO_CREDS),)
+ifeq ($(shell realpath $(DO_CREDS)),)
+$(error File DO_CREDS="$(DO_CREDS)" does not exist)
+else
 override ANNOBUILDER_OPTS += --env-file $(shell realpath $(DO_CREDS))
+endif
 endif
 
 # Check that given variables are set and all have non-empty values,
@@ -340,6 +343,8 @@ _generate_definition:
 	$(if $(DEF_USE_LOCAL),$(eval override DEF_USE_LOCAL = --local))
 	python3 ops/gen_definition_labels.py -i '$(SOURCE_IMAGE)' -o '$(DEF_FILE)' $(DEF_FORCE) $(DEF_USE_LOCAL)
 
+# NOTE: if building locally and it fails trying to extract the labels from the source Docker image
+#   you need to either build or pull the Docker image
 singularity-build: _generate_definition ## builds a singularity image from the Docker image $IMAGE_NAME
 	$(SUDO) singularity build $(SINGULARITY_IMAGE_NAME) $(DEF_FILE)
 
@@ -418,8 +423,8 @@ check-release-tag:
 	git rev-parse --verify "refs/tags/$(RELEASE_TAG)^{tag}"
 	git ls-remote --exit-code --tags origin "refs/tags/$(RELEASE_TAG)"
 
-# also used for generating release artifacts via CI
-release: check-release-tag pull-prod singularity-build ## build a release SINGULARITY_IMAGE_NAME for RELEASE_TAG based on IMAGE_NAME pulled from the remote registry
+# skip tag validation if run in CI, ref .gitlab-ci.yml for use cases
+release: $(if $(CI),,check-release-tag) singularity-build ## build a release SINGULARITY_IMAGE_NAME for RELEASE_TAG based on IMAGE_NAME pulled from the remote registry
 
 release-local: DEF_USE_LOCAL = 1
 release-local: check-release-tag ## build a release SINGULARITY_IMAGE_NAME for RELEASE_TAG based on a clean/newly built IMAGE_NAME

@@ -2,7 +2,6 @@
 
 import argparse
 import datetime
-import hashlib
 import logging
 import os
 from pathlib import Path
@@ -10,7 +9,7 @@ import re
 import shutil
 import subprocess
 import sys
-from util import hash_file
+from util import hash_file, HashType
 
 
 thirdparty_packages = {
@@ -186,11 +185,11 @@ def main():
 
 def github_fetch_package(pkg, dest, hash="sha256"):
     """downloads a release archive from github"""
-
+    hash_type = HashType(hash)
     release_file = pkg["filename"].format(**pkg)
     release_filepath = dest / release_file
     if release_filepath.is_file():
-        this_hash = hash_file(release_filepath, hash_type=hash)
+        this_hash = hash_file(release_filepath, hash_type=hash_type)
         if this_hash == pkg[hash]:
             logger.info("Re-using existing package")
             return
@@ -203,7 +202,7 @@ def github_fetch_package(pkg, dest, hash="sha256"):
     full_url = f"{release_url}/{release_file}"
 
     subprocess.run(["wget", full_url], cwd=dest, check=True)
-    this_hash = hash_file(release_filepath, hash_type=hash)
+    this_hash = hash_file(release_filepath, hash_type=hash_type)
     if this_hash != pkg[hash]:
         raise Exception(f"Checksum mismatch on {release_file}. Expected {pkg[hash]}, but got {this_hash}")
 

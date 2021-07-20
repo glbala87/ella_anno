@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 import json
+import os
 import subprocess
 import sys
+from urllib.error import HTTPError
+from base64 import b64encode
 from enum import Enum
-from json.decoder import JSONDecodeError
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
+import requests
 import click
 
 ###
@@ -31,14 +34,102 @@ From: {source_image}
 ###
 
 
-def get_labels(source_image: str, root_label: str) -> Optional[str]:
+def err(msg: str) -> None:
+    print(msg, file=sys.stderr)
+
+
+# scope ref: https://docs.docker.com/registry/spec/auth/scope/
+def gen_jwt_token(username: str, auth_token: str, repo: str) -> str:
+    encoded_auth = b64encode(f"{username}:{auth_token}".encode()).decode()
+    resp = requests.get(
+        url=f"https://gitlab.com/jwt/auth?service=container_registry&scope=repository:{repo}:pull",
+        headers={f"Authorization": f"basic {encoded_auth}"},
+    )
+    body = parse_resp(resp)
+    return body["token"]
+
+
+def get_local_metadata(source_image: str) -> dict[str, Any]:
     resp = subprocess.run(
         ["docker", "inspect", source_image],
         capture_output=True,
     )
     if resp.returncode != 0:
         raise RuntimeError(f"Failed to inspect docker image {source_image}: {resp.stderr.decode()}")
-    image_metadata = json.loads(resp.stdout.decode())[0]
+    return json.loads(resp.stdout.decode())[0]
+
+
+def parse_resp(resp: requests.Response) -> dict[str, Any]:
+    if resp.status_code != 200:
+        err(f"Got {resp.status_code} attempting to fetch {resp.request.url}")
+        if resp.status_code in (401, 403):
+            if resp.request.headers.get("Authorization") is None:
+                err(f"No authorization header on request")
+            www_auth: Optional[str] = resp.headers.get("www-authenticate")
+            if www_auth is None:
+                err(
+                    f"Got {resp.status_code} fetching {resp.request.url}, but no info in www-authenticate"
+                )
+            else:
+                auth_details = {
+                    parts[0]: parts[1].strip('"')
+                    for f in www_auth.split(",")
+                    if (parts := f.split("=", 1))
+                }
+                if auth_details.get("scope"):
+                    e = RuntimeError(
+                        f"JWT token has insufficient scope, needs {auth_details['scope']}"
+                    )
+                    raise e
+        print("error headers:")
+        for k, v in resp.headers.items():
+            print(f"{k}: {v}")
+        print(f"\nreason: {resp.text}")
+        breakpoint()
+    return resp.json()
+
+
+def get_registry_labels(source_image: str) -> dict[str, Any]:
+    try:
+        gitlab_user = os.environ["GITLAB_USER"]
+        gitlab_token = os.environ["GITLAB_TOKEN"]
+    except KeyError as e:
+        print(e)
+        raise EnvironmentError(
+            f"You must have GITLAB_USER and GITLAB_TOKEN available in your environment to access the container registry"
+        )
+
+    registry_base = "registry.gitlab.com"
+    base_url = f"https://{registry_base}/v2"
+    repo, tag = source_image.replace(f"{registry_base}/", "").split(":")
+
+    registry_token = gen_jwt_token(gitlab_user, gitlab_token, repo)
+    default_headers = {"Authorization": f"Bearer {registry_token}"}
+    digest_resp = parse_resp(
+        requests.get(
+            f"{base_url}/{repo}/manifests/{tag}",
+            headers={"Accept": "application/vnd.docker.distribution.manifest.v2+json"}.update(
+                default_headers
+            ),
+        )
+    )
+    config_digest = digest_resp["config"]["digest"]
+
+    config_resp = parse_resp(
+        requests.get(
+            f"https://registry.gitlab.com/v2/{repo}/blobs/{config_digest}",
+            headers=default_headers,
+        )
+    )
+    breakpoint()
+    return config_resp["container_config"]["Labels"]
+
+
+def get_labels(source_image: str, root_label: str, is_local: bool = True) -> Optional[str]:
+    if is_local:
+        image_metadata = get_local_metadata(source_image)
+    else:
+        image_metadata = get_registry_labels(source_image)
 
     labels = image_metadata["Config"]["Labels"].copy()
     labels[f"{root_label}.docker.name"] = image_metadata["RepoTags"][0]
@@ -104,7 +195,7 @@ def main(
     format_opts = {
         "bootstrap": Bootstrap.local.value if use_local else Bootstrap.registry.value,
         "source_image": source_image,
-        "labels": get_labels(source_image, root_label),
+        "labels": get_labels(source_image, root_label, use_local),
     }
     if format_opts["labels"] is None:
         print(f"No labels to import, just build directly from the docker image", file=sys.stderr)

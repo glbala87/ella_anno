@@ -2,57 +2,75 @@
 
 import argparse
 import atexit
-from collections import OrderedDict
 import datetime
 import json
+import logging
 import os
-from pathlib import Path
-import re
 import shutil
 import subprocess
-import logging
+import time
+from collections import OrderedDict
+from pathlib import Path
+from typing import Any
 
 # set up logging before anything else touches it
 log_format = "%(asctime)s - %(module)s - %(funcName)s:%(lineno)d - %(levelname)s - %(message)s"
 logging.basicConfig(level=logging.INFO, format=log_format)
 logger = logging.getLogger(__name__)
 
-from data_spaces import DataManager
-from install_thirdparty import thirdparty_packages
-import time
 import toml
-from util import hash_directory_async, AnnoJSONEncoder, format_obj
-from yaml import load as load_yaml, dump as dump_yaml
+from data_spaces import DataManager
+from yaml import dump as dump_yaml
+from yaml import load as load_yaml
+
+from install_thirdparty import thirdparty_packages
+from util import AnnoJSONEncoder, format_obj, hash_directory_async, HashType
 
 # try to use libyaml, then fall back to pure python if not available
 try:
     # we're using C/BaseLoader to ensure all values are strings as expected
-    from yaml import CBaseLoader as Loader, CDumper as Dumper
+    from yaml import CBaseLoader as Loader
+    from yaml import CDumper as Dumper
 except ImportError:
-    from yaml import BaseLoader as Loader, Dumper
+    from yaml import BaseLoader as Loader
+    from yaml import Dumper
 
 atexit.register(logging.shutdown)
 
 this_dir = Path(__file__).parent.absolute()
 default_base_dir = this_dir.parent
 # check for ANNO_DATA env variable, otherwise use {default_base_dir}/data
-default_data_dir = Path(os.environ["ANNO_DATA"]) if os.environ.get("ANNO_DATA") else default_base_dir / "data"
+default_data_dir = Path(os.getenv("ANNO_DATA", default_base_dir / "data"))
 default_rawdata_dir = default_base_dir / "rawdata"
 default_thirdparty_dir = default_base_dir / "thirdparty"
 default_dataset_file = this_dir / "datasets.json"
 default_spaces_config = this_dir / "spaces_config.json"
+# get available CPUs, in case of restricted run environment
+default_max_processes = min(len(os.sched_getaffinity(0)), 20)
 TOUCHFILE = "DATA_READY"
 
 
 def main():
     """Generate, download or upload datasets based on steps given in --dataset-file."""
-    # add --validate, to check existing data/versions against sources.json, run at startup
+    # TODO: add --validate, to check existing data/versions against sources.json, run at startup
     parser = argparse.ArgumentParser()
     action_args = parser.add_mutually_exclusive_group(required=True)
-    action_args.add_argument("--download", action="store_true", help="download pre-processed datasets")
+    action_args.add_argument(
+        "--download",
+        action="store_true",
+        help="download pre-processed datasets",
+    )
     action_args.add_argument("--generate", action="store_true", help="generate processed datasets")
-    action_args.add_argument("--upload", action="store_true", help="upload generated data to cloud storage")
-    action_args.add_argument("--verify-remote", action="store_true", help="verify existence of pre-processed datasets")
+    action_args.add_argument(
+        "--upload",
+        action="store_true",
+        help="upload generated data to cloud storage",
+    )
+    action_args.add_argument(
+        "--verify-remote",
+        action="store_true",
+        help="verify existence of pre-processed datasets",
+    )
     parser.add_argument(
         "-f",
         "--dataset-file",
@@ -89,8 +107,8 @@ def main():
         "--max-processes",
         "-x",
         type=int,
-        default=min(os.cpu_count(), 20),
-        help=f"max number of processes to run in parallel. Default: {min(os.cpu_count(), 20)}",
+        default=default_max_processes,
+        help=f"max number of processes to run in parallel. Default: {default_max_processes}",
     )
     parser.add_argument(
         "-c",
@@ -99,9 +117,21 @@ def main():
         default=default_spaces_config,
         help=f"JSON config for spaces.DataManager. Default: {default_spaces_config}",
     )
-    parser.add_argument("--force", action="store_true", help="Overwrite existing data if versions do not match")
-    parser.add_argument("--cleanup", action="store_true", help="clean up raw data after successful processing")
-    parser.add_argument("--skip-validation", action="store_true", help="skip md5 validation of downloaded files")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite existing data if versions do not match",
+    )
+    parser.add_argument(
+        "--cleanup",
+        action="store_true",
+        help="clean up raw data after successful processing",
+    )
+    parser.add_argument(
+        "--skip-validation",
+        action="store_true",
+        help="skip md5 validation of downloaded files",
+    )
     parser.add_argument("--verbose", action="store_true", help="be extra chatty")
     parser.add_argument("--debug", action="store_true", help="run in debug mode")
     args = parser.parse_args()
@@ -115,21 +145,27 @@ def main():
         setattr(args, "verbose", True)
 
     if args.dataset_file.exists():
-        datasets = json.loads(args.dataset_file.read_text(), object_pairs_hook=OrderedDict)
+        datasets: dict[str, Any] = json.loads(
+            args.dataset_file.read_text(), object_pairs_hook=OrderedDict
+        )
     else:
-        raise IOError(f"Cannot read dataset file: {args.dataset_file}. Check it exists, is readable and try again")
+        raise IOError(
+            f"Cannot read dataset file: {args.dataset_file}. Check it exists, is readable and try again"
+        )
 
     if args.dataset and args.dataset not in datasets.keys():
-        raise ValueError(f"Invalid dataset: {args.dataset}. Must be one of: {', '.join(sorted(datasets.keys()))}")
+        raise ValueError(
+            f"Invalid dataset: {args.dataset}. Must be one of: {', '.join(sorted(datasets.keys()))}"
+        )
 
     if args.dataset:
-        sync_datasets = {args.dataset: datasets[args.dataset]}
+        sync_datasets: dict[str, Any] = {args.dataset: datasets[args.dataset]}
     else:
         sync_datasets = datasets
 
     if args.spaces_config.exists():
         try:
-            spaces_config = json.loads(args.spaces_config.read_text())
+            spaces_config: dict[str, Any] = json.loads(args.spaces_config.read_text())
         except Exception as e:
             logging.error(f"Failed to parse spaces config file: {args.spaces_config}")
             raise e
@@ -147,22 +183,24 @@ def main():
         verb = "Verifying"
 
     # now we actually start doing things
-    sources_json_file = args.data_dir / "sources.json"
-    vcfanno_toml_file = args.data_dir / "vcfanno_config.toml"
+    sources_json_file: Path = args.data_dir / "sources.json"
+    vcfanno_toml_file: Path = args.data_dir / "vcfanno_config.toml"
 
     errs = list()
     for dataset_name, dataset in sync_datasets.items():
         logger.info(f"{verb} dataset {dataset_name}")
-        raw_dir = args.rawdata_dir.absolute() / dataset_name
-        data_dir = args.data_dir.absolute() / dataset.get("destination", dataset_name)
-        thirdparty_dir = args.thirdparty_dir.absolute() / dataset.get("thirdparty-name", dataset_name)
+        raw_dir: Path = args.rawdata_dir.absolute() / dataset_name
+        data_dir: Path = args.data_dir.absolute() / dataset.get("destination", dataset_name)
+        thirdparty_dir: Path = args.thirdparty_dir.absolute() / dataset.get(
+            "thirdparty-name", dataset_name
+        )
         if dataset_name == "vep":
             # special processing for VEP, which has its version defined in install_thirdparty.py
-            dataset_version = thirdparty_packages["vep"]["version"]
+            dataset_version: str = thirdparty_packages["vep"]["version"]
         else:
             dataset_version = dataset.get("version", "")
 
-        format_opts = {
+        format_opts: dict[str, str] = {
             # directory paths, all absolute
             "root_dir": str(default_base_dir),
             "base_data_dir": str(args.data_dir.absolute()),
@@ -174,7 +212,7 @@ def main():
             # vep version is a special case, since data is retrieved after installing the software in `install_thirdparty.py`
             "vep_version": thirdparty_packages["vep"]["version"],
             # misc settings
-            "max_procs": args.max_processes,
+            "max_procs": str(args.max_processes),
         }
         if dataset.get("vars"):
             format_opts.update(dataset["vars"])
@@ -194,7 +232,9 @@ def main():
                 else:
                     message = f"Found existing {dataset_name} version {dataset_metadata['version']}, but trying to generate version {dataset_version}"
                     if args.force:
-                        logger.warning(f"{message}. Deleting {data_dir.relative_to(default_base_dir)}.")
+                        logger.warning(
+                            f"{message}. Deleting {data_dir.relative_to(default_base_dir)}."
+                        )
                         shutil.rmtree(data_dir)
                     else:
                         raise RuntimeError(
@@ -207,9 +247,13 @@ def main():
             if not raw_dir.exists():
                 raw_dir.mkdir(parents=True)
 
+            assert (
+                len(dataset["generate"]) > 0
+            ), f"Empty generate list for {dataset_name} in {args.dataset_file}, cannot create new dataset"
             for step_num, step in enumerate(dataset["generate"]):
                 logger.debug(f"DEBUG - Step {step_num}: {step}\n")
-                step_str = format_obj(step, format_opts)
+                assert isinstance(step, str)
+                step_str: str = format_obj(step, format_opts)
 
                 # if dataset allows retries (e.g., Broad's crappy FTP server), retry until max reached
                 # otherwise, bail on error
@@ -227,7 +271,14 @@ def main():
                         executable="/bin/bash",
                     )
                     if step_resp.returncode != 0:
-                        errs.append((dataset_name, step_str, step_resp.returncode, step_resp.stderr.decode("utf-8")))
+                        errs.append(
+                            (
+                                dataset_name,
+                                step_str,
+                                step_resp.returncode,
+                                step_resp.stderr.decode("utf-8"),
+                            )
+                        )
                         if num_retries >= max_retries and max_retries > 0:
                             errs.append((dataset_name, "max retries exceeded without success"))
                             break
@@ -244,15 +295,19 @@ def main():
 
             # generate md5s for each file
             md5sum_file = data_dir / "MD5SUM"
-            file_hashes = hash_directory_async(data_dir)
+            file_hashes = hash_directory_async(
+                data_dir,
+                hash_type=HashType.md5,
+                ignore=[md5sum_file.name, dataset_ready.name],
+            )
             with md5sum_file.open("wt") as md5_output:
                 for file in sorted(file_hashes, key=lambda x: x.path):
                     print(f"{file.hash}\t{file.path}", file=md5_output)
 
             # only write if process finished successfully
-            if step_success is True:
+            if step_success is True:  # type: ignore
                 fin_time = datetime.datetime.utcnow()
-                sources_data["timestamp"] = fin_time
+                sources_data["timestamp"] = fin_time  # type: ignore
                 dump_yaml(sources_data, dataset_ready.open("wt"), Dumper=Dumper)
 
             if args.cleanup:
@@ -287,7 +342,9 @@ def main():
                     logger.info("Validating downloaded data")
                     md5sum = data_dir / "MD5SUM"
                     if not md5sum.exists():
-                        logger.error(f"No MD5SUM file found for {dataset_name} at {md5sum}, cannot validate files")
+                        logger.error(
+                            f"No MD5SUM file found for {dataset_name} at {md5sum}, cannot validate files"
+                        )
                         continue
                     subprocess.run(["md5sum", "--quiet", "-c", "MD5SUM"], cwd=data_dir, check=True)
 
@@ -300,7 +357,9 @@ def main():
                         f"Data for {dataset_name} version {dataset_version} incomplete or non-existent on remote. Check requested/available versions."
                     )
                 else:
-                    logger.info(f"Data for {dataset_name} version {dataset_version} available on remote.")
+                    logger.info(
+                        f"Data for {dataset_name} version {dataset_version} available on remote."
+                    )
 
         else:
             raise Exception("This should never happen, what did you do?!")
@@ -329,7 +388,9 @@ def update_sources(sources_file, source_name, source_data):
     if source_data != old_data:
         file_json[source_name] = source_data
         sources_file.write_text(json.dumps(file_json, cls=AnnoJSONEncoder, indent=2) + "\n")
-        logger.info(f"Updated  {sources_file} for {source_name} (version: {source_data.get('version', 'N/A')})")
+        logger.info(
+            f"Updated  {sources_file} for {source_name} (version: {source_data.get('version', 'N/A')})"
+        )
     else:
         logger.info(f"Not updating {sources_file} for {source_name}: data is unchanged")
 
@@ -349,7 +410,9 @@ def update_vcfanno_toml(dataset_name, vcfanno_entries, toml_file):
     ), f"Multiple destinations detected in vcfanno entries for dataset {dataset_name}: {destinations}"
     destination = destinations[0]
 
-    new_toml_data = {"annotation": [v for v in toml_data["annotation"] if Path(v["file"]).parent != destination]}
+    new_toml_data = {
+        "annotation": [v for v in toml_data["annotation"] if Path(v["file"]).parent != destination]
+    }
 
     update_files = []
     for i, anno_entry in enumerate(vcfanno_entries):
@@ -360,7 +423,9 @@ def update_vcfanno_toml(dataset_name, vcfanno_entries, toml_file):
     if list(sorted(new_toml_data["annotation"], key=lambda x: x["file"])) != list(
         sorted(toml_data["annotation"], key=lambda x: x["file"])
     ):
-        logger.info(f"Creating new entry for {dataset_name} in {toml_file} with file(s) {', '.join(update_files)}")
+        logger.info(
+            f"Creating new entry for {dataset_name} in {toml_file} with file(s) {', '.join(update_files)}"
+        )
         try:
             toml_file.write_text(toml.dumps(new_toml_data))
             logger.info(f"Updated {toml_file} successfully")
@@ -368,7 +433,9 @@ def update_vcfanno_toml(dataset_name, vcfanno_entries, toml_file):
             logger.error(f"Error writing to {toml_file}")
             raise e
     else:
-        logger.info(f"Not updating {toml_file} for dataset {dataset_name}; entry/entries unchanged.")
+        logger.info(
+            f"Not updating {toml_file} for dataset {dataset_name}; entry/entries unchanged."
+        )
 
 
 ###
