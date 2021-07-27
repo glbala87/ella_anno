@@ -343,6 +343,17 @@ _generate_definition:
 	$(if $(DEF_USE_LOCAL),$(eval override DEF_USE_LOCAL = --local))
 	python3 ops/gen_definition_labels.py -i '$(SOURCE_IMAGE)' -o '$(DEF_FILE)' $(DEF_FORCE) $(DEF_USE_LOCAL)
 
+# creates Singularity for building the release image, run during build steps
+ci-gen-definition:
+	$(eval SOURCE_IMAGE ?= $(IMAGE_NAME))
+	$(eval DEF_FILE ?= Singularity)
+	$(if $(DEF_FORCE),$(eval override DEF_FORCE = --force))
+	$(if $(DEF_USE_LOCAL),$(eval override DEF_USE_LOCAL = --local))
+	$(eval override ANNOBUILDER_OPTS += -v "$(PWD):/local_anno")
+	$(eval RUN_CMD := python3 ops/gen_definition_labels.py -i '$(SOURCE_IMAGE)' -o '/local_anno/$(DEF_FILE)' $(DEF_FORCE) $(DEF_USE_LOCAL))
+	$(annobuilder-template)
+
+
 # NOTE: if building locally and it fails trying to extract the labels from the source Docker image
 #   you need to either build or pull the Docker image
 singularity-build: _generate_definition ## builds a singularity image from the Docker image $IMAGE_NAME
@@ -391,7 +402,7 @@ singularity-log:
 # Still uses same SINGULARITY_INSTANCE_NAME, so -stop, -test, -shell all still work
 singularity-build-dev: gen-singularityfile
 	sudo singularity build --sandbox $(SINGULARITY_SANDBOX_PATH) $(SINGULARITY_DEF_FILE)
-	sudo chown -R $(whoami). $(SINGULARITY_SANDBOX_PATH)
+	sudo chown -R $(USER). $(SINGULARITY_SANDBOX_PATH)
 
 singularity-start-dev:
 	[ -d $(SINGULARITY_DATA) ] || mkdir -p $(SINGULARITY_DATA)

@@ -3,7 +3,6 @@ import json
 import os
 import subprocess
 import sys
-from urllib.error import HTTPError
 from base64 import b64encode
 from enum import Enum
 from pathlib import Path
