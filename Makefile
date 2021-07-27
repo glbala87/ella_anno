@@ -272,14 +272,14 @@ upload-package: ## upload new/updated dataset for $PKG_NAME to DigitalOcean usin
 generate-data: ## generate all new/updated datasets based on the version in datasets.json
 	@$(call check_defined, ENTREZ_API_KEY, 'Make sure ENTREZ_API_KEY is set and exported so clinvar data can be built successfully')
 	mkdir -p $(ANNO_RAWDATA)
-	$(eval ANNOBUILDER_OPTS += -v $(ANNO_RAWDATA):/anno/rawdata)
+	$(eval override ANNOBUILDER_OPTS += -v $(ANNO_RAWDATA):/anno/rawdata)
 	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --generate)
 	$(annobuilder-template)
 
 generate-package: ## generate new/updated dataset for $PKG_NAME based on the version in datasets.json
 	@$(call check_defined, PKG_NAME, 'Use PKG_NAME to specify which package to generate')
 	mkdir -p $(ANNO_RAWDATA)
-	$(eval ANNOBUILDER_OPTS += -v $(ANNO_RAWDATA):/anno/rawdata)
+	$(eval override ANNOBUILDER_OPTS += -v $(ANNO_RAWDATA):/anno/rawdata)
 	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --generate -d $(PKG_NAME))
 	$(annobuilder-template)
 
