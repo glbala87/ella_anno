@@ -22,16 +22,12 @@ variables:
     BUILDKIT_PROGRESS: plain
 
     # we can only build to one image name, everything has to be done under tags
-    BUILDER_COMMIT_TAG: builder-$CI_COMMIT_REF_SLUG
-    BUILDER_LATEST_TAG: builder-latest
-    PROD_COMMIT_TAG: $CI_COMMIT_REF_SLUG
-    PROD_LATEST_TAG: latest
     PIPELINE_ID: anno-$CI_PIPELINE_ID
     USE_REGISTRY: 1
 
     # singularity-in-docker
     SID_IMAGE: quay.io/singularity/singularity
-    SID_VERSION: v3.8.0
+    SID_VERSION: v3.8.1
     SID_SLUG: $SID_IMAGE:$SID_VERSION
 
 stages:
@@ -45,21 +41,18 @@ stages:
         - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
 
 .release_setup: &release-setup
-    image:
+    image: $SID_SLUG
+    before_script:
+        - apk add --update make git python3 py3-click docker-cli bash
 
 # build both at once to reuse local cache
 build_docker:
     stage: build
     extends: .image_setup
     script:
-        - make build BUILD_OPTS="--cache-from=$CI_REGISTRY_IMAGE:$PROD_COMMIT_TAG --cache-from=$CI_REGISTRY_IMAGE:$PROD_LATEST_TAG --cache-from=$CI_REGISTRY_IMAGE:$BUILDER_LATEST_TAG"
-        - make build-annobuilder BUILD_OPTS="--cache-from=$CI_REGISTRY_IMAGE:$BUILDER_COMMIT_TAG --cache-from=$CI_REGISTRY_IMAGE:$PROD_COMMIT_TAG --cache-from=$CI_REGISTRY_IMAGE:$BUILDER_LATEST_TAG"
-        - docker push $CI_REGISTRY_IMAGE:$PROD_COMMIT_TAG
-        - docker push $CI_REGISTRY_IMAGE:$BUILDER_COMMIT_TAG
-        - make ci-gen-definition RELEASE_TAG=$CI_COMMIT_REF_NAME
-    artifacts:
-        paths:
-            - Singularity
+        - make ci-build-docker
+    after_script:
+        - make ci-push-docker
     tags:
         - bastion
 
@@ -67,8 +60,7 @@ check_do:
     stage: test
     extends: .image_setup
     script:
-        - docker pull $CI_REGISTRY_IMAGE:$BUILDER_COMMIT_TAG | cat || true
-        - make verify-digital-ocean
+        - make pull-builder verify-digital-ocean
     tags:
         - bastion
 
@@ -76,7 +68,7 @@ check_pipenv:
     stage: test
     extends: .image_setup
     script:
-        - make pipenv-check
+        - make pull-builder pipenv-check
     tags:
         - bastion
 
@@ -84,8 +76,7 @@ run_pytest:
     extends: .image_setup
     stage: test
     script:
-        - docker pull $CI_REGISTRY_IMAGE:$BUILDER_COMMIT_TAG | cat || true
-        - docker pull $CI_REGISTRY_IMAGE:$PROD_COMMIT_TAG | cat || true
+        - make pull
         - make download-data RUN_CMD_ARGS="--skip-validation --force"
         - make test
         - make test-ops
@@ -94,9 +85,8 @@ run_pytest:
 
 release_singularity:
     stage: release
-    extends: .image_setup
+    extends: .release_setup
     variables:
-        DEF_USE_LOCAL: 1
         RELEASE_TAG: $CI_COMMIT_REF_NAME
     script:
         - make pull-prod release

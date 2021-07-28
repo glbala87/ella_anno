@@ -88,7 +88,7 @@ COPY --chown=${ANNO_USER}:${ANNO_USER} Pipfile Pipfile.lock /anno/
 RUN VIRTUAL_ENV= pipenv install --deploy && \
     ln -s anno-NiVSU3vV ${VIRTUAL_ENV}
 # the hash after anno is deterministic and won't change as long the Pipfile is in the same place
-# ref: https://pipenv.pypa.io/en/latest/install/#virtualenv-mapping-caveat
+#   ref: https://pipenv.pypa.io/en/latest/install/#virtualenv-mapping-caveat
 
 USER root
 
@@ -131,7 +131,7 @@ COPY --chown=${ANNO_USER}:${ANNO_USER} ./bin /anno/bin
 RUN python3 /anno/ops/install_thirdparty.py --clean
 
 COPY --chown=${ANNO_USER}:${ANNO_USER} ./scripts /anno/scripts/
-COPY --chown=${ANNO_USER}:${ANNO_USER} ./ops/sync_data.py ./ops/spaces_config.json ./ops/datasets.json ./ops/package_data ./ops/unpack_data ./ops/postgresql.conf ./ops/pg_sourceme /anno/ops/
+COPY --chown=${ANNO_USER}:${ANNO_USER} ./ops /anno/ops/
 
 
 #####################

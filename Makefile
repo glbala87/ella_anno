@@ -18,9 +18,11 @@ ANNO_RAWDATA ?= $(PWD)/rawdata
 # ref: https://github.com/opencontainers/image-spec/blob/main/annotations.md
 OCI_BASE_LABEL = org.opencontainers.image
 ANNO_BASE_LABEL = io.ousamg.anno
-override BUILD_OPTS += --label $(OCI_BASE_LABEL).url=https://allel.es/anno-docs/ \
+override BUILD_OPTS += --build-arg BUILDKIT_INLINE_CACHE=1 \
+	--label $(OCI_BASE_LABEL).url=https://allel.es/anno-docs/ \
 	--label $(OCI_BASE_LABEL).revision="$(COMMIT_HASH)" \
 	--label $(ANNO_BASE_LABEL).git.url="$(REPO_URL)" \
+	--label $(ANNO_BASE_LABEL).git.commit_hash="$(COMMIT_HASH)" \
 	--label $(ANNO_BASE_LABEL).git.commit_date="$(COMMIT_DATE)" \
 	--label $(ANNO_BASE_LABEL).git.branch="$(BRANCH)"
 ifneq ($(ENTREZ_API_KEY),)
@@ -117,17 +119,13 @@ any:
 	@true
 
 build: ## build Docker image of 'prod' target named $IMAGE_NAME
-	docker build -t $(IMAGE_NAME) $(BUILD_OPTS) --build-arg BUILDKIT_INLINE_CACHE=1 --target prod .
+	docker build -t $(IMAGE_NAME) $(BUILD_OPTS) --target prod .
 
 pull: pull-builder pull-prod ## pull IMAGE_NAME and ANNOBUILDER_IMAGE_NAME from registry, requires USE_REGISTRY
 
 pull-prod: ## pull IMAGE_NAME from registry, requires USE_REGISTRY
 	$(call check_defined, USE_REGISTRY, You must set USE_REGISTRY to pull remote images)
 	docker pull $(IMAGE_NAME)
-
-pull-builder: ## pull ANNOBUILDER_IMAGE_NAME from registry, requires USE_REGISTRY
-	$(call check_defined, USE_REGISTRY, You must set USE_REGISTRY to pull remote images)
-	docker pull $(ANNOBUILDER_IMAGE_NAME)
 
 # like build, but buildkit is disabled to allow access to intermediate layers for easier debugging
 build-debug:
@@ -228,7 +226,11 @@ docker run --rm $(TERM_OPTS) \
 endef
 
 build-annobuilder: ## build Docker image of 'builder' target named $ANNOBUILDER_IMAGE_NAME
-	docker build -t $(ANNOBUILDER_IMAGE_NAME) $(BUILD_OPTS) --build-arg BUILDKIT_INLINE_CACHE=1 --target builder .
+	docker build -t $(ANNOBUILDER_IMAGE_NAME) $(BUILD_OPTS) --target builder .
+
+pull-builder: ## pull ANNOBUILDER_IMAGE_NAME from registry, requires USE_REGISTRY
+	$(call check_defined, USE_REGISTRY, You must set USE_REGISTRY to pull remote images)
+	docker pull $(ANNOBUILDER_IMAGE_NAME)
 
 # annobuilder/-shell/-exec are only run when troubleshooting data generation or adding new packages
 annobuilder: ## run image $ANNOBUILDER_IMAGE_NAME named $ANNOBUILDER_CONTAINER_NAME
@@ -338,19 +340,7 @@ _generate_definition:
 	$(eval SOURCE_IMAGE ?= $(IMAGE_NAME))
 	$(eval DEF_FILE ?= Singularity)
 	$(if $(DEF_FORCE),$(eval override DEF_FORCE = --force))
-	$(if $(DEF_USE_LOCAL),$(eval override DEF_USE_LOCAL = --local))
-	python3 ops/gen_definition_labels.py -i '$(SOURCE_IMAGE)' -o '$(DEF_FILE)' $(DEF_FORCE) $(DEF_USE_LOCAL)
-
-# creates Singularity for building the release image, run during build steps
-ci-gen-definition:
-	$(eval SOURCE_IMAGE ?= $(IMAGE_NAME))
-	$(eval DEF_FILE ?= Singularity)
-	$(if $(DEF_FORCE),$(eval override DEF_FORCE = --force))
-	$(if $(DEF_USE_LOCAL),$(eval override DEF_USE_LOCAL = --local))
-	$(eval override ANNOBUILDER_OPTS += -v "$(PWD):/local_anno")
-	$(eval RUN_CMD := python3 ops/gen_definition_labels.py -i '$(SOURCE_IMAGE)' -o '/local_anno/$(DEF_FILE)' $(DEF_FORCE) $(DEF_USE_LOCAL))
-	$(annobuilder-template)
-
+	python3 ops/gen_definition_labels.py -i '$(SOURCE_IMAGE)' -o '$(DEF_FILE)' $(DEF_FORCE)
 
 # NOTE: if building locally and it fails trying to extract the labels from the source Docker image
 #   you need to either build or pull the Docker image
@@ -426,6 +416,14 @@ singularity-untar-data: ## untar
 ##   Create release artifacts locally and on Gitlab
 ##   Variables: RELEASE_TAG, IMAGE_NAME, SINGULARITY_IMAGE_NAME
 ##---------------------------------------------
+
+ci-build-docker:
+	make build BUILD_OPTS="--cache-from=$(IMAGE_NAME)"
+	make build-annobuilder BUILD_OPTS="--cache-from=$(IMAGE_NAME) --cache-from=$(ANNOBUILDER_IMAGE_NAME)"
+
+ci-push-docker:
+	docker push $(IMAGE_NAME)
+	docker push $(ANNOBUILDER_IMAGE_NAME)
 
 check-release-tag:
 	@$(call check_defined, RELEASE_TAG, 'Missing tag. Please provide a value on the command line')
