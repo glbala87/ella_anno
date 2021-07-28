@@ -14,10 +14,14 @@ services:
 variables:
     BRANCH: $CI_COMMIT_REF_NAME
     # Use TLS https://docs.gitlab.com/ee/ci/docker/using_docker_build.html#tls-enabled
-    DOCKER_HOST: tcp://docker:2376
+    # CERTDIR used by dind
     DOCKER_TLS_CERTDIR: /certs
-    DOCKER_DRIVER: overlay2
+    # CERT_PATH and TLS_VERIFY needed by docker client in release_singularity
+    DOCKER_CERT_PATH: /certs/client
+    DOCKER_TLS_VERIFY: 1
     DOCKER_BUILDKIT: 1
+    DOCKER_DRIVER: overlay2
+    DOCKER_HOST: tcp://docker:2376
     # show useful build info
     BUILDKIT_PROGRESS: plain
 
@@ -35,20 +39,24 @@ stages:
     - test
     - release
 
-.image_setup: &image-setup
+.base_setup: &image-setup
     before_script:
-        - apk add --update make git
+        - apk add --update make git bash
         - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
 
-.release_setup: &release-setup
-    image: $SID_SLUG
-    before_script:
-        - apk add --update make git python3 py3-click docker-cli bash
+.test_setup: &test-setup
+    extends: .base_setup
+    # manual trigger if commit starts with skip-test, otherwise always
+    rules:
+        - if: '$CI_COMMIT_TITLE =~ /^skip-test\b/'
+          when: manual
+          allow_failure: true
+        - when: always
 
 # build both at once to reuse local cache
 build_docker:
     stage: build
-    extends: .image_setup
+    extends: .base_setup
     script:
         - make ci-build-docker
     after_script:
@@ -58,7 +66,7 @@ build_docker:
 
 check_do:
     stage: test
-    extends: .image_setup
+    extends: .test_setup
     script:
         - make pull-builder verify-digital-ocean
     tags:
@@ -66,14 +74,14 @@ check_do:
 
 check_pipenv:
     stage: test
-    extends: .image_setup
+    extends: .test_setup
     script:
         - make pull-builder pipenv-check
     tags:
         - bastion
 
 run_pytest:
-    extends: .image_setup
+    extends: .test_setup
     stage: test
     script:
         - make pull
@@ -82,18 +90,27 @@ run_pytest:
         - make test-ops
     tags:
         - do-large
+    rules:
+        # manual trigger if commit starts with skip-test, otherwise always
+        - if: '$CI_COMMIT_TITLE =~ /^skip-test\b/'
+          when: manual
+          allow_failure: true
+        - when: always
 
 release_singularity:
     stage: release
-    extends: .release_setup
+    image:
+        name: $SID_SLUG
+        entrypoint: ['']
     variables:
         RELEASE_TAG: $CI_COMMIT_REF_NAME
+    before_script:
+        - make ci-release-init
     script:
-        - make pull-prod release
+        - make ci-release
     artifacts:
-        name: anno-$CI_COMMIT_REF_NAME.sif
         paths:
-            - release/
+            - '*.sif'
         expire_in: 30 days
     rules:
         # automatically generate release artifacts for tags and dev
@@ -103,3 +120,5 @@ release_singularity:
         - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
           when: manual
           allow_failure: true
+    tags:
+        - bastion

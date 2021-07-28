@@ -11,7 +11,7 @@ import click
 ANNO_LABEL_BASE = "io.ousamg.anno"
 
 DEFINITION_TEMPLATE = """
-Bootstrap: docker-daemon
+Bootstrap: docker
 From: {source_image}
 
 %labels
@@ -57,7 +57,7 @@ def get_labels(source_image: str) -> str:
     "--output-file",
     "-o",
     type=click.Path(dir_okay=False, writable=True),
-    default=(Path(__file__).parents[1] / "Singularity").relative_to(Path.cwd()),
+    default=(Path(__file__).resolve().parents[1] / "Singularity").relative_to(Path.cwd()),
     show_default=True,
     help="Singularity definition file name",
 )

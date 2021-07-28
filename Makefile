@@ -334,8 +334,11 @@ pipenv-check: ## uses pipenv to check for package vulnerabilities
 ##---------------------------------------------------------------------
 .PHONY: singularity-test singularity-shell singularity-start singularity-stop
 
-# Singularity supports labels but does not inherit them from the docker container (dumb)
-# So here we generate a simple definition file just to add the labels from the source container
+# Singularity supports using labels in the definition file, but ignores any existing that already
+# exist on the images they're built off of. This is dumb, but due to be fixed in v3.9. So here we
+# generate a simple definition file just to get the metadata we bake into the docker images.
+# DEF_FORCE: if set, overwrite $DEF_FILE if it exists
+# DEF_FILE: name of the generated Singularity definition file
 _generate_definition:
 	$(eval SOURCE_IMAGE ?= $(IMAGE_NAME))
 	$(eval DEF_FILE ?= Singularity)
@@ -417,13 +420,18 @@ singularity-untar-data: ## untar
 ##   Variables: RELEASE_TAG, IMAGE_NAME, SINGULARITY_IMAGE_NAME
 ##---------------------------------------------
 
-ci-build-docker:
-	make build BUILD_OPTS="--cache-from=$(IMAGE_NAME)"
-	make build-annobuilder BUILD_OPTS="--cache-from=$(IMAGE_NAME) --cache-from=$(ANNOBUILDER_IMAGE_NAME)"
+ci-build-docker: pull
+	$(MAKE) build BUILD_OPTS="--cache-from=$(IMAGE_NAME)"
+	$(MAKE) build-annobuilder BUILD_OPTS="--cache-from=$(ANNOBUILDER_IMAGE_NAME) --cache-from=$(IMAGE_NAME)"
 
 ci-push-docker:
 	docker push $(IMAGE_NAME)
 	docker push $(ANNOBUILDER_IMAGE_NAME)
+
+ci-release-init:
+	apk add --update make git python3 py3-click docker-cli bash
+
+ci-release: pull-prod release
 
 check-release-tag:
 	@$(call check_defined, RELEASE_TAG, 'Missing tag. Please provide a value on the command line')
@@ -433,10 +441,6 @@ check-release-tag:
 # skip tag validation if run in CI, ref .gitlab-ci.yml for use cases
 release: $(if $(CI),,check-release-tag) singularity-build ## build a release SINGULARITY_IMAGE_NAME for RELEASE_TAG based on IMAGE_NAME pulled from the remote registry
 
-release-local: DEF_USE_LOCAL = 1
-release-local: check-release-tag ## build a release SINGULARITY_IMAGE_NAME for RELEASE_TAG based on a clean/newly built IMAGE_NAME
-	git archive --format tar.gz $(RELEASE_TAG) | docker build -t $(IMAGE_NAME) --target prod -
-	$(MAKE) singularity-build
 
 ##---------------------------------------------
 ## Help / Debugging
