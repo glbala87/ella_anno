@@ -8,11 +8,11 @@ COMMIT_DATE = $(shell git log -1 --pretty=format:'%cI')
 # sed is important to strip out any creds (i.e., CI token) from repo URL
 REPO_URL = $(shell git remote get-url origin | sed -e 's/.*\?@//; s/:/\//g')
 API_PORT ?= 6000-6100
-TARGETS_FOLDER ?= $(shell pwd)/anno-targets
-TARGETS_OUT ?= $(shell pwd)/anno-targets-out
-SAMPLE_REPO ?= $(shell pwd)/sample-repo
-ANNO_DATA ?= $(shell pwd)/data
-ANNO_RAWDATA ?= $(shell pwd)/rawdata
+TARGETS_FOLDER ?= $(PWD)/anno-targets
+TARGETS_OUT ?= $(PWD)/anno-targets-out
+SAMPLE_REPO ?= $(PWD)/sample-repo
+ANNO_DATA ?= $(PWD)/data
+ANNO_RAWDATA ?= $(PWD)/rawdata
 
 # Docker/Singularity labels should follow OCI standard
 # ref: https://github.com/opencontainers/image-spec/blob/main/annotations.md
@@ -23,46 +23,44 @@ override BUILD_OPTS += --label $(OCI_BASE_LABEL).url=https://allel.es/anno-docs/
 	--label $(ANNO_BASE_LABEL).git.url="$(REPO_URL)" \
 	--label $(ANNO_BASE_LABEL).git.commit_date="$(COMMIT_DATE)" \
 	--label $(ANNO_BASE_LABEL).git.branch="$(BRANCH)"
-
-RELEASE_TAG ?= $(shell git tag -l --points-at HEAD)
-ifneq ($(RELEASE_TAG),)
-override BUILD_OPTS += --label $(OCI_BASE_LABEL).version=$(RELEASE_TAG)
-ANNO_BUILD := anno-$(RELEASE_TAG)
-BUILDER_BUILD := annobuilder-$(RELEASE_TAG)
-override BUILD_OPTS += -t local/anno:$(RELEASE_TAG)
-else
-ANNO_BUILD := anno-$(BRANCH)
-BUILDER_BUILD = annobuilder-$(BRANCH)
-endif
 ifneq ($(ENTREZ_API_KEY),)
 override ANNOBUILDER_OPTS += -e ENTREZ_API_KEY=$(ENTREZ_API_KEY)
 endif
 
-# set USE_REGISTRY to use the gitlab images rather than locally built
+# set USE_REGISTRY to use the gitlab registry image names
 ifeq ($(USE_REGISTRY),)
-IMAGE_NAME ?= local/$(ANNO_BUILD)
-ANNOBUILDER_IMAGE_NAME ?= local/$(BUILDER_BUILD)
+BASE_IMAGE = local/ella-anno
 else
-REGISTRY_BASE := registry.gitlab.com/alleles/ella-anno
-ifeq ($(RELEASE_TAG),)
-IMAGE_NAME = $(REGISTRY_BASE):$(BRANCH)
-ANNOBUILDER_IMAGE_NAME = $(REGISTRY_BASE):builder-$(BRANCH)
-else
-IMAGE_NAME = $(REGISTRY_BASE):$(RELEASE_TAG)
-ANNOBUILDER_IMAGE_NAME = $(REGISTRY_BASE):builder-$(RELEASE_TAG)
-endif
+BASE_IMAGE = registry.gitlab.com/alleles/ella-anno
 endif
 
-CONTAINER_NAME ?= $(ANNO_BUILD)-$(USER)
-ANNOBUILDER_CONTAINER_NAME ?= $(BUILDER_BUILD)
-SINGULARITY_IMAGE_NAME ?= $(ANNO_BUILD).sif
-SINGULARITY_SANDBOX_PATH = $(ANNO_BUILD)/
-SINGULARITY_INSTANCE_NAME ?= $(ANNO_BUILD)-$(USER)
-SINGULARITY_DATA = $(shell pwd)/singularity
+# Use release/annotated git tag if available, otherwise branch name
+RELEASE_TAG ?= $(shell git tag -l --points-at HEAD)
+ifneq ($(RELEASE_TAG),)
+override BUILD_OPTS += --label $(OCI_BASE_LABEL).version=$(RELEASE_TAG)
+PROD_TAG = $(RELEASE_TAG)
+BUILDER_TAG = builder-$(RELEASE_TAG)
+else
+PROD_TAG = $(BRANCH)
+BUILDER_TAG = builder-$(BRANCH)
+endif
+
+# combine image / tags from above for docker slug, or use provided
+IMAGE_NAME ?= $(BASE_IMAGE):$(PROD_TAG)
+ANNOBUILDER_IMAGE_NAME ?= $(BASE_IMAGE):$(BUILDER_TAG)
+# default names when running prod or builder docker images
+CONTAINER_NAME ?= anno-$(PROD_TAG)-$(USER)
+ANNOBUILDER_CONTAINER_NAME ?= anno-$(BUILDER_TAG)-$(USER)
+
+# singularity naming should mirror docker, but ignores builder
+SINGULARITY_IMAGE_NAME ?= anno-$(PROD_TAG).sif
+SINGULARITY_SANDBOX_PATH = anno-$(PROD_TAG)/
+SINGULARITY_INSTANCE_NAME ?= $(CONTAINER_NAME)
+SINGULARITY_DATA = $(PWD)/singularity
 SINGULARITY_LOG_DIR = $(HOME)/.singularity/instances/logs/$(shell hostname)/$(USER)
 SINGULARITY_LOG_STDERR = $(SINGULARITY_LOG_DIR)/$(SINGULARITY_INSTANCE_NAME).err
 SINGULARITY_LOG_STDOUT = $(SINGULARITY_LOG_DIR)/$(SINGULARITY_INSTANCE_NAME).out
-SINGULARITY_ANNO_LOGS := $(shell pwd)/logs
+SINGULARITY_ANNO_LOGS := $(PWD)/logs
 # Large tmp storage is needed for gnomAD data generation. Set this to somewhere with at least 50GB of space if not
 # available on /tmp's partition
 TMP_DIR ?= /tmp
