@@ -1,67 +1,79 @@
 #!/bin/bash -euf
 
-
 TAR_OUTPUT=${TAR_OUTPUT:-/anno/data/data.tar}
 DATASETS=${DATASETS:-/anno/ops/datasets.json}
 PKG_NAMES=${PKG_NAMES:-}
 
 pushd /anno/data
-tmp=$(tempfile -d $(pwd) -s .tar)
+tmp=$(mktemp -d "$PWD" -s .tar)
 
-function rm_tmp() {
+rm_tmp() {
     EXIT_CODE=$?
-    if [ ! $EXIT_CODE -eq 0 ]
-    then
-        rm $tmp
+    if [ ! $EXIT_CODE -eq 0 ]; then
+        rm "$tmp"
     fi
+}
+
+update_tar() {
+    if [[ $# -lt 2 ]]; then
+        echo "update_tar needs at least two args, but got $#: '$*'" >&2
+        exit 1
+    fi
+    local tarfile=$1
+    local newfile=$2
+    local tar_args=("${@:3}")
+    if [[ ${#tar_args[@]} -eq 0 ]]; then
+        # default: keep existing files
+        tar_args[0]=-k
+    fi
+    tar "${tar_args[@]}" -u -f "$tarfile" "$newfile"
 }
 
 trap rm_tmp EXIT
 
-PKG_IN_ARCHIVE=$(tempfile)
+PKG_IN_ARCHIVE=$(mktemp)
 if [[ -f ${TAR_OUTPUT} ]]; then
-    cp ${TAR_OUTPUT} $tmp
+    cp "$TAR_OUTPUT" "$tmp"
     # Read out package names in archive (add them back at the end)
-    tar -xOf $tmp PACKAGES > $PKG_IN_ARCHIVE
-    tar -f $tmp --delete PACKAGES || true
+    tar -xOf "$tmp" PACKAGES >"$PKG_IN_ARCHIVE"
+    tar -f "$tmp" --delete PACKAGES || true
 fi
 
-tar -k -u -f $tmp sources.json
+# update the tar to include sources.json
+update_tar "$tmp" sources.json
 
 if [[ -z $PKG_NAMES ]]; then
     echo "No PKG_NAMES specified, tarring all datasets"
-    IFS="\",[]" read -ra _PKG_NAMES_ARRAY <<< $(jq -cr keys $DATASETS)
+    IFS="\",[]" read -ra _PKG_NAMES_ARRAY <<<"$(jq -cr keys "$DATASETS")"
 else
-    IFS="," read -ra _PKG_NAMES_ARRAY <<< $PKG_NAMES
+    IFS="," read -ra _PKG_NAMES_ARRAY <<<"$PKG_NAMES"
 fi
 IFS=
-_PKG_NAMES_ARRAY=(${_PKG_NAMES_ARRAY[@]});
+_PKG_NAMES_ARRAY=("${_PKG_NAMES_ARRAY[@]}")
 
-for PKG_NAME in "${_PKG_NAMES_ARRAY[@]}"
-do
-    folder=$(jq -r ".${PKG_NAME}.destination" $DATASETS)
-    if [[ "${folder}" == "null" ]]; then
+for PKG_NAME in "${_PKG_NAMES_ARRAY[@]}"; do
+    folder=$(jq -r ".$PKG_NAME.destination" "$DATASETS")
+    if [[ "$folder" == "null" ]]; then
         echo "Unable to find package $PKG_NAME in $DATASETS. Continuing."
         continue
     fi
 
     echo "Adding $PKG_NAME to archive"
-    tar -k -u -f $tmp $folder
-    echo $PKG_NAME >> $PKG_IN_ARCHIVE
+    update_tar "$tmp" "$folder"
+    echo "$PKG_NAME" >>"$PKG_IN_ARCHIVE"
 done
-
 
 COLOROFF='\033[0m'
 LIGHTGREEN='\033[1;32m'
 
 echo "Adding package list to archive and verifying data"
-cat $PKG_IN_ARCHIVE | sort | uniq > PACKAGES
-tar -W -u -f $tmp PACKAGES
+sort "$PKG_IN_ARCHIVE" | uniq >PACKAGES
+update_tar "$tmp" PACKAGES -W
 echo "Packages in archive: "
-tar -xOf $tmp PACKAGES
+tar -xOf "$tmp" PACKAGES
 
-echo -e ${LIGHTGREEN}"\nVerifying temporary file\n\n"$(tar -vdf $tmp)${COLOROFF}
+echo -e "${LIGHTGREEN}\nVerifying temporary file\n\n$(tar -vdf "$tmp")${COLOROFF}"
 
 rm PACKAGES
-mv $tmp $TAR_OUTPUT
+mv "$tmp" "$TAR_OUTPUT"
 echo -e "\nCreated $TAR_OUTPUT"
