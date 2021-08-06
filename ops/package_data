@@ -5,12 +5,12 @@ DATASETS=${DATASETS:-/anno/ops/datasets.json}
 PKG_NAMES=${PKG_NAMES:-}
 
 pushd /anno/data
-tmp=$(mktemp -d "$PWD" -s .tar)
+tmp_tarfile=$(mktemp -p "$PWD" --suffix=.tar)
 
 rm_tmp() {
     EXIT_CODE=$?
     if [ ! $EXIT_CODE -eq 0 ]; then
-        rm "$tmp"
+        rm "$tmp_tarfile"
     fi
 }
 
@@ -33,23 +33,21 @@ trap rm_tmp EXIT
 
 PKG_IN_ARCHIVE=$(mktemp)
 if [[ -f ${TAR_OUTPUT} ]]; then
-    cp "$TAR_OUTPUT" "$tmp"
+    cp "$TAR_OUTPUT" "$tmp_tarfile"
     # Read out package names in archive (add them back at the end)
-    tar -xOf "$tmp" PACKAGES >"$PKG_IN_ARCHIVE"
-    tar -f "$tmp" --delete PACKAGES || true
+    tar -xOf "$tmp_tarfile" PACKAGES >"$PKG_IN_ARCHIVE"
+    tar -f "$tmp_tarfile" --delete PACKAGES || true
 fi
 
 # update the tar to include sources.json
-update_tar "$tmp" sources.json
+update_tar "$tmp_tarfile" sources.json
 
 if [[ -z $PKG_NAMES ]]; then
     echo "No PKG_NAMES specified, tarring all datasets"
-    IFS="\",[]" read -ra _PKG_NAMES_ARRAY <<<"$(jq -cr keys "$DATASETS")"
+    mapfile -t _PKG_NAMES_ARRAY < <(jq -r 'keys[]' "$DATASETS")
 else
-    IFS="," read -ra _PKG_NAMES_ARRAY <<<"$PKG_NAMES"
+    mapfile -t _PKG_NAMES_ARRAY < <(echo "$PKG_NAMES" | tr , $'\n')
 fi
-IFS=
-_PKG_NAMES_ARRAY=("${_PKG_NAMES_ARRAY[@]}")
 
 for PKG_NAME in "${_PKG_NAMES_ARRAY[@]}"; do
     folder=$(jq -r ".$PKG_NAME.destination" "$DATASETS")
@@ -59,7 +57,7 @@ for PKG_NAME in "${_PKG_NAMES_ARRAY[@]}"; do
     fi
 
     echo "Adding $PKG_NAME to archive"
-    update_tar "$tmp" "$folder"
+    update_tar "$tmp_tarfile" "$folder"
     echo "$PKG_NAME" >>"$PKG_IN_ARCHIVE"
 done
 
@@ -68,12 +66,12 @@ LIGHTGREEN='\033[1;32m'
 
 echo "Adding package list to archive and verifying data"
 sort "$PKG_IN_ARCHIVE" | uniq >PACKAGES
-update_tar "$tmp" PACKAGES -W
+update_tar "$tmp_tarfile" PACKAGES -W
 echo "Packages in archive: "
-tar -xOf "$tmp" PACKAGES
+tar -xOf "$tmp_tarfile" PACKAGES
 
-echo -e "${LIGHTGREEN}\nVerifying temporary file\n\n$(tar -vdf "$tmp")${COLOROFF}"
+echo -e "${LIGHTGREEN}\nVerifying temporary file\n\n$(tar -vdf "$tmp_tarfile")${COLOROFF}"
 
 rm PACKAGES
-mv "$tmp" "$TAR_OUTPUT"
+mv "$tmp_tarfile" "$TAR_OUTPUT"
 echo -e "\nCreated $TAR_OUTPUT"

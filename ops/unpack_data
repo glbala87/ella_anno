@@ -16,21 +16,21 @@ echo() {
 cleanup() {
     EXIT_CODE=$?
     trap - EXIT SIGINT SIGQUIT SIGTERM
-    if [ ! $EXIT_CODE -eq 0 ]; then
+    if [[ $EXIT_CODE != 0 ]]; then
         echo -e "${RED}Something went wrong with unpacking data. Reverting changes.$COLOROFF"
         echo "Removing extracted files"
-        # Actually remove files created after TIMESTAMP
-        find . -type f -cnewer $TMP_BACKUP/TIMESTAMP -not -path "./$TMP_BACKUP*" -delete
+        # Remove files created after TIMESTAMP
+        find . -type f -cnewer $TMP_BACKUP/TIMESTAMP -not -path "./$TMP_BACKUP*" -delete -print
         rm $TMP_BACKUP/TIMESTAMP
-        find . -type d -empty -delete
+        find . -type d -empty -not -path "./$TMP_BACKUP" -delete -print
 
         pushd "$ANNO_DATA/$TMP_BACKUP" >/dev/null
         echo "Applying backup"
         # First create directories, then move back files
-        find . -type d -exec mkdir -p "$ANNO_DATA/"{} \;
-        find . -type f -exec mv {} "$ANNO_DATA/"{} \;
+        find . -type d -exec mkdir -p "$ANNO_DATA/"{} \; -print
+        find . -type f -exec mv {} "$ANNO_DATA/"{} \; -print
         popd >/dev/null
-        find . -type d -empty -delete
+        find . -type d -empty -delete -print
         echo "${LIGHTGREEN}Changes reverted.${COLOROFF}"
     else
         rm -r $TMP_BACKUP
@@ -55,11 +55,10 @@ sleep 1 # Add sleep here so files are created after TIMESTAMP (apparently some m
 
 mapfile -t BACKUP_DIRS < <(tar -tf "$TAR_INPUT" | grep -E '/$')
 for dirname in "${BACKUP_DIRS[@]}"; do
-    # if a dir in the tar file exists locally, move it to the temp backup until update finishes
-    if [[ -d "$dirname" ]]; then
+    # if a dir in the tar file is non-empty locally, move it to the temp backup until update finishes
+    if [[ -n $(find "$dirname" -maxdepth 0 -type d ! -empty -print) ]]; then
         mkdir -p "$TMP_BACKUP/$dirname"
-        mv "$dirname"* "$TMP_BACKUP/$dirname"
-        rmdir "$dirname"
+        mv "$dirname" "$TMP_BACKUP/"
     fi
 done
 
