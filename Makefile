@@ -14,6 +14,13 @@ SAMPLE_REPO ?= $(PWD)/sample-repo
 ANNO_DATA ?= $(PWD)/data
 ANNO_RAWDATA ?= $(PWD)/rawdata
 
+# set USE_REGISTRY to use the gitlab registry image names
+ifeq ($(USE_REGISTRY),)
+BASE_IMAGE = local/ella-anno
+else
+BASE_IMAGE = registry.gitlab.com/alleles/ella-anno
+endif
+
 # Docker/Singularity labels should follow OCI standard
 # ref: https://github.com/opencontainers/image-spec/blob/main/annotations.md
 OCI_BASE_LABEL = org.opencontainers.image
@@ -27,13 +34,6 @@ override BUILD_OPTS += --build-arg BUILDKIT_INLINE_CACHE=1 \
 	--label $(ANNO_BASE_LABEL).git.branch="$(BRANCH)"
 ifneq ($(ENTREZ_API_KEY),)
 override ANNOBUILDER_OPTS += -e ENTREZ_API_KEY=$(ENTREZ_API_KEY)
-endif
-
-# set USE_REGISTRY to use the gitlab registry image names
-ifeq ($(USE_REGISTRY),)
-BASE_IMAGE = local/ella-anno
-else
-BASE_IMAGE = registry.gitlab.com/alleles/ella-anno
 endif
 
 # Use release/annotated git tag if available, otherwise branch name
@@ -68,7 +68,7 @@ SINGULARITY_ANNO_LOGS := $(PWD)/logs
 TMP_DIR ?= /tmp
 
 # get user / group ID so data generated/downloaded isn't root owned
-DOCKER_USER ?= $(shell id -u):$(shell id -g)
+UID_GID ?= $(shell id -u):$(shell id -g)
 
 # Use docker buildkit for faster builds
 DOCKER_BUILDKIT ?= 1
@@ -218,7 +218,7 @@ $(if
 )
 docker run --rm $(TERM_OPTS) \
 	$(ANNOBUILDER_OPTS) \
-	-u "$(DOCKER_USER)" \
+	-u "$(UID_GID)" \
 	-v $(TMP_DIR):/tmp \
 	-v $(ANNO_DATA):/anno/data \
 	$(ANNOBUILDER_IMAGE_NAME) \
@@ -337,13 +337,21 @@ pipenv-check: ## uses pipenv to check for package vulnerabilities
 # Singularity supports using labels in the definition file, but ignores any existing that already
 # exist on the images they're built off of. This is dumb, but due to be fixed in v3.9. So here we
 # generate a simple definition file just to get the metadata we bake into the docker images.
-# DEF_FORCE: if set, overwrite $DEF_FILE if it exists
-# DEF_FILE: name of the generated Singularity definition file
+# DEF_FILE: the name of the generated Singularity definition file
+# DEF_LABEL: string used as base for new labels
+# DEF_FORCE: non-empty to automatically overwrite an existing 
+# DEF_BOOTSTRAP: bootstrap method to use in the definition file
+DEF_SOURCE ?= $(IMAGE_NAME)
+DEF_FILE ?= Singularity
+DEF_LABEL ?= $(ANNO_BASE_LABEL)
+DEF_FORCE ?=
+DEF_BOOTSTRAP ?=
+PYTHON3 := $(shell command -v python3)
 _generate_definition:
-	$(eval SOURCE_IMAGE ?= $(IMAGE_NAME))
-	$(eval DEF_FILE ?= Singularity)
-	$(if $(DEF_FORCE),$(eval override DEF_FORCE = --force))
-	python3 ops/gen_definition_labels.py -i '$(SOURCE_IMAGE)' -o '$(DEF_FILE)' $(DEF_FORCE)
+	$(eval _DEF_ARGS = -i '$(DEF_SOURCE)' -o '$(DEF_FILE)' -l $(DEF_LABEL))
+	$(if $(DEF_FORCE),$(eval _DEF_ARGS += --force))
+	$(if $(DEF_BOOTSTRAP),$(eval _DEF_ARGS +=  -b $(DEF_BOOTSTRAP)))
+	$(PYTHON3) ops/gen_definition_labels.py $(_DEF_ARGS)
 
 # NOTE: if building locally and it fails trying to extract the labels from the source Docker image
 #   you need to either build or pull the Docker image
@@ -392,8 +400,8 @@ singularity-log:
 # Sandbox dev options so don't have to rebuild the image all the time
 # Still uses same SINGULARITY_INSTANCE_NAME, so -stop, -test, -shell all still work
 singularity-build-dev: gen-singularityfile
-	sudo singularity build --sandbox $(SINGULARITY_SANDBOX_PATH) $(SINGULARITY_DEF_FILE)
-	sudo chown -R $(USER). $(SINGULARITY_SANDBOX_PATH)
+	$(SUDO) singularity build --sandbox $(SINGULARITY_SANDBOX_PATH) $(SINGULARITY_DEF_FILE)
+	$(SUDO) chown -R $(USER). $(SINGULARITY_SANDBOX_PATH)
 
 singularity-start-dev:
 	[ -d $(SINGULARITY_DATA) ] || mkdir -p $(SINGULARITY_DATA)
@@ -486,6 +494,6 @@ _list_vars:
 _disable_origins:
 	$(eval VAR_ORIGIN = )
 
-ENV = $(shell which env)
+ENV = $(shell command -v env)
 local-vars: _disable_origins _list_vars ## print out vars set by command line and in the Makefile
 	@true
