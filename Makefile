@@ -428,8 +428,8 @@ singularity-untar-data: ## untar
 ##   Variables: RELEASE_TAG, IMAGE_NAME, SINGULARITY_IMAGE_NAME
 ##---------------------------------------------
 
-ci-build-docker: pull
-	$(MAKE) build BUILD_OPTS="--cache-from=$(IMAGE_NAME)"
+ci-build-docker:
+	$(MAKE) build BUILD_OPTS="--cache-from=$(IMAGE_NAME) --cache-from=$(ANNOBUILDER_IMAGE_NAME)"
 	$(MAKE) build-annobuilder BUILD_OPTS="--cache-from=$(ANNOBUILDER_IMAGE_NAME) --cache-from=$(IMAGE_NAME)"
 
 ci-push-docker:

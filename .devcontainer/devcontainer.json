@@ -1,7 +1,7 @@
 {
     // Reference: https://code.visualstudio.com/docs/remote/devcontainerjson-reference
 
-    "name": "Anno from Dockerfile",
+    "name": "Anno",
 
     // Sets the run context to one level up instead of the .devcontainer folder.
     "context": "..",
@@ -11,32 +11,50 @@
 
     // Set *default* container specific settings.json values on container create.
     "settings": {
-        "terminal.integrated.defaultProfile.linux": "bash",
-        "editor.formatOnSave": true,
-        "editor.defaultFormatter": "esbenp.prettier-vscode",
         "[python]": {
             "editor.defaultFormatter": null
         },
-        "python.linting.flake8Enabled": true,
-        "python.linting.pylintEnabled": false,
-        "python.linting.mypyEnabled": true,
-        "python.linting.enabled": true,
-        "python.formatting.provider": "black",
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.formatOnSave": true,
+        "files.watcherExclude": {
+            "**/.git/objects/**": true,
+            "**/.git/subtree-cache/**": true,
+            "**/node_modules/**": true,
+            ".venv/*": true,
+            "anno-targets-out/*": true,
+            "anno-targets/*": true,
+            "data/*": true,
+            "rawdata/*": true
+        },
+        "python.analysis.extraPaths": [
+            "${containerWorkspaceFolder}/src",
+            "${containerWorkspaceFolder}/ops"
+        ],
         "python.formatting.blackPath": "black",
-        "python.linting.flake8Path": "flake8",
+        "python.formatting.provider": "black",
         "python.languageServer": "Pylance",
-        "python.analysis.extraPaths": ["${containerWorkspaceFolder}/src"],
+        "python.linting.enabled": true,
+        "python.linting.flake8Enabled": true,
+        "python.linting.flake8Path": "flake8",
+        "python.linting.mypyEnabled": true,
+        "python.linting.pylintEnabled": false,
+        "python.testing.cwd": "${containerWorkspaceFolder}",
         "python.testing.pytestEnabled": true,
-        "python.testing.cwd": "${containerWorkspaceFolder}"
+        "shellcheck.customArgs": ["-x", "-o", "require-variable-braces,avoid-nullary-conditions"],
+        "shellformat.flag": "-ci -bn -i 4",
+        "shellformat.path": "/usr/local/bin/shfmt",
+        "terminal.integrated.defaultProfile.linux": "bash"
     },
 
     // Extensions are cached on a docker volume (see mounts)
     // This volume must be deleted to see extension updates/changes
     "extensions": [
+        "eamodio.gitlens",
         "esbenp.prettier-vscode",
-        "foxundermoon.shs-format",
+        "foxundermoon.shell-format",
         "gitlab.gitlab-workflow",
         "ms-azuretools.vscode-docker",
+        "richie5um2.vscode-sort-json",
         "ms-python.python",
         "ms-python.vscode-pylance",
         "timonwong.shellcheck",
@@ -44,7 +62,7 @@
     ],
 
     "build": {
-        "target": "builder"
+        "target": "dev"
     },
 
     "containerEnv": {
@@ -71,9 +89,9 @@
     "workspaceMount": "source=${localWorkspaceFolder},target=/anno,type=bind",
     // cache extensions to save time on container rebuild
     "mounts": [
-        "source=${localWorkspaceFolderBasename}-exts,target=/home/vscode/.vscode-server/extensions,type=volume"
-        // Override workspace settings, tasks and launch configs. Uncomment to keep workspace configs.
-        // "source=${localWorkspaceFolder}/.devcontainer,target=/anno/.vscode,type=bind"
+        "source=${localWorkspaceFolderBasename}-exts,target=/home/anno-user/.vscode-server/extensions,type=volume",
+        // Override local/user workspace settings, tasks and launch configs
+        "source=${localWorkspaceFolder}/.devcontainer,target=${containerWorkspaceFolder}/.vscode,type=bind"
     ],
 
     "workspaceFolder": "/anno"

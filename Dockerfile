@@ -133,9 +133,40 @@ RUN python3 /anno/ops/install_thirdparty.py --clean
 COPY --chown=${ANNO_USER}:${ANNO_USER} ./scripts /anno/scripts/
 COPY --chown=${ANNO_USER}:${ANNO_USER} ./ops /anno/ops/
 
+#####################
+# Devcontainer
+#####################
+
+# part builder, part prod
+
+FROM builder AS dev
+
+USER root
+ARG SHFMT_VERSION=v3.3.1
+# need to manually install shfmt for shell-format extension
+RUN wget https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_amd64 -O /root/shfmt && \
+    install -m=755 /root/shfmt /usr/local/bin/shfmt
+
+ENV ANNO=/anno \
+    FASTA=/anno/data/FASTA/human_g1k_v37_decoy.fasta.gz \
+    TARGETS=/targets \
+    PYTHONPATH=/anno/src \
+    TARGETS_OUT=/targets-out \
+    SAMPLES=/samples \
+    LD_LIBRARY_PATH=/anno/thirdparty/ensembl-vep-release/htslib \
+    WORKFOLDER=/tmp/annowork \
+    ANNO_DATA=/anno/data
+ENV PATH=${TARGETS}/targets:${PATH}
+
+RUN umask 000 && mkdir -p ${TARGETS} ${TARGETS_OUT} ${SAMPLES} /scratch && \
+    chown ${ANNO_USER}:${ANNO_USER} ${TARGETS} ${TARGETS_OUT} ${SAMPLES} /scratch
+
 # set up perms for extension volume/cache
-RUN mkdir -p /home/anno-user/.vscode-server/extensions && \
-    chown -R anno-user:anno-user /home/anno-user
+RUN mkdir -p /home/${ANNO_USER}/.vscode-server/extensions && \
+    chown -R ${ANNO_USER}:${ANNO_USER} /home/${ANNO_USER}
+
+# Set supervisor as default cmd
+CMD ["/anno/ops/entrypoint.sh"]
 
 
 #####################
