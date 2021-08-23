@@ -15,17 +15,17 @@ check_packages() {
 do_update() {
     # save the existing venv in case we want to compare
     VENV_DIR=$(readlink -f "$(pipenv --venv)")
-    if [[ -d "$VENV_DIR" ]]; then
-        mv "$VENV_DIR" "${VENV_DIR}.old"
+    if [[ -d "${VENV_DIR}" ]]; then
+        mv "${VENV_DIR}" "${VENV_DIR}.old"
     fi
 
     # nuke the existing lockfile and start fresh
-    mv "$PIPENV_PIPFILE.lock" "$PIPENV_PIPFILE.lock.old"
+    mv "${PIPENV_PIPFILE}.lock" "${PIPENV_PIPFILE}.lock.old"
 
     pipenv install --dev
 
     # copy to locally mounted
-    cp "$PIPENV_PIPFILE.lock" /local_anno/
+    cp "${PIPENV_PIPFILE}.lock" /local_anno/
 }
 
 check_packages

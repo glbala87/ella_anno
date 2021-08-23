@@ -173,6 +173,9 @@ test-ops: ## run the ops tests in $IMAGE_NAME. WARNING: will overwrite data dir 
 	--name $(CONTAINER_NAME)-ops-test \
 	$(IMAGE_NAME) /anno/ops/run_ops_tests.sh
 
+test-lint: ## run shellcheck/shfmt linting on all bash scripts
+	python3 $(PWD)/tests/opstests/lint_shell_scripts.py
+
 localclean: ## remove data, rawdata, thirdparty dirs and docker volumes
 	rm -rf thirdparty/ data/ rawdata/
 	-docker volume rm ella-anno-exts
@@ -317,8 +320,7 @@ pipenv-update: ## updates Pipfile.lock using $IMAGE_NAME, under development
 		-u anno-user \
 		-v $(PWD):/local_anno \
 		$(IMAGE_NAME) \
-		/bin/bash
-		# /anno/ops/update_pipfile.sh
+		/anno/ops/update_pipfile.sh
 
 # uses annobuilder image to check dev and prod dependencies
 pipenv-check: ## uses pipenv to check for package vulnerabilities
