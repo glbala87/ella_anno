@@ -147,6 +147,8 @@ ARG SHFMT_VERSION=v3.3.1
 RUN wget https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_amd64 -O /root/shfmt && \
     install -m=755 /root/shfmt /usr/local/bin/shfmt
 
+RUN apt-get update && apt-get install -y --no-install-recommends shellcheck
+
 ENV ANNO=/anno \
     FASTA=/anno/data/FASTA/human_g1k_v37_decoy.fasta.gz \
     TARGETS=/targets \

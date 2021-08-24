@@ -34,6 +34,9 @@ variables:
     SID_VERSION: v3.8.1
     SID_SLUG: $SID_IMAGE:$SID_VERSION
 
+    # ignore any breakpoint()s that might have made it into a commit
+    PYTHONBREAKPOINT: 0
+
 stages:
     - build
     - test
@@ -41,7 +44,7 @@ stages:
 
 .base_setup: &image-setup
     before_script:
-        - apk add --update make git bash
+        - apk add --no-cache --update make git bash jq
         - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
 
 .test_setup: &test-setup
@@ -79,6 +82,14 @@ check_pipenv:
         - make pull-builder pipenv-check
     tags:
         - bastion
+
+shellcheck:
+    stage: test
+    extends: .test_setup
+    script:
+        - make ci-build-devcontainer test-lint
+    tags:
+        - do-small
 
 run_pytest:
     extends: .test_setup

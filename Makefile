@@ -46,10 +46,12 @@ else
 PROD_TAG = $(BRANCH)
 BUILDER_TAG = builder-$(BRANCH)
 endif
+DEVC_TAG = $(PROD_TAG)-devcontainer
 
 # combine image / tags from above for docker slug, or use provided
 IMAGE_NAME ?= $(BASE_IMAGE):$(PROD_TAG)
 ANNOBUILDER_IMAGE_NAME ?= $(BASE_IMAGE):$(BUILDER_TAG)
+DEVC_IMAGE_NAME ?= $(BASE_IMAGE):$(DEVC_TAG)
 # default names when running prod or builder docker images
 CONTAINER_NAME ?= anno-$(PROD_TAG)-$(USER)
 ANNOBUILDER_CONTAINER_NAME ?= anno-$(BUILDER_TAG)-$(USER)
@@ -131,6 +133,9 @@ pull-prod: ## pull IMAGE_NAME from registry, requires USE_REGISTRY
 build-debug:
 	DOCKER_BUILDKIT= docker build -t $(IMAGE_NAME) $(BUILD_OPTS) --target prod .
 
+build-devcontainer:
+	docker build -t $(DEVC_IMAGE_NAME) $(BUILD_OPTS) --target dev .
+
 run: ## run image $IMAGE_NAME, with container named $CONTAINER_NAME :: API_PORT and ANNO_OPTS available as variables"
 	docker run -d \
 	-e TARGET_DATA=/target_data \
@@ -174,7 +179,9 @@ test-ops: ## run the ops tests in $IMAGE_NAME. WARNING: will overwrite data dir 
 	$(IMAGE_NAME) /anno/ops/run_ops_tests.sh
 
 test-lint: ## run shellcheck/shfmt linting on all bash scripts
-	python3 $(PWD)/tests/opstests/lint_shell_scripts.py
+	$(eval override ANNOBUILDER_OPTS += -v $(PWD)/.devcontainer:/anno/.devcontainer)
+	$(eval RUN_CMD := python3 $(PWD)/tests/opstests/lint_shell_scripts.py)
+	docker run -u "$(UID_GID)" $(TERM_OPTS) -v "$(PWD):/anno" $(DEVC_IMAGE_NAME) python3 tests/opstests/lint_shell_scripts.py
 
 localclean: ## remove data, rawdata, thirdparty dirs and docker volumes
 	rm -rf thirdparty/ data/ rawdata/
@@ -433,6 +440,9 @@ singularity-untar-data: ## untar
 ci-build-docker:
 	$(MAKE) build BUILD_OPTS="--cache-from=$(IMAGE_NAME) --cache-from=$(ANNOBUILDER_IMAGE_NAME)"
 	$(MAKE) build-annobuilder BUILD_OPTS="--cache-from=$(ANNOBUILDER_IMAGE_NAME) --cache-from=$(IMAGE_NAME)"
+
+ci-build-devcontainer:
+	$(MAKE) build-devcontainer BUILD_OPTS="--cache-from=$(ANNOBUILDER_IMAGE_NAME) --cache-from=$(IMAGE_NAME)"
 
 ci-push-docker:
 	docker push $(IMAGE_NAME)

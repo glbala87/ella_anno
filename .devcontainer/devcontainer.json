@@ -40,7 +40,7 @@
         "python.linting.pylintEnabled": false,
         "python.testing.cwd": "${containerWorkspaceFolder}",
         "python.testing.pytestEnabled": true,
-        "shellcheck.customArgs": ["-x", "-o", "require-variable-braces,avoid-nullary-conditions"],
+        "shellcheck.customArgs": ["-x"],
         "shellformat.flag": "-ci -bn -i 4",
         "shellformat.path": "/usr/local/bin/shfmt",
         "terminal.integrated.defaultProfile.linux": "bash"
@@ -49,6 +49,7 @@
     // Extensions are cached on a docker volume (see mounts)
     // This volume must be deleted to see extension updates/changes
     "extensions": [
+        "bungcip.better-toml",
         "eamodio.gitlens",
         "esbenp.prettier-vscode",
         "foxundermoon.shell-format",

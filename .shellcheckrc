@@ -1,0 +1,2 @@
+enable=require-variable-braces,avoid-nullary-conditions,external-sources
+disable=SC1091
