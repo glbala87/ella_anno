@@ -17,10 +17,19 @@ logger = logging.getLogger()
 log_template = "%(asctime)s - %(name)s - %(levelname)-7s - %(message)s"
 log_format = logging.Formatter(log_template)
 
-REPO_ROOT = Path(__file__).parents[2]
-CHECK_DIRS = ["bin", "ops", "scripts", "src", "tests"]
-CHECK_PATHS = [REPO_ROOT / d for d in CHECK_DIRS]
-DEVC_JSON = REPO_ROOT / ".devcontainer" / "devcontainer.json"
+###
+
+
+def find_root() -> Path:
+    this_dir = Path(__file__).resolve().parent
+    for p in [this_dir, *this_dir.parents]:
+        git_cfg = p / ".git" / "config"
+        if git_cfg.exists() and git_cfg.is_file():
+            return p
+    raise FileNotFoundError(f"Unable to locate repo root starting from {this_dir}")
+
+
+IGNORE_DIRS = [".venv", ".git", "release", "build", "scratch", "thirdparty"]
 IGNORE_NAMES = ["MD5SUM", "DATA_READY"]
 INCLUDE_SUFFIX = [".sh", ""]
 RE_SHEBANG = re.compile(r"^#!(?:/bin/|/usr/bin/env )(?:ba)sh\b")
@@ -90,10 +99,17 @@ class Linter:
             return LintError(
                 self._type,
                 res.returncode,
-                str(file.relative_to(REPO_ROOT)),
+                str(file),
                 cmd,
                 res.stdout.strip(),
             )
+        return None
+
+
+@dataclass
+class LinterSettings:
+    shfmt: list[str]
+    shellcheck: list[str]
 
 
 ###
@@ -123,16 +139,7 @@ def set_logs(verbose: bool = False):
 ###
 
 
-def find_scripts() -> Sequence[Path]:
-    files: list[Path] = []
-    for dir in CHECK_PATHS:
-        dir_files = _walk_dir(dir)
-        if dir_files:
-            files.extend(dir_files)
-    return files
-
-
-def _walk_dir(dir_name: Path) -> Sequence[Path]:
+def find_scripts(dir_name: Path) -> Sequence[Path]:
     files = []
     for child in dir_name.resolve().iterdir():
         if child.is_file():
@@ -145,15 +152,40 @@ def _walk_dir(dir_name: Path) -> Sequence[Path]:
                     try:
                         l = fh.readline()
                     except UnicodeDecodeError:
-                        logger.info(f"skipping binary file: {child}")
+                        logger.debug(f"skipping binary file: {child}")
                         continue
                     if RE_SHEBANG.match(l):
                         files.append(child)
-        elif child.is_dir():
-            cfiles = _walk_dir(child)
+        elif child.is_dir() and child.name not in IGNORE_DIRS:
+            cfiles = find_scripts(child)
             if cfiles:
                 files.extend(cfiles)
     return files
+
+
+def load_settings(file: Path, strict: bool = False) -> LinterSettings:
+    if not file.exists() or not file.is_file():
+        msg = f"{file} does not exist, cannot load linter settings"
+        if strict:
+            raise FileNotFoundError(msg)
+        else:
+            logger.warning(f"{msg}. Continuing with default settings...")
+
+    defaults: dict[str, list[str]] = {k: [] for k in LinterSettings.__annotations__}
+    obj = LinterSettings(**defaults)
+    cfg = json.loads(
+        "\n".join(l for l in file.read_text().split("\n") if not re.match(r"^\s*//", l))
+    )
+    # most shellcheck settings should be stored in .shellcheckrc
+    obj.shellcheck = cfg["settings"].get("shellcheck.customArgs", [])
+    obj.shfmt = cfg["settings"].get("shellformat.flag", "").split()
+
+    if "-d" not in obj.shfmt:
+        # -d prints diffs and returns non-zero
+        # -l lists filenames that need formatting, but still exits 0
+        obj.shfmt.append("-d")
+
+    return obj
 
 
 ###
@@ -175,32 +207,28 @@ def _walk_dir(dir_name: Path) -> Sequence[Path]:
 def main(
     use_shellcheck: bool, use_shfmt: bool, dry_run: bool, exit_fast: bool, verbose: bool
 ) -> None:
-    set_logs(verbose)
     if not any([use_shellcheck, use_shfmt]):
         raise click.UsageError(f"At least one linter must be enabled")
-    j = json.loads(
-        "\n".join(l for l in DEVC_JSON.read_text().split("\n") if not re.match(r"^\s*//", l))
-    )
-    scripts = find_scripts()
+
+    set_logs(verbose)
+    repo_root = find_root()
+    devc_json = repo_root / ".devcontainer" / "devcontainer.json"
+    params = load_settings(devc_json)
+
+    linters: list[Linter] = []
+    if use_shellcheck:
+        linters.append(Linter(LinterType.shellcheck, params.shellcheck))
+
+    if use_shfmt:
+        linters.append(Linter(LinterType.shfmt, params.shfmt))
+    logger.info(f"Using linters: {', '.join(l.name for l in linters)}")
+
+    scripts = find_scripts(repo_root)
     if dry_run:
         print(f"Found {len(scripts)} files:")
         for s in scripts:
             print(s)
         print()
-
-    linters: list[Linter] = []
-    if use_shellcheck:
-        # most should be stored in .shellcheckrc, but include these anyway
-        shellcheck_params: list[str] = j["settings"]["shellcheck.customArgs"]
-        linters.append(Linter(LinterType.shellcheck, shellcheck_params))
-
-    if use_shfmt:
-        shfmt_params: list[str] = j["settings"]["shellformat.flag"].split()
-        if "-d" not in shfmt_params:
-            # -d prints diffs and returns non-zero
-            # -l lists filenames that need formatting, but still exits 0
-            shfmt_params.append("-d")
-        linters.append(Linter(LinterType.shfmt, shfmt_params))
 
     errs: list[LintError] = []
     for linter in linters:
@@ -208,9 +236,10 @@ def main(
             cmd_str = " ".join(linter.cmd("$filename"))
             print(f"{linter.name}: {cmd_str}")
             continue
+
         for spath in scripts:
             if verbose:
-                logger.info(f"linting {spath.relative_to(REPO_ROOT)} with {linter.name}")
+                logger.info(f"linting {spath.relative_to(repo_root)} with {linter.name}")
             lint_err = linter.run(spath)
             if lint_err:
                 if verbose or exit_fast:
