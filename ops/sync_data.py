@@ -9,32 +9,21 @@ import os
 import shutil
 import subprocess
 import time
-from collections import OrderedDict
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
+
+import toml
+import yaml
+from data_spaces import DataManager
+
+from install_thirdparty import thirdparty_packages
+from util import AnnoJSONEncoder, HashType, format_obj, hash_directory_async
 
 # set up logging before anything else touches it
 log_format = "%(asctime)s - %(module)s - %(funcName)s:%(lineno)d - %(levelname)s - %(message)s"
 logging.basicConfig(level=logging.INFO, format=log_format)
 logger = logging.getLogger(__name__)
-
-import toml
-from data_spaces import DataManager
-from yaml import dump as dump_yaml
-from yaml import load as load_yaml
-
-from install_thirdparty import thirdparty_packages
-from util import AnnoJSONEncoder, format_obj, hash_directory_async, HashType
-
-# try to use libyaml, then fall back to pure python if not available
-try:
-    # we're using C/BaseLoader to ensure all values are strings as expected
-    from yaml import CBaseLoader as Loader
-    from yaml import CDumper as Dumper
-except ImportError:
-    from yaml import BaseLoader as Loader
-    from yaml import Dumper
-
 atexit.register(logging.shutdown)
 
 this_dir = Path(__file__).parent.absolute()
@@ -145,9 +134,7 @@ def main():
         setattr(args, "verbose", True)
 
     if args.dataset_file.exists():
-        datasets: dict[str, Any] = json.loads(
-            args.dataset_file.read_text(), object_pairs_hook=OrderedDict
-        )
+        datasets: dict[str, Any] = json.loads(args.dataset_file.read_text())
     else:
         raise IOError(
             f"Cannot read dataset file: {args.dataset_file}. Check it exists, is readable and try again"
@@ -225,7 +212,7 @@ def main():
         if args.generate:
             dataset_ready = data_dir / TOUCHFILE
             if dataset_ready.exists():
-                dataset_metadata = load_yaml(dataset_ready.open("rt"), Loader=Loader)
+                dataset_metadata = load_yaml(dataset_ready)
                 if dataset_metadata.get("version", "") == dataset_version:
                     logger.info(f"Dataset {dataset_name} already complete, skipping\n")
                     continue
@@ -308,7 +295,7 @@ def main():
             if step_success is True:  # type: ignore
                 fin_time = datetime.datetime.utcnow()
                 sources_data["timestamp"] = fin_time  # type: ignore
-                dump_yaml(sources_data, dataset_ready.open("wt"), Dumper=Dumper)
+                dump_yaml(sources_data, dataset_ready)
 
             if args.cleanup:
                 shutil.rmtree(raw_dir)
@@ -319,7 +306,7 @@ def main():
                 should_download = True
                 dataset_touchfile = data_dir / TOUCHFILE
                 if dataset_touchfile.is_file():
-                    dataset_metadata = load_yaml(dataset_touchfile.open("rt"), Loader=Loader)
+                    dataset_metadata = load_yaml(dataset_touchfile)
                     if dataset_metadata["version"] != dataset_version:
                         message = f"Data already downloaded for {dataset_name} version {dataset_metadata['version']}, but expected {dataset_version}"
                         if args.force:
@@ -333,7 +320,7 @@ def main():
                 if should_download:
                     mgr.download_package(*cmd_args)
 
-                dataset_metadata = load_yaml(dataset_touchfile.open("rt"), Loader=Loader)
+                dataset_metadata = load_yaml(dataset_touchfile)
                 sources_data["timestamp"] = dataset_metadata["timestamp"]
 
                 if args.skip_validation:
@@ -377,14 +364,21 @@ def main():
             print(" ---\n")
 
 
+def load_yaml(file: Path):
+    return yaml.load(file.open("rt"), Loader=yaml.CLoader)
+
+
+def dump_yaml(data: Mapping, file: Path):
+    return yaml.dump(data, file.open("wt"), Dumper=yaml.CDumper)
+
+
 def update_sources(sources_file, source_name, source_data):
     """Update sources.json file with dataset metadata."""
+    file_json = {}
     if sources_file.exists():
-        file_json = json.loads(sources_file.read_text(), object_pairs_hook=OrderedDict)
-    else:
-        file_json = OrderedDict()
+        file_json.update(json.loads(sources_file.read_text()))
 
-    old_data = file_json.get(source_name, OrderedDict())
+    old_data = file_json.get(source_name, {})
     if source_data != old_data:
         file_json[source_name] = source_data
         sources_file.write_text(json.dumps(file_json, cls=AnnoJSONEncoder, indent=2) + "\n")
@@ -397,10 +391,9 @@ def update_sources(sources_file, source_name, source_data):
 
 def update_vcfanno_toml(dataset_name, vcfanno_entries, toml_file):
     """Update vcfanno_config.toml for the given dataset."""
+    toml_data = {}
     if toml_file.exists():
-        toml_data = toml.loads(toml_file.read_text(), _dict=OrderedDict)
-    else:
-        toml_data = OrderedDict()
+        toml_data.update(toml.loads(toml_file.read_text()))
 
     toml_data.setdefault("annotation", [])
 

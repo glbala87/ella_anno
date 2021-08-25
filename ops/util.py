@@ -7,21 +7,23 @@ from collections.abc import Mapping, Sequence
 from enum import Enum
 from numbers import Number
 from pathlib import Path
-from typing import Optional, Union, overload
+from typing import NamedTuple, Optional, Union, overload
 
 StrMap = Mapping[str, str]
 NestedStrMap = Mapping[str, Union[str, StrMap]]
 
 
-class HashType(Enum):
-    md5 = "md5"
-    sha256 = "sha256"
+class HashType(str, Enum):
+    md5 = "MD5SUM"
+    sha256 = "SHA256SUM"
 
     def __str__(self) -> str:
-        return self.value
+        return self.name
 
 
-FileHash = namedtuple("FileHash", ["path", "hash"])
+class FileHash(NamedTuple):
+    path: str
+    hash: str
 
 
 @overload
@@ -71,16 +73,16 @@ def format_obj(obj, format_opts):
 
 def hash_file(filename: str, hash_type: HashType, block_size: int = 4096) -> str:
     """returns a checksum of the specified file"""
-    file_hash = hashlib.new(hash_type.value)
+    file_hash = hashlib.new(hash_type.name)
     with open(filename, "rb") as file:
         for block in iter(lambda: file.read(block_size), b""):
             file_hash.update(block)
     return file_hash.hexdigest()
 
 
-def hash_directory(basepath: Path, ignore: list[str] = [], **kwargs) -> list[str]:
+def hash_directory(basepath: Path, ignore: list[str] = [], **kwargs) -> list[FileHash]:
     """returns a list of FileHash tuples with relative path and hash data for each file"""
-    hash_list = list()
+    hash_list: list[FileHash] = list()
     for file_path in basepath.rglob("*"):
         if file_path.is_dir() or file_path.name in ignore:
             continue
@@ -101,7 +103,7 @@ def hash_directory_async(
     returns a list of FileHash tuples with relative path and hash data for each file, in max_procs processes
     max_procs of None defaults to os.cpu_count()
     """
-    ignore_files = set([t.value for t in HashType])
+    ignore_files: set[str] = set([t.value.lower() for t in HashType])
     if ignore:
         ignore_files |= set([i.lower() for i in ignore])
 

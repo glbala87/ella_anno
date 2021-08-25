@@ -49,12 +49,14 @@ stages:
 
 .test_setup: &test-setup
     extends: .base_setup
+    stage: test
     # manual trigger if commit starts with skip-test, otherwise always
     rules:
         - if: '$CI_COMMIT_TITLE =~ /^skip-test\b/'
           when: manual
           allow_failure: true
         - when: always
+    needs: ['build_docker']
 
 # build both at once to reuse local cache
 build_docker:
@@ -68,7 +70,6 @@ build_docker:
         - bastion
 
 check_do:
-    stage: test
     extends: .test_setup
     script:
         - make pull-builder verify-digital-ocean
@@ -76,7 +77,6 @@ check_do:
         - bastion
 
 check_pipenv:
-    stage: test
     extends: .test_setup
     script:
         - make pull-builder pipenv-check
@@ -84,7 +84,6 @@ check_pipenv:
         - bastion
 
 shellcheck:
-    stage: test
     extends: .test_setup
     script:
         - make ci-build-devcontainer test-lint
@@ -93,7 +92,6 @@ shellcheck:
 
 run_pytest:
     extends: .test_setup
-    stage: test
     script:
         - make pull
         - make download-data RUN_CMD_ARGS="--skip-validation --force"

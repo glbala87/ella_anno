@@ -8,7 +8,8 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
-import sys
+from collections.abc import Mapping
+from typing import Union
 from util import hash_file, HashType
 
 
@@ -73,10 +74,13 @@ thirdparty_packages = {
     },
 }
 TOUCHFILE = "SETUP_COMPLETE"
+MAX_PROCS = len(os.sched_getaffinity(0))
 this_dir = Path(__file__).parent.absolute()
 anno_root = this_dir.parent
 default_dir = anno_root / "thirdparty"
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 
@@ -96,7 +100,11 @@ def main():
         help=f"install one of: {', '.join(sorted(thirdparty_packages.keys()))}",
     )
     parser.add_argument(
-        "--max-processes", "-x", type=int, default=os.cpu_count(), help="maximum number of processes to run in parallel"
+        "--max-processes",
+        "-x",
+        type=int,
+        default=MAX_PROCS,
+        help="maximum number of processes to run in parallel",
     )
     parser.add_argument("--clean", action="store_true", help="clean up intermediate files")
     parser.add_argument("--verbose", action="store_true", help="be extra chatty")
@@ -129,8 +137,8 @@ def main():
             final_dir = pkg_dir
 
         if args.verbose:
-            logger.info(f"Using pkg_dir: {pkg_dir}", file=sys.stderr)
-            logger.info(f"Using final_dir: {final_dir}\n", file=sys.stderr)
+            logger.info(f"Using pkg_dir: {pkg_dir}")
+            logger.info(f"Using final_dir: {final_dir}\n")
 
         pkg_touchfile = final_dir / TOUCHFILE
         # if src_dir is an empty string, a binary is downloaded and moved to anno_root/bin, so nothing to delete
@@ -138,7 +146,9 @@ def main():
             if final_dir.exists():
                 logger.debug(f"Found existing final_dir: {final_dir}")
                 if pkg_touchfile.exists():
-                    logger.info(f"Package {pkg_name} already installed on {pkg_touchfile.read_text()}, skipping")
+                    logger.info(
+                        f"Package {pkg_name} already installed on {pkg_touchfile.read_text()}, skipping"
+                    )
                     continue
                 else:
                     # assume failed install because no TOUCHFILE
@@ -183,33 +193,37 @@ def main():
             break
 
 
-def github_fetch_package(pkg, dest, hash="sha256"):
+def github_fetch_package(pkg: Mapping, dest: Path, hash="sha256") -> Path:
     """downloads a release archive from github"""
-    hash_type = HashType(hash)
+    hash_type = HashType[hash]
     release_file = pkg["filename"].format(**pkg)
     release_filepath = dest / release_file
     if release_filepath.is_file():
         this_hash = hash_file(release_filepath, hash_type=hash_type)
         if this_hash == pkg[hash]:
             logger.info("Re-using existing package")
-            return
+            return release_filepath
         else:
             logger.info("Removing partially downloaded package")
             release_filepath.unlink()
 
-    default_url_prefix = pkg["url_prefix"] if pkg.get("url_prefix") else "releases/download/v{version}"
+    default_url_prefix = (
+        pkg["url_prefix"] if pkg.get("url_prefix") else "releases/download/v{version}"
+    )
     release_url = f"{pkg['url']}/{default_url_prefix}".format(**pkg)
     full_url = f"{release_url}/{release_file}"
 
     subprocess.run(["wget", full_url], cwd=dest, check=True)
     this_hash = hash_file(release_filepath, hash_type=hash_type)
     if this_hash != pkg[hash]:
-        raise Exception(f"Checksum mismatch on {release_file}. Expected {pkg[hash]}, but got {this_hash}")
+        raise Exception(
+            f"Checksum mismatch on {release_file}. Expected {pkg[hash]}, but got {this_hash}"
+        )
 
     return release_filepath
 
 
-def is_archive(filename):
+def is_archive(filename: Union[str, Path]):
     return bool(re.search(r"\.tar\.(?:gz|bz2)$", f"{filename}"))
 
 
