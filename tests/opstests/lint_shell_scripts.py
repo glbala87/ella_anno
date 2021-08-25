@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import click
+import datetime
 import json
 import logging
 import re
@@ -264,7 +265,7 @@ def main(
                 print(e.log)
         exit(1)
     elif not dry_run:
-        logger.info(f"Linting passed on {len(scripts)} files")
+        print(f"Linting passed on {len(scripts)} files at {datetime.datetime.now()}")
 
 
 ###
