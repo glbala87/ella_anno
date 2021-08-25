@@ -47,3 +47,6 @@ mypy = "*"
 
 [requires]
 python_version = "3.9"
+
+[scripts]
+linter = "./tests/opstests/lint_shell_scripts.py"

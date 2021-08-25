@@ -1,17 +1,21 @@
 #!/usr/bin/env python3
 
-import datetime
+import click
 import json
+import logging
 import re
 import shutil
-import sys
 import subprocess
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from shlex import quote
-from typing import Optional
+from typing import Optional, Union
+
+logger = logging.getLogger()
+log_template = "%(asctime)s - %(name)s - %(levelname)-7s - %(message)s"
+log_format = logging.Formatter(log_template)
 
 REPO_ROOT = Path(__file__).parents[2]
 CHECK_DIRS = ["bin", "ops", "scripts", "src", "tests"]
@@ -19,7 +23,7 @@ CHECK_PATHS = [REPO_ROOT / d for d in CHECK_DIRS]
 DEVC_JSON = REPO_ROOT / ".devcontainer" / "devcontainer.json"
 IGNORE_NAMES = ["MD5SUM", "DATA_READY"]
 INCLUDE_SUFFIX = [".sh", ""]
-RE_SHEBANG = re.compile(r"^#!/bin/(?:ba)sh\b")
+RE_SHEBANG = re.compile(r"^#!(?:/bin/|/usr/bin/env )(?:ba)sh\b")
 
 ###
 
@@ -66,13 +70,16 @@ class Linter:
                 raise FileNotFoundError(f"Unable to find exectuable for {type.name}")
         object.__setattr__(self, "path", Path(path))
 
+    def cmd(self, file: Union[Path, str]) -> list[str]:
+        return [quote(c) for c in [str(self.path), *self.params, str(file)]]
+
     @property
     def name(self) -> str:
         return self._type.name
 
     def run(self, file: Path) -> Optional[LintError]:
         # use shlex.quote to prevent shell injection
-        cmd = [quote(c) for c in [str(self.path), *self.params, str(file)]]
+        cmd = self.cmd(file)
         res = subprocess.run(
             cmd,
             stdout=subprocess.PIPE,
@@ -92,19 +99,25 @@ class Linter:
 ###
 
 
-def log(msg: str, err: bool = False) -> None:
-    dt = datetime.datetime.now().isoformat(" ", "milliseconds")
-    if err:
-        log_level = "ERROR"
-        output = sys.stderr
+def set_logs(verbose: bool = False):
+    if verbose:
+        log_level = logging.INFO
     else:
-        log_level = "INFO"
-        output = sys.stdout
-    print(f"{dt} - {log_level} - {msg}", file=output)
+        log_level = logging.WARNING
+    logger.setLevel(log_level)
+    if logger.handlers:
+        console = logger.handlers[0]
+    else:
+        console = logging.StreamHandler()
+        logger.addHandler(console)
+    console.setFormatter(log_format)
 
-
-def err(msg: str) -> None:
-    log(msg, err=True)
+    # TODO: enable detailed logging to file as CI artifact maybe?
+    # log_file = "linter.log"
+    # file_handler = logging.FileHandler(log_file, encoding="utf-8")
+    # file_handler.setLevel(log_level)
+    # file_handler.setFormatter(log_format)
+    # logger.addHandler(file_handler)
 
 
 ###
@@ -132,7 +145,7 @@ def _walk_dir(dir_name: Path) -> Sequence[Path]:
                     try:
                         l = fh.readline()
                     except UnicodeDecodeError:
-                        log(f"skipping binary file: {child}")
+                        logger.info(f"skipping binary file: {child}")
                         continue
                     if RE_SHEBANG.match(l):
                         files.append(child)
@@ -146,39 +159,83 @@ def _walk_dir(dir_name: Path) -> Sequence[Path]:
 ###
 
 
-def main() -> None:
+@click.command(
+    help="Finds shell scripts and runs shellcheck and shfmt on them. Both are used by default, but either can be disabled."
+)
+@click.option("--no-shellcheck", "use_shellcheck", is_flag=True, default=True)
+@click.option("--no-shfmt", "use_shfmt", is_flag=True, default=True)
+@click.option(
+    "--dry-run",
+    "-n",
+    is_flag=True,
+    help="prints a list of scripts and commands without running them",
+)
+@click.option("--exit-fast", "-x", is_flag=True, help="exit on first lint failure")
+@click.option("--verbose", "-v", is_flag=True, help="print detailed lint info")
+def main(
+    use_shellcheck: bool, use_shfmt: bool, dry_run: bool, exit_fast: bool, verbose: bool
+) -> None:
+    set_logs(verbose)
+    if not any([use_shellcheck, use_shfmt]):
+        raise click.UsageError(f"At least one linter must be enabled")
     j = json.loads(
         "\n".join(l for l in DEVC_JSON.read_text().split("\n") if not re.match(r"^\s*//", l))
     )
-    shellcheck_params: list[str] = j["settings"]["shellcheck.customArgs"]
-    shfmt_params: list[str] = j["settings"]["shellformat.flag"].split()
-    if "-d" not in shfmt_params:
-        shfmt_params.append("-d")
     scripts = find_scripts()
+    if dry_run:
+        print(f"Found {len(scripts)} files:")
+        for s in scripts:
+            print(s)
+        print()
 
-    shellcheck = Linter(LinterType.shellcheck, shellcheck_params)
-    shfmt = Linter(LinterType.shfmt, shfmt_params)
-    linters = [shellcheck, shfmt]
+    linters: list[Linter] = []
+    if use_shellcheck:
+        # most should be stored in .shellcheckrc, but include these anyway
+        shellcheck_params: list[str] = j["settings"]["shellcheck.customArgs"]
+        linters.append(Linter(LinterType.shellcheck, shellcheck_params))
+
+    if use_shfmt:
+        shfmt_params: list[str] = j["settings"]["shellformat.flag"].split()
+        if "-d" not in shfmt_params:
+            # -d prints diffs and returns non-zero
+            # -l lists filenames that need formatting, but still exits 0
+            shfmt_params.append("-d")
+        linters.append(Linter(LinterType.shfmt, shfmt_params))
 
     errs: list[LintError] = []
     for linter in linters:
+        if dry_run:
+            cmd_str = " ".join(linter.cmd("$filename"))
+            print(f"{linter.name}: {cmd_str}")
+            continue
         for spath in scripts:
-            log(f"linting {spath.relative_to(REPO_ROOT)} with {linter.name}")
+            if verbose:
+                logger.info(f"linting {spath.relative_to(REPO_ROOT)} with {linter.name}")
             lint_err = linter.run(spath)
             if lint_err:
-                err(f"{spath.name} failed {linter.name}")
+                if verbose or exit_fast:
+                    logger.error(f"{spath.name} failed {linter.name}")
+
+                if exit_fast:
+                    if verbose:
+                        print(lint_err.log)
+                    logger.error(f"Additional linting aborted")
+                    exit(1)
+
                 errs.append(lint_err)
 
     if errs:
-        err(f"Linting finished with {len(errs)} errors in {len(set([e.file for e in errs]))} files")
+        logger.error(
+            f"Linting finished with {len(errs)} errors in {len(set([e.file for e in errs]))} files"
+        )
         for e in errs:
-            print(f"{e.file}:")
-            print(f"{e.linter.name} return code: {e.rc}")
-            print(e.log)
-            print()
+            print(f"{e.file}: failed {e.linter.name}")
+            if verbose:
+                print(f"return code: {e.rc}")
+                print(e.log)
         exit(1)
-    else:
-        log(f"Linting passed on {len(scripts)} files")
+    elif not dry_run:
+        logger.info(f"Linting passed on {len(scripts)} files")
 
 
 ###

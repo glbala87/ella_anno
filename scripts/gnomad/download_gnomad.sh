@@ -4,7 +4,7 @@
 #
 # gnomAD keeps changing file name formats. This version is configured for the 2.0.2 release
 
-THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+THIS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR=$(dirname "$(dirname $THIS_DIR)")
 DATA_DIR=$ROOT_DIR/rawdata/gnomad
 
@@ -40,27 +40,27 @@ rm_on_mismatch() {
 }
 
 while [ $# -gt 0 ]; do
-  key="$1"
-  case "$key" in
-    -r|--revision)
-      REVISION="$2"
-      shift 2
-      ;;
-    -s|--skip-md5)
-        SKIP_MD5=1
-        shift
-        ;;
-    -h|--help)
-        usage
-        ;;
-    *)
-      break
-      ;;
-  esac
+    key="$1"
+    case "$key" in
+        -r | --revision)
+            REVISION="$2"
+            shift 2
+            ;;
+        -s | --skip-md5)
+            SKIP_MD5=1
+            shift
+            ;;
+        -h | --help)
+            usage
+            ;;
+        *)
+            break
+            ;;
+    esac
 done
 
 if [[ -z "$REVISION" ]]; then
-  usage "Error! revision is missing, e.g. 2.0.2"
+    usage "Error! revision is missing, e.g. 2.0.2"
 fi
 
 GSUTIL=$(which gsutil 2>/dev/null || echo)

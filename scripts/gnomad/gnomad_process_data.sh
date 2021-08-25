@@ -8,7 +8,7 @@
 
 set -e -o pipefail
 
-THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+THIS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR=$(dirname "$(dirname $THIS_DIR)")
 DATA_DIR=$ROOT_DIR/data
 FASTA_DIR=$DATA_DIR/FASTA
@@ -58,7 +58,7 @@ normalize_chrom() {
         | vt decompose -s - \
         | vt normalize -r "${REFERENCE}" -n -w 20000 - \
         | vcf-sort -t ${TMP_DIR:-/tmp} \
-        > "$output_file" \
+            >"$output_file" \
         || bail "Error processing chrom ${chrom} of $input_file, return code: $?"
     log "Finished processing chromosome $chrom of $input_file"
 }
@@ -161,7 +161,10 @@ mkdir -p $GNOMAD_DATA_DIR
 log "Zipping ${EXOME_OUTPUT}"
 # skip header on all but first file for pipe to bgzip
 if [[ ! -f $EXOME_OUTPUT ]]; then
-    (cat "${EXOME_BY_CHR[0]}"; grep -hv '^#' "${EXOME_BY_CHR[@]:1}") | bgzip --threads ${MAX_ZIP_PCT:-$CPU_MAX_PCNT}> $EXOME_OUTPUT
+    (
+        cat "${EXOME_BY_CHR[0]}"
+        grep -hv '^#' "${EXOME_BY_CHR[@]:1}"
+    ) | bgzip --threads ${MAX_ZIP_PCT:-$CPU_MAX_PCNT} >$EXOME_OUTPUT
 else
     echo "Merged gzipped exome data already existing, skipping"
 fi
@@ -173,7 +176,10 @@ tabix -p vcf --csi -f "${EXOME_OUTPUT}"
 # zip and index genome data
 log "Zipping ${GENOME_OUTPUT}"
 if [[ ! -f $GENOME_OUTPUT ]]; then
-    (cat "${GENOME_BY_CHR[0]}"; grep -hv '^#' "${GENOME_BY_CHR[@]:1}") | bgzip --threads ${MAX_ZIP_PCT:-$CPU_MAX_PCNT}> $GENOME_OUTPUT
+    (
+        cat "${GENOME_BY_CHR[0]}"
+        grep -hv '^#' "${GENOME_BY_CHR[@]:1}"
+    ) | bgzip --threads ${MAX_ZIP_PCT:-$CPU_MAX_PCNT} >$GENOME_OUTPUT
 else
     echo "Merged gzipped genome data already exists, skipping"
 fi

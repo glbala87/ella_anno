@@ -3,4 +3,4 @@
 cd OUT
 mkdir dummy_output && cd dummy_output
 
-env > env.txt
+env >env.txt

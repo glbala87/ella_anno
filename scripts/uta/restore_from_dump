@@ -25,13 +25,13 @@ pg_wait_for_ready # make sure postgres has started before loading data
 
 echo "Setting up database from uta_${UTA_VERSION}.pgd.gz"
 # remove old users, if existing
-dropdb -h localhost -U postgres --if-exists uta 
+dropdb -h localhost -U postgres --if-exists uta
 dropuser -h localhost -U postgres --if-exists uta_admin
 dropuser -h localhost -U postgres --if-exists anonymous
 
 # create new users  and load data
 createuser -h localhost -U postgres anonymous
-createuser -h localhost -U postgres uta_admin 
+createuser -h localhost -U postgres uta_admin
 createdb -h localhost -U postgres -O uta_admin uta
 gzip -cdq uta_${UTA_VERSION}.pgd.gz | grep -v "^REFRESH MATERIALIZED VIEW" | psql -h localhost -U uta_admin --q --echo-errors --single-transaction -v ON_ERROR_STOP=1 -d uta
 
