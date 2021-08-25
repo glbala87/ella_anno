@@ -5,12 +5,12 @@ DATASETS=${DATASETS:-/anno/ops/datasets.json}
 PKG_NAMES=${PKG_NAMES:-}
 
 pushd /anno/data
-tmp_tarfile=$(mktemp -p "$PWD" --suffix=.tar)
+tmp_tarfile=$(mktemp -p "${PWD}" --suffix=.tar)
 
 rm_tmp() {
     EXIT_CODE=$?
-    if [ ! $EXIT_CODE -eq 0 ]; then
-        rm "$tmp_tarfile"
+    if [ ! ${EXIT_CODE} -eq 0 ]; then
+        rm "${tmp_tarfile}"
     fi
 }
 
@@ -26,52 +26,52 @@ update_tar() {
         # default: keep existing files
         tar_args[0]=-k
     fi
-    tar "${tar_args[@]}" -u -f "$tarfile" "$newfile"
+    tar "${tar_args[@]}" -u -f "${tarfile}" "${newfile}"
 }
 
 trap rm_tmp EXIT
 
 PKG_IN_ARCHIVE=$(mktemp)
 if [[ -f ${TAR_OUTPUT} ]]; then
-    cp "$TAR_OUTPUT" "$tmp_tarfile"
+    cp "${TAR_OUTPUT}" "${tmp_tarfile}"
     # Read out package names in archive (add them back at the end)
-    tar -xOf "$tmp_tarfile" PACKAGES >"$PKG_IN_ARCHIVE"
-    tar -f "$tmp_tarfile" --delete PACKAGES || true
+    tar -xOf "${tmp_tarfile}" PACKAGES >"${PKG_IN_ARCHIVE}"
+    tar -f "${tmp_tarfile}" --delete PACKAGES || true
 fi
 
 # update the tar to include sources.json
-update_tar "$tmp_tarfile" sources.json
+update_tar "${tmp_tarfile}" sources.json
 
-if [[ -z $PKG_NAMES ]]; then
+if [[ -z ${PKG_NAMES} ]]; then
     echo "No PKG_NAMES specified, tarring all datasets"
-    mapfile -t _PKG_NAMES_ARRAY < <(jq -r 'keys[]' "$DATASETS")
+    mapfile -t _PKG_NAMES_ARRAY < <(jq -r 'keys[]' "${DATASETS}")
 else
-    mapfile -t _PKG_NAMES_ARRAY < <(echo "$PKG_NAMES" | tr , $'\n')
+    mapfile -t _PKG_NAMES_ARRAY < <(echo "${PKG_NAMES}" | tr , $'\n')
 fi
 
 for PKG_NAME in "${_PKG_NAMES_ARRAY[@]}"; do
-    folder=$(jq -r ".$PKG_NAME.destination" "$DATASETS")
-    if [[ "$folder" == "null" ]]; then
-        echo "Unable to find package $PKG_NAME in $DATASETS. Continuing."
+    folder=$(jq -r ".${PKG_NAME}.destination" "${DATASETS}")
+    if [[ "${folder}" == "null" ]]; then
+        echo "Unable to find package ${PKG_NAME} in ${DATASETS}. Continuing."
         continue
     fi
 
-    echo "Adding $PKG_NAME to archive"
-    update_tar "$tmp_tarfile" "$folder"
-    echo "$PKG_NAME" >>"$PKG_IN_ARCHIVE"
+    echo "Adding ${PKG_NAME} to archive"
+    update_tar "${tmp_tarfile}" "${folder}"
+    echo "${PKG_NAME}" >>"${PKG_IN_ARCHIVE}"
 done
 
 COLOROFF='\033[0m'
 LIGHTGREEN='\033[1;32m'
 
 echo "Adding package list to archive and verifying data"
-sort "$PKG_IN_ARCHIVE" | uniq >PACKAGES
-update_tar "$tmp_tarfile" PACKAGES -W
+sort "${PKG_IN_ARCHIVE}" | uniq >PACKAGES
+update_tar "${tmp_tarfile}" PACKAGES -W
 echo "Packages in archive: "
-tar -xOf "$tmp_tarfile" PACKAGES
+tar -xOf "${tmp_tarfile}" PACKAGES
 
-echo -e "${LIGHTGREEN}\nVerifying temporary file\n\n$(tar -vdf "$tmp_tarfile")${COLOROFF}"
+echo -e "${LIGHTGREEN}\nVerifying temporary file\n\n$(tar -vdf "${tmp_tarfile}")${COLOROFF}"
 
 rm PACKAGES
-mv "$tmp_tarfile" "$TAR_OUTPUT"
-echo -e "\nCreated $TAR_OUTPUT"
+mv "${tmp_tarfile}" "${TAR_OUTPUT}"
+echo -e "\nCreated ${TAR_OUTPUT}"

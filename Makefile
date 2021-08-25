@@ -180,8 +180,7 @@ test-ops: ## run the ops tests in $IMAGE_NAME. WARNING: will overwrite data dir 
 
 test-lint: ## run shellcheck/shfmt linting on all bash scripts
 	$(eval override ANNOBUILDER_OPTS += -v $(PWD)/.devcontainer:/anno/.devcontainer)
-	$(eval RUN_CMD := python3 $(PWD)/tests/opstests/lint_shell_scripts.py)
-	docker run -u "$(UID_GID)" $(TERM_OPTS) -v "$(PWD):/anno" $(DEVC_IMAGE_NAME) python3 tests/opstests/lint_shell_scripts.py
+	docker run -u "$(UID_GID)" $(TERM_OPTS) -v "$(PWD):/anno" $(DEVC_IMAGE_NAME) pipenv run linter -v
 
 localclean: ## remove data, rawdata, thirdparty dirs and docker volumes
 	rm -rf thirdparty/ data/ rawdata/

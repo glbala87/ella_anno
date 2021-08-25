@@ -8,19 +8,20 @@ source /anno/ops/pg_sourceme
 # After that is complete, we make sure to shutdown postgres gently. Some shutdown modes will put postgres in bad
 # state, causing restarts to take a long time (replay of xlog/transaction logs)
 
-echo "Init of Postgres cluster in $PGDATA"
-mkdir -p "$PGDATA"
-chown postgres "$PGDATA"
+echo "Init of Postgres cluster in ${PGDATA}"
+mkdir -p "${PGDATA}"
+chown postgres "${PGDATA}"
 
-echo "Creating database cluster in $PGDATA"
-gosu postgres $PG_BIN/initdb
+echo "Creating database cluster in ${PGDATA}"
+gosu postgres ${PG_BIN}/initdb
 
 # use custom postgres conf
-cp /anno/ops/postgresql.conf "$PGDATA"/
-chown postgres "$PGDATA"/postgresql.conf
+cp /anno/ops/postgresql.conf "${PGDATA}"/
+chown postgres "${PGDATA}"/postgresql.conf
 
 # Start postgres
 pg_start &
+# shellcheck disable=2119
 pg_wait_for_ready # make sure postgres has started before loading data
 
 echo "Setting up database from uta_${UTA_VERSION}.pgd.gz"
@@ -33,7 +34,7 @@ dropuser -h localhost -U postgres --if-exists anonymous
 createuser -h localhost -U postgres anonymous
 createuser -h localhost -U postgres uta_admin
 createdb -h localhost -U postgres -O uta_admin uta
-gzip -cdq uta_${UTA_VERSION}.pgd.gz | grep -v "^REFRESH MATERIALIZED VIEW" | psql -h localhost -U uta_admin --q --echo-errors --single-transaction -v ON_ERROR_STOP=1 -d uta
+gzip -cdq "uta_${UTA_VERSION}.pgd.gz" | grep -v "^REFRESH MATERIALIZED VIEW" | psql -h localhost -U uta_admin --q --echo-errors --single-transaction -v ON_ERROR_STOP=1 -d uta
 
 echo "Refreshing materialized views"
 psql -h localhost -U uta_admin -d uta -c "REFRESH MATERIALIZED VIEW uta_${UTA_VERSION}.exon_set_exons_fp_mv;"
@@ -43,7 +44,8 @@ psql -h localhost -U uta_admin -d uta -c "REFRESH MATERIALIZED VIEW uta_${UTA_VE
 psql -h localhost -U uta_admin -d uta -c "VACUUM (FULL)"
 
 # wait for all the actions to finish and postgres to return to a good state and shut it down cleanly
+# shellcheck disable=2119
 pg_wait_for_ready
 pg_shutdown
-touch "$PGDATA/pgready"
+touch "${PGDATA}/pgready"
 echo "Database ready"

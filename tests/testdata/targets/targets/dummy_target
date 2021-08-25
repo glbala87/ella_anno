@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 
 cd OUT
 mkdir dummy_output && cd dummy_output

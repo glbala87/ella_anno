@@ -1,12 +1,16 @@
 #!/bin/bash
 
+ts() {
+    date +%Y-%m-%d\ %H:%M:%S
+}
+
 if [[ "$(id -u -n)" == "root" ]]; then
     pg_user=postgres
 else
     pg_user=$(id -u)
 fi
 
-export PGDATA=${PGDATA:-"/pg_uta/$pg_user"}
+export PGDATA=${PGDATA:-"/pg_uta/${pg_user}"}
 export PGPORT=${PGPORT:-5432}
 
 export PG_BIN=/usr/lib/postgresql/13/bin
@@ -14,14 +18,14 @@ function pg_wait_for_ready() {
     timer=${1:-5}
     retries=${2:-10}
     N=0
-    while ! $PG_BIN/pg_isready --dbname=postgres --username=postgres --host localhost; do
-        echo "[$(date +%Y-%m-%d\ %H:%M:%S)] Postgres is unavailable - sleeping for $timer seconds"
+    while ! ${PG_BIN}/pg_isready --dbname=postgres --username=postgres --host localhost; do
+        echo "[$(ts)] Postgres is unavailable - sleeping for ${timer} seconds"
         N=$((N + 1))
-        if [[ $N -gt $retries ]]; then
-            echo >&2 "[$(date +%Y-%m-%d\ %H:%M:%S)] Postgres is unavailable - Reached maximum number of retries. Aborting."
+        if ((N > retries)); then
+            echo "[$(ts)] Postgres is unavailable - Reached maximum number of retries. Aborting." >&2
             exit 1
         fi
-        sleep "$timer"
+        sleep "${timer}"
     done
 }
 
@@ -29,19 +33,19 @@ function pg_shutdown() {
     echo "Shutting down PostgreSQL"
     # if pkill fails (no process found, etc), still exit the script
     if [[ "$(id -u -n)" == "root" ]]; then
-        gosu postgres "$PG_BIN/pg_ctl" stop -m s || exit $?
+        gosu postgres "${PG_BIN}/pg_ctl" stop -m s || exit $?
     else
-        "$PG_BIN/pg_ctl" stop -m s || exit $?
+        "${PG_BIN}/pg_ctl" stop -m s || exit $?
     fi
 }
 
 function pg_uta_sync_data() {
-    echo "Syncing Postgres UTA data from $ANNO_DATA/uta/ to $PGDATA"
-    mkdir -p "$PGDATA"
-    rsync -a --delete "$ANNO_DATA/uta/" "$PGDATA" --info=progress2 2>&1
+    echo "Syncing Postgres UTA data from ${ANNO_DATA}/uta/ to ${PGDATA}"
+    mkdir -p "${PGDATA}"
+    rsync -a --delete "${ANNO_DATA}/uta/" "${PGDATA}" --info=progress2 2>&1
 
     # Empty folders are not part of the DigitalOcean data, but postgres expects them. Therefore, create them here.
-    pushd "$PGDATA" || exit $?
+    pushd "${PGDATA}" || exit $?
     PG_FOLDERS=(
         base/pgsql_tmp
         pg_commit_ts
@@ -57,8 +61,8 @@ function pg_uta_sync_data() {
         pg_wal/archive_status
     )
     mkdir -p "${PG_FOLDERS[@]}"
-    chown -R "$pg_user" "$PGDATA"
-    chmod 0700 "$PGDATA"
+    chown -R "${pg_user}" "${PGDATA}"
+    chmod 0700 "${PGDATA}"
     popd || exit $?
 }
 
@@ -68,8 +72,8 @@ function pg_start() {
     trap pg_shutdown EXIT
     # if not running in singularity container, use gosu for postgres user
     if [[ "$(id -u -n)" == "root" ]]; then
-        exec gosu "$pg_user" "$PG_BIN/postgres" -c autovacuum=off
+        exec gosu "${pg_user}" "${PG_BIN}/postgres" -c autovacuum=off
     else
-        exec "$PG_BIN/postgres" -c autovacuum=off
+        exec "${PG_BIN}/postgres" -c autovacuum=off
     fi
 }

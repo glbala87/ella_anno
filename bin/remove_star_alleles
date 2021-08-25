@@ -2,7 +2,7 @@
 
 set -euf -o pipefail
 
-while [ $# -gt 0 ]; do
+while [[ $# -gt 0 ]]; do
     case "$1" in
         --input | -i)
             if [[ $2 = -* ]]; then
@@ -28,12 +28,12 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-if [ ! -f $INPUT ]; then
-    echo "Unable to open file $INPUT"
+if [[ ! -f "${INPUT}" ]]; then
+    echo "Unable to open file ${INPUT}"
     exit 1
 fi
 
-if [ -v $OUTPUT ]; then
+if [[ -z "${OUTPUT}" ]]; then
     echo "No output specified"
     exit 2
 fi
@@ -49,12 +49,12 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 #
 # Only apply trim-alt-alleles to lines containing the '*'-allele, after removing the genotype(s) referencing it
 cat <(
-    awk '{if ($1 ~ /^#/ || $5 ~ /\*/) print $0}' $INPUT \
-        | python3 $DIR/../src/annotation/remove_star_genotypes.py \
+    awk '{if ($1 ~ /^#/ || $5 ~ /\*/) print $0}' "${INPUT}" \
+        | python3 "${DIR}/../src/annotation/remove_star_genotypes.py" \
         | bcftools view --trim-alt-alleles
 ) \
     <(
-        awk '{if ($1 ~ /^#/ || $5 !~ /\*/) print $0}' $INPUT \
+        awk '{if ($1 ~ /^#/ || $5 !~ /\*/) print $0}' "${INPUT}" \
             | bcftools view -H
     ) \
-    | vcf-sort -c >$OUTPUT
+    | vcf-sort -c >"${OUTPUT}"

@@ -4,11 +4,11 @@ COLOROFF='\033[0m'
 LIGHTGREEN='\033[1;32m'
 RED='\033[0;31m'
 
-LOG_FILE=$ANNO_DATA/UNPACK_DATA_LOG
+LOG_FILE=${ANNO_DATA}/UNPACK_DATA_LOG
 TMP_BACKUP=.tmp
 
 # Log to both file and to stdout with timestamp
-exec &> >(tee -a "$LOG_FILE")
+exec &> >(tee -a "${LOG_FILE}")
 echo() {
     command echo -e "$(date "+%F %T,%3N") - $(basename "$0") - echo - $*"
 }
@@ -16,61 +16,61 @@ echo() {
 cleanup() {
     EXIT_CODE=$?
     trap - EXIT SIGINT SIGQUIT SIGTERM
-    if [[ $EXIT_CODE != 0 ]]; then
-        echo -e "${RED}Something went wrong with unpacking data. Reverting changes.$COLOROFF"
+    if [[ ${EXIT_CODE} != 0 ]]; then
+        echo -e "${RED}Something went wrong with unpacking data. Reverting changes.${COLOROFF}"
         echo "Removing extracted files"
         # Remove files created after TIMESTAMP
-        find . -type f -cnewer $TMP_BACKUP/TIMESTAMP -not -path "./$TMP_BACKUP*" -delete -print
-        rm $TMP_BACKUP/TIMESTAMP
-        find . -type d -empty -not -path "./$TMP_BACKUP" -delete -print
+        find . -type f -cnewer ${TMP_BACKUP}/TIMESTAMP -not -path "./${TMP_BACKUP}*" -delete -print
+        rm ${TMP_BACKUP}/TIMESTAMP
+        find . -type d -empty -not -path "./${TMP_BACKUP}" -delete -print
 
-        pushd "$ANNO_DATA/$TMP_BACKUP" >/dev/null
+        pushd "${ANNO_DATA}/${TMP_BACKUP}" >/dev/null
         echo "Applying backup"
         # First create directories, then move back files
-        find . -type d -exec mkdir -p "$ANNO_DATA/"{} \; -print
-        find . -type f -exec mv {} "$ANNO_DATA/"{} \; -print
+        find . -type d -exec mkdir -p "${ANNO_DATA}/"{} \; -print
+        find . -type f -exec mv {} "${ANNO_DATA}/"{} \; -print
         popd >/dev/null
         find . -type d -empty -delete -print
         echo "${LIGHTGREEN}Changes reverted.${COLOROFF}"
     else
-        rm -r $TMP_BACKUP
+        rm -r ${TMP_BACKUP}
     fi
-    exit $EXIT_CODE
+    exit ${EXIT_CODE}
 }
 trap cleanup SIGINT SIGQUIT SIGTERM EXIT
 
 echo "Unpack data triggered"
 
-pushd "$ANNO_DATA" >/dev/null
+pushd "${ANNO_DATA}" >/dev/null
 if [[ ! -f ${TAR_INPUT} ]]; then
-    echo "${RED}No such file $TAR_INPUT$COLOROFF"
+    echo "${RED}No such file ${TAR_INPUT}${COLOROFF}"
     exit 1
 fi
 
 # Move files in overlapping folders to a temporary backup
-echo "Moving files in folders affected to temporary backup folder $TMP_BACKUP"
-mkdir -p $TMP_BACKUP
-touch $TMP_BACKUP/TIMESTAMP
+echo "Moving files in folders affected to temporary backup folder ${TMP_BACKUP}"
+mkdir -p ${TMP_BACKUP}
+touch ${TMP_BACKUP}/TIMESTAMP
 sleep 1 # Add sleep here so files are created after TIMESTAMP (apparently some missing granularity)
 
-mapfile -t BACKUP_DIRS < <(tar -tf "$TAR_INPUT" | grep -E '/$')
+mapfile -t BACKUP_DIRS < <(tar -tf "${TAR_INPUT}" | grep -E '/$')
 for dirname in "${BACKUP_DIRS[@]}"; do
     # if a dir in the tar file is non-empty locally, move it to the temp backup until update finishes
-    if [[ -n $(find "$dirname" -maxdepth 0 -type d ! -empty -print) ]]; then
-        mkdir -p "$TMP_BACKUP/$dirname"
-        mv "$dirname" "$TMP_BACKUP/"
+    if [[ -n $(find "${dirname}" -maxdepth 0 -type d ! -empty -print) ]]; then
+        mkdir -p "${TMP_BACKUP}/${dirname}"
+        mv "${dirname}" "${TMP_BACKUP}/"
     fi
 done
 
 BACKUP_FILES=(sources.json vcfanno_config.toml)
 for filename in "${BACKUP_FILES[@]}"; do
-    [[ -f "$filename" ]] && cp "$filename" $TMP_BACKUP/
+    [[ -f "${filename}" ]] && cp "${filename}" ${TMP_BACKUP}/
 done
 echo "Done"
 
 # Extract data from tar (excluding sources.json and vcfanno_config.toml)
-echo "Extracting data from $TAR_INPUT"
-tar -xvf "$TAR_INPUT" --exclude sources.json --exclude PACKAGES
+echo "Extracting data from ${TAR_INPUT}"
+tar -xvf "${TAR_INPUT}" --exclude sources.json --exclude PACKAGES
 
 # Update sources.json and vcfanno_config.toml. Avoid overwriting them
 echo "Updating sources.json and vcfanno_config.toml"

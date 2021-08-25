@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
-
 set -euf -o pipefail
 
-while [ $# -gt 0 ]; do
+while [[ $# -gt 0 ]]; do
     case "$1" in
         --input | -i)
             if [[ $2 = -* ]]; then
                 echo "Need argument for $1"
                 exit 1
             fi
-            INPUT="$2"
+            INPUT=$2
             shift
             ;;
         --output | -o)
@@ -17,7 +16,7 @@ while [ $# -gt 0 ]; do
                 echo "Need argument for $1"
                 exit 1
             fi
-            OUTPUT="$2"
+            OUTPUT=$2
             shift
             ;;
         *)
@@ -28,12 +27,12 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-if [ ! -f $INPUT ]; then
-    echo "Unable to open file $INPUT"
+if [[ ! -f "${INPUT}" ]]; then
+    echo "Unable to open file ${INPUT}"
     exit 1
 fi
 
-if [ -v $OUTPUT ]; then
+if [[ -z "${OUTPUT}" ]]; then
     echo "No output specified"
     exit 2
 fi
@@ -41,9 +40,9 @@ fi
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Run vcf-validator from vcftools
-vcf-validator $INPUT
+vcf-validator "${INPUT}"
 
 # Check reference bases match FASTA
-python3 $DIR/../src/annotation/check_vcf_ref.py $INPUT
+python3 "${DIR}/../src/annotation/check_vcf_ref.py" "${INPUT}"
 
-cp $INPUT $OUTPUT
+cp "${INPUT}" "${OUTPUT}"
