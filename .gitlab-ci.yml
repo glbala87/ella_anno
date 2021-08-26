@@ -1,138 +1,133 @@
 ---
-image: docker:19.03.7
+# ref: https://docs.gitlab.com/ee/ci/yaml/index.html#workflowrules-templates
+# tag pipeline > MR pipeline > dev pipeline
+workflow:
+    rules:
+        - if: $CI_COMMIT_TAG
+        - if: $CI_MERGE_REQUEST_IID
+        - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+image: docker:20.10.7
 services:
-    - docker:19.03.7-dind
+    - docker:20.10.7-dind
 
 variables:
     BRANCH: $CI_COMMIT_REF_NAME
     # Use TLS https://docs.gitlab.com/ee/ci/docker/using_docker_build.html#tls-enabled
-    DOCKER_HOST: tcp://docker:2376
+    # CERTDIR used by dind
     DOCKER_TLS_CERTDIR: /certs
-    DOCKER_DRIVER: overlay2
+    # CERT_PATH and TLS_VERIFY needed by docker client in release_singularity
+    DOCKER_CERT_PATH: /certs/client
+    DOCKER_TLS_VERIFY: 1
     DOCKER_BUILDKIT: 1
-    # docker build
-    # we can only build to one image name, everything has to be done under tags
-    BUILDER_COMMIT_TAG: builder-$CI_COMMIT_REF_SLUG
-    BUILDER_LATEST_TAG: builder-latest
-    PROD_COMMIT_TAG: prod-$CI_COMMIT_REF_SLUG
-    PROD_LATEST_TAG: prod-latest
-    PIPELINE_ID: anno-$CI_PIPELINE_ID
+    DOCKER_DRIVER: overlay2
+    DOCKER_HOST: tcp://docker:2376
+    # show useful build info
+    BUILDKIT_PROGRESS: plain
 
-# include:
-#     - template: Container-Scanning.gitlab-ci.yml
-#     - template: Dependency-Scanning.gitlab-ci.yml
-#     - template: SAST.gitlab-ci.yml
-#     - template: License-Scanning.gitlab-ci.yml
+    # we can only build to one image name, everything has to be done under tags
+    PIPELINE_ID: anno-$CI_PIPELINE_ID
+    USE_REGISTRY: 1
+
+    # singularity-in-docker
+    SID_IMAGE: quay.io/singularity/singularity
+    SID_VERSION: v3.8.1
+    SID_SLUG: $SID_IMAGE:$SID_VERSION
+
+    # ignore any breakpoint()s that might have made it into a commit
+    PYTHONBREAKPOINT: 0
 
 stages:
     - build
     - test
-    - update_latest
     - release
 
-.image_setup:
+.base_setup: &image-setup
     before_script:
-        - apk add --update make git
+        - apk add --no-cache --update make git bash jq
         - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
 
-build_builder:
-    stage: build
-    extends: .image_setup
-    script:
-        - make build-annobuilder ANNOBUILDER_IMAGE_NAME="$CI_REGISTRY_IMAGE:$BUILDER_COMMIT_TAG" BUILD_OPTS="--cache-from $CI_REGISTRY_IMAGE:$BUILDER_COMMIT_TAG --cache-from $CI_REGISTRY_IMAGE:$BUILDER_LATEST_TAG --cache-from=$CI_REGISTRY_IMAGE:$PROD_LATEST_TAG"
-        - docker push $CI_REGISTRY_IMAGE:$BUILDER_COMMIT_TAG
-    tags:
-        - bastion
+.test_setup: &test-setup
+    extends: .base_setup
+    stage: test
+    # manual trigger if commit starts with skip-test, otherwise always
+    rules:
+        - if: '$CI_COMMIT_TITLE =~ /^skip-test\b/'
+          when: manual
+          allow_failure: true
+        - when: always
+    needs: ['build_docker']
 
-build_prod:
+# build both at once to reuse local cache
+build_docker:
     stage: build
-    extends: .image_setup
+    extends: .base_setup
     script:
-        - make build IMAGE_NAME="$CI_REGISTRY_IMAGE:$PROD_COMMIT_TAG" BUILD_OPTS="--cache-from=$CI_REGISTRY_IMAGE:$PROD_COMMIT_TAG --cache-from=$CI_REGISTRY_IMAGE:$PROD_LATEST_TAG --cache-from=$CI_REGISTRY_IMAGE:$BUILDER_LATEST_TAG"
-        - docker push $CI_REGISTRY_IMAGE:$PROD_COMMIT_TAG
+        - make ci-build-docker
+    after_script:
+        - make ci-push-docker
     tags:
         - bastion
 
 check_do:
-    stage: test
-    extends: .image_setup
+    extends: .test_setup
     script:
-        - docker pull $CI_REGISTRY_IMAGE:$BUILDER_COMMIT_TAG | cat || true
-        - make verify-digital-ocean ANNOBUILDER_IMAGE_NAME=$CI_REGISTRY_IMAGE:$BUILDER_COMMIT_TAG
+        - make pull-builder verify-digital-ocean
     tags:
         - bastion
+
+check_pipenv:
+    extends: .test_setup
+    script:
+        - make pull-builder pipenv-check
+    tags:
+        - bastion
+
+shellcheck:
+    extends: .test_setup
+    script:
+        - make ci-build-devcontainer test-lint
+    tags:
+        - do-small
 
 run_pytest:
-    extends: .image_setup
-    stage: test
+    extends: .test_setup
     script:
-        - docker pull $CI_REGISTRY_IMAGE:$BUILDER_COMMIT_TAG | cat || true
-        - docker pull $CI_REGISTRY_IMAGE:$PROD_COMMIT_TAG | cat || true
-        - make download-data ANNOBUILDER_IMAGE_NAME=$CI_REGISTRY_IMAGE:$BUILDER_COMMIT_TAG RUN_CMD_ARGS="--skip-validation --force"
-        - make test IMAGE_NAME=$CI_REGISTRY_IMAGE:$PROD_COMMIT_TAG
-        - make test-ops IMAGE_NAME=$CI_REGISTRY_IMAGE:$PROD_COMMIT_TAG
+        - make pull
+        - make download-data RUN_CMD_ARGS="--skip-validation --force"
+        - make test
+        - make test-ops
     tags:
         - do-large
-
-update_latest_builder:
-    stage: update_latest
-    extends: .image_setup
-    script:
-        - docker pull $CI_REGISTRY_IMAGE:$BUILDER_COMMIT_TAG | cat || true
-        - docker tag $CI_REGISTRY_IMAGE:$BUILDER_COMMIT_TAG $CI_REGISTRY_IMAGE:$BUILDER_LATEST_TAG
-        - docker push $CI_REGISTRY_IMAGE:$BUILDER_LATEST_TAG
-    tags:
-        - bastion
-
-update_anno_latest:
-    stage: update_latest
-    extends: .image_setup
-    script:
-        - docker pull $CI_REGISTRY_IMAGE:$PROD_COMMIT_TAG | cat || true
-        - docker tag $CI_REGISTRY_IMAGE:$PROD_COMMIT_TAG $CI_REGISTRY_IMAGE:$PROD_LATEST_TAG
-        - docker push $CI_REGISTRY_IMAGE:$PROD_LATEST_TAG
-    tags:
-        - bastion
+    rules:
+        # manual trigger if commit starts with skip-test, otherwise always
+        - if: '$CI_COMMIT_TITLE =~ /^skip-test\b/'
+          when: manual
+          allow_failure: true
+        - when: always
 
 release_singularity:
     stage: release
-    extends: .image_setup
+    image:
+        name: $SID_SLUG
+        entrypoint: ['']
+    variables:
+        RELEASE_TAG: $CI_COMMIT_REF_NAME
+    before_script:
+        - make ci-release-init
     script:
-        - docker pull $CI_REGISTRY_IMAGE:$PROD_COMMIT_TAG | cat || true
-        - make singularity-release IMAGE_NAME=$CI_REGISTRY_IMAGE
+        - make ci-release
     artifacts:
-        name: 'anno-$CI_COMMIT_REF_NAME-singularity'
         paths:
-            - release/
+            - '*.sif'
         expire_in: 30 days
-    only:
-        - triggers
-# Gitlab security scans
-#
-# dependency_scanning:
-#     stage: test
-#     only:
-#         - tags
-#         - dev
-#         - master
-#
-# container_scanning:
-#     stage: test
-#     only:
-#         - tags
-#         - dev
-#         - master
-#
-# sast:
-#     stage: test
-#     only:
-#         - tags
-#         - dev
-#         - master
-#
-# license_scanning:
-#     stage: test
-#     only:
-#         - tags
-#         - dev
-#         - master
+    rules:
+        # automatically generate release artifacts for tags and dev
+        - if: '$CI_COMMIT_TAG || $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+        # allow manual triggering on merge requests to avoid creating fake tags when testing changes
+        # to release process/artifacts. Will block waiting for manual trigger without allow_failure
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+          when: manual
+          allow_failure: true
+    tags:
+        - bastion

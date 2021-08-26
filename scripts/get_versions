@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/bin/bash -e
 
 usage() {
-    if [[ "$1" ]]; then
-        echo "$1"
+    if [[ -n $* ]]; then
+        echo "$*"
     fi
     echo
     echo "    Usage: $0 -p PACKAGE_NAME [ -l ] [ -h ]"
@@ -15,9 +15,9 @@ usage() {
 }
 
 bail() {
-    if [[ "$1" ]]; then
+    if [[ -n "$*" ]]; then
         echo
-        echo " ** ERROR ** $1"
+        echo " ** ERROR ** $*"
     fi
     echo
     exit 1
@@ -37,26 +37,26 @@ get_list() {
         | uniq
 }
 
-THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-ROOT_DIR="$(dirname $THIS_DIR)"
-OPS_DIR="$ROOT_DIR/ops"
-DATASETS="$OPS_DIR/datasets.json"
+THIS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+ROOT_DIR=$(dirname "${THIS_DIR}")
+OPS_DIR=${ROOT_DIR}/ops
+DATASETS=${OPS_DIR}/datasets.json
 BASE_URL="https://ella-anno.fra1.digitaloceanspaces.com/?prefix=data"
 LATEST=
 
-if [[ ! -f $DATASETS ]]; then
-    bail "Could not find datasets.json: $DATASETS"
+if [[ ! -f ${DATASETS} ]]; then
+    bail "Could not find datasets.json: ${DATASETS}"
 fi
-VALID_PACKAGES=($(jq -r 'keys[]' "$DATASETS"))
+mapfile -t VALID_PACKAGES < <(jq -r 'keys[]' "${DATASETS}")
 
 while getopts ":p:lh" opt; do
     case "${opt}" in
         p)
-            if [[ " ${VALID_PACKAGES[*]} " =~ \ $OPTARG\  ]]; then
-                PACKAGE_NAME="$OPTARG"
-                PACKAGE_URL=$(jq -r ".$PACKAGE_NAME.destination" "$DATASETS")
+            if [[ " ${VALID_PACKAGES[*]} " =~ \ ${OPTARG}\  ]]; then
+                PACKAGE_NAME="${OPTARG}"
+                PACKAGE_URL=$(jq -r ".${PACKAGE_NAME}.destination" "${DATASETS}")
             else
-                bail "Invalid package: $OPTARG"
+                bail "Invalid package: ${OPTARG}"
             fi
             ;;
         l)
@@ -66,17 +66,17 @@ while getopts ":p:lh" opt; do
             usage
             ;;
         \?)
-            usage "Invalid option: $OPTARG"
+            usage "Invalid option: ${OPTARG}"
             ;;
         :)
-            usage "Missing argument for $OPTARG"
+            usage "Missing argument for ${OPTARG}"
             ;;
     esac
 done
 
-TARGET_URL="$BASE_URL/$PACKAGE_URL/"
-if [[ -z $LATEST ]]; then
-    get_list "$TARGET_URL"
+TARGET_URL="${BASE_URL}/${PACKAGE_URL}/"
+if [[ -n ${LATEST} ]]; then
+    get_list "${TARGET_URL}" | tail -1
 else
-    get_list "$TARGET_URL" | tail -1
+    get_list "${TARGET_URL}"
 fi

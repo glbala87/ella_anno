@@ -2,55 +2,59 @@
 
 set -euf -o pipefail
 
-while [ $# -gt 0 ]; do
-  case "$1" in
-    --input|-i)
-      if [[ $2 = -* ]]; then echo "Need argument for $1"; exit 1; fi
-      INPUT="$2"
-      shift
-      ;;
-    --output|-o)
-      if [[ $2 = -* ]]; then echo "Need argument for $1"; exit 1; fi
-      OUTPUT="$2"
-      shift
-      ;;
-    *)
-      echo "* Error: Invalid argument: $1"
-      exit 1
-  esac
-  shift
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --input | -i)
+            if [[ $2 = -* ]]; then
+                echo "Need argument for $1"
+                exit 1
+            fi
+            INPUT="$2"
+            shift
+            ;;
+        --output | -o)
+            if [[ $2 = -* ]]; then
+                echo "Need argument for $1"
+                exit 1
+            fi
+            OUTPUT="$2"
+            shift
+            ;;
+        *)
+            echo "* Error: Invalid argument: $1"
+            exit 1
+            ;;
+    esac
+    shift
 done
 
-
-if [ ! -f $INPUT ]
-then
-    echo "Unable to open file $INPUT"
+if [[ ! -f "${INPUT}" ]]; then
+    echo "Unable to open file ${INPUT}"
     exit 1
 fi
 
-if [ -v $OUTPUT ]
-then
+if [[ -z "${OUTPUT}" ]]; then
     echo "No output specified"
     exit 2
 fi
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Our python script alters genotypes referencing a '*'-allele to refer to the reference instead. After this step, there should be no genotypes referencing '*'
 # Documentation for --trim-alt-alleles flag to bcftools view:
 #  -a, --trim-alt-alleles
-#    remove alleles not seen in the genotype fields from the ALT column. Note that if no alternate allele remains after trimming, 
-#    the record itself is not removed but ALT is set to ".". If the option -s or -S is given, removes alleles not seen in the subset. 
-#    INFO and FORMAT tags declared as Type=A, G or R will be trimmed as well. 
+#    remove alleles not seen in the genotype fields from the ALT column. Note that if no alternate allele remains after trimming,
+#    the record itself is not removed but ALT is set to ".". If the option -s or -S is given, removes alleles not seen in the subset.
+#    INFO and FORMAT tags declared as Type=A, G or R will be trimmed as well.
 #
 # Only apply trim-alt-alleles to lines containing the '*'-allele, after removing the genotype(s) referencing it
 cat <(
-        awk '{if ($1 ~ /^#/ || $5 ~ /\*/) print $0}' $INPUT \
-        | python3 $DIR/../src/annotation/remove_star_genotypes.py \
-        | bcftools view --trim-alt-alleles\
-    ) \
+    awk '{if ($1 ~ /^#/ || $5 ~ /\*/) print $0}' "${INPUT}" \
+        | python3 "${DIR}/../src/annotation/remove_star_genotypes.py" \
+        | bcftools view --trim-alt-alleles
+) \
     <(
-        awk '{if ($1 ~ /^#/ || $5 !~ /\*/) print $0}' $INPUT \
-        | bcftools view -H
+        awk '{if ($1 ~ /^#/ || $5 !~ /\*/) print $0}' "${INPUT}" \
+            | bcftools view -H
     ) \
-    | vcf-sort -c > $OUTPUT
+    | vcf-sort -c >"${OUTPUT}"

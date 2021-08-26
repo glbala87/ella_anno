@@ -1,5 +1,6 @@
 __pycache__
 *.pyc
+.venv
 
 thirdparty/
 data/
@@ -14,5 +15,7 @@ singularity/
 *.simg
 Singularity
 Singularity.*
+*.Singularity
 
 .vscode/
+TODO

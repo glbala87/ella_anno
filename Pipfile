@@ -1,0 +1,54 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+# general
+setuptools = "*"
+pip = ">=21.1"
+wheel = "*"
+# anno
+"biocommons.seqrepo" = "==0.4.5"
+argparse = "*"
+blinker = "*"
+data-spaces = {ref = "5c0801810903674a8f31a8dda249854a5fb7580a", git = "https://gitlab.com/ousamg/data-spaces.git"}
+flake8 = "*"
+Flask = "*"
+Flask-RESTful = "*"
+hgvs = "*"
+itsdangerous = "*"
+Jinja2 = "*"
+MarkupSafe = "*"
+pdbpp = "*"
+psutil = "*"
+pyrsistent = "*"
+pysam = "*"
+pytest = "*"
+PyYAML = "*"
+supervisor = "*"
+toml = "*"
+Werkzeug = "*"
+yoyo-migrations = "*"
+# anno-builder
+biopython = "*"
+crcmod = "*"
+jsonschema = "*"
+lxml = "*"
+pyfaidx = "*"
+
+[dev-packages]
+# set black version explicitly so we can avoid allow_prerelease = true
+black = "==21.6b0"
+flake8 = "*"
+ipython = "*"
+pytest = "*"
+mypy = "*"
+types-pyyaml = "*"
+types-toml = "*"
+
+[requires]
+python_version = "3.9"
+
+[scripts]
+linter = "./tests/opstests/lint_shell_scripts.py"

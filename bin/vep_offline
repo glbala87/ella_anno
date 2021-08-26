@@ -2,11 +2,11 @@
 
 set -euf -o pipefail
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 VEPCACHE="${DIR}/../data/VEP/cache"
 
-vep --dir_cache $VEPCACHE \
+vep --dir_cache "${VEPCACHE}" \
     --cache \
     --offline \
-    "${@}"
+    "$@"

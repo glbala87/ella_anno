@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-source ${DIR}/pg_sourceme
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${DIR}/pg_sourceme"
 
-pg_wait_for_ready $@
+pg_wait_for_ready "$@"
