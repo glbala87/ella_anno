@@ -53,14 +53,14 @@
     },
     "refseq": {
         "description": "RefSeq identifiers suitable for VEP annotation. More up to date and fixes alignment not handled by VEP refseq cache",
-        "version": "20191105",
+        "version": "20201022",
         "hash": {
             "type": "md5",
-            "value": "e84f4e0102b6c4f4cc0035b8abf1038f"
+            "value": "c797c01ea47325096924ef9997f1129f"
         },
         "destination": "RefSeq",
         "generate": [
-            "wget -O GRCh37_refseq_{version}.gff.gz ftp://ftp.ncbi.nlm.nih.gov/refseq/H_sapiens/annotation/GRCh37_latest/refseq_identifiers/GRCh37_latest_genomic.gff.gz",
+            "wget -O GRCh37_refseq_{version}.gff.gz ftp://ftp.ncbi.nlm.nih.gov/refseq/H_sapiens/annotation/annotation_releases/105.{version}/GCF_000001405.25_GRCh37.p13/GCF_000001405.25_GRCh37.p13_genomic.gff.gz",
             "echo '{hash_value} GRCh37_refseq_{version}.gff.gz' | {hash_type}sum -c",
             "zgrep -v '^#' GRCh37_refseq_{version}.gff.gz | sort -k1,1 -k4,4n -k5,5n -t '\t' | bgzip -c > GRCh37_refseq_{version}_VEP.gff.gz",
             "tabix -p gff GRCh37_refseq_{version}_VEP.gff.gz",
