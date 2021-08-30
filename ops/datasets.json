@@ -204,7 +204,7 @@
                     "GNOMAD_EXOMES__Hemi_FIN",
                     "GNOMAD_EXOMES__Hemi_NFE",
                     "GNOMAD_EXOMES__Hemi_OTH",
-                    "GNOMAD_EXOMES__FilterStatus"
+                    "GNOMAD_EXOMES__AS_FilterStatus"
                 ],
                 "ops": [
                     "flag",
@@ -367,7 +367,7 @@
                     "GNOMAD_GENOMES__Hemi_FIN",
                     "GNOMAD_GENOMES__Hemi_NFE",
                     "GNOMAD_GENOMES__Hemi_OTH",
-                    "GNOMAD_GENOMES__FilterStatus"
+                    "GNOMAD_GENOMES__AS_FilterStatus"
                 ],
                 "ops": [
                     "flag",
