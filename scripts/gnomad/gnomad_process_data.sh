@@ -16,8 +16,8 @@ GNOMAD_DATA_DIR=${DATA_DIR}/variantDBs/gnomAD
 GNOMAD_RAW_DIR=${ROOT_DIR}/rawdata/gnomad
 
 usage() {
-    if [[ -n "$*" ]]; then
-        echo "$*"
+    if [[ -n "$1" ]]; then
+        echo "$1"
     fi
     echo
     echo "Usage:"
@@ -53,8 +53,8 @@ normalize_chrom() {
     input_file="$2"
     output_file="$3"
     bed_opt="$4"
-    tabix -p vcf -h $bed_opt "$input_file" $chrom \
-        | python3 ${THIS_DIR}/filter_info.py \
+    tabix -p vcf -h "${bed_opt}" "${input_file}" "${chrom}" \
+        | python3 "${THIS_DIR}/filter_info.py" \
         | vt normalize -r "${REFERENCE}" -n -w 20000 - \
         | vcf-sort -t "${TMP_DIR:-/tmp}" \
             >"${output_file}" \
@@ -115,38 +115,41 @@ chromosomes[genomes]=$(printf '%s\n' {1..22} X)
 
 # start processing chromosome files
 for capture in "exomes" "genomes"; do
-    OUTPUT="$GNOMAD_DATA_DIR/gnomad.${capture}.r${GNOMAD_VERSION}.norm.vcf.gz"
+    OUTPUT="${GNOMAD_DATA_DIR}/gnomad.${capture}.r${GNOMAD_VERSION}.norm.vcf.gz"
     unset BY_CHR
     declare -a BY_CHR
-    for j in ${chromosomes[$capture]}; do
-        while [[ $(pcnt) -ge $MAX_PCNT ]]; do
+    for j in ${chromosomes[${capture}]}; do
+        while [[ $(pcnt) -ge ${MAX_PCNT} ]]; do
             sleep 15
         done
 
-        log "Processing ${capture} chromosome $j"
-        raw_fn="$GNOMAD_RAW_DIR/gnomad.${capture}.r${GNOMAD_VERSION}.sites.${j}.vcf.bgz"
-        norm_fn="$GNOMAD_RAW_DIR/gnomad.${capture}.r${GNOMAD_VERSION}.${j}.norm.vcf"
-        if [[ -z $BED_REGIONS ]]; then
+        log "Processing ${capture} chromosome ${j}"
+        raw_fn="${GNOMAD_RAW_DIR}/gnomad.${capture}.r${GNOMAD_VERSION}.sites.${j}.vcf.bgz"
+        norm_fn="${GNOMAD_RAW_DIR}/gnomad.${capture}.r${GNOMAD_VERSION}.${j}.norm.vcf"
+        if [[ -z ${BED_REGIONS} ]]; then
             bed_opt=""
         else
-            bed_opt="-R $BED_REGIONS"
+            bed_opt="-R ${BED_REGIONS}"
         fi
-        BY_CHR+=($norm_fn)
-        if [[ -f $norm_fn ]]; then
-            log "skipping existing file $norm_fn"
+        BY_CHR+=("${norm_fn}")
+        if [[ -f ${norm_fn} ]]; then
+            log "skipping existing file ${norm_fn}"
         else
             check_tmp || bail
-            normalize_chrom $j $raw_fn $norm_fn "$bed_opt" &
+            normalize_chrom "${j}" "${raw_fn}" "${norm_fn}" "${bed_opt}" &
         fi
     done
     wait
 
     # zip and index data
-    mkdir -p $GNOMAD_DATA_DIR
+    mkdir -p "${GNOMAD_DATA_DIR}"
     log "Zipping ${OUTPUT}"
     # skip header on all but first file for pipe to bgzip
-    if [[ ! -f $OUTPUT ]]; then
-        (cat "${BY_CHR[0]}"; grep -hv '^#' "${BY_CHR[@]:1}") | bgzip --threads ${MAX_ZIP_PCT:-$CPU_MAX_PCNT}> $OUTPUT
+    if [[ ! -f ${OUTPUT} ]]; then
+        (
+            cat "${BY_CHR[0]}"
+            grep -hv '^#' "${BY_CHR[@]:1}"
+        ) | bgzip --threads "${MAX_ZIP_PCT:-${CPU_MAX_PCNT}}" >"${OUTPUT}"
     else
         echo "Merged gzipped ${capture} data already existing, skipping"
     fi
