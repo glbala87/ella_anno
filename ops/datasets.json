@@ -61,8 +61,9 @@
         "destination": "RefSeq",
         "generate": [
             "wget -O GRCh37_refseq_{version}.gff.gz ftp://ftp.ncbi.nlm.nih.gov/refseq/H_sapiens/annotation/annotation_releases/105.{version}/GCF_000001405.25_GRCh37.p13/GCF_000001405.25_GRCh37.p13_genomic.gff.gz",
+            "md5sum GRCh37_refseq_{version}.gff.gz",
             "echo '{hash_value} GRCh37_refseq_{version}.gff.gz' | {hash_type}sum -c",
-            "zgrep -v '^#' GRCh37_refseq_{version}.gff.gz | sort -k1,1 -k4,4n -k5,5n -t '\t' | bgzip -c > GRCh37_refseq_{version}_VEP.gff.gz",
+            "zgrep -Ev '^#|miRBase:' GRCh37_refseq_{version}.gff.gz | sort -k1,1 -k4,4n -k5,5n -t '\t' | bgzip -c > GRCh37_refseq_{version}_VEP.gff.gz",
             "tabix -p gff GRCh37_refseq_{version}_VEP.gff.gz",
             "mv GRCh37_refseq_{version}_VEP.gff.gz* {data_dir}"
         ]
