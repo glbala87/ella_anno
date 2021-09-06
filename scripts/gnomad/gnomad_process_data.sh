@@ -49,14 +49,15 @@ check_tmp() {
 }
 
 normalize_chrom() {
-    chrom="$1"
-    input_file="$2"
-    output_file="$3"
-    bed_opt="$4"
-    tabix -p vcf -h "${bed_opt}" "${input_file}" "${chrom}" \
+    local chrom="$1"
+    local input_file="$2"
+    local output_file="$3"
+    local bed_opt="$4"
+    tabix -p vcf -h ${bed_opt} "${input_file}" "${chrom}" \
         | python3 "${THIS_DIR}/filter_info.py" \
         | vt normalize -r "${REFERENCE}" -n -w 20000 - \
         | vcf-sort -t "${TMP_DIR:-/tmp}" \
+        | gzip -1 \
             >"${output_file}" \
         || bail "Error processing chrom ${chrom} of ${input_file}, return code: $?"
     log "Finished processing chromosome ${chrom} of ${input_file}"
@@ -125,7 +126,7 @@ for capture in "exomes" "genomes"; do
 
         log "Processing ${capture} chromosome ${j}"
         raw_fn="${GNOMAD_RAW_DIR}/gnomad.${capture}.r${GNOMAD_VERSION}.sites.${j}.vcf.bgz"
-        norm_fn="${GNOMAD_RAW_DIR}/gnomad.${capture}.r${GNOMAD_VERSION}.${j}.norm.vcf"
+        norm_fn="${GNOMAD_RAW_DIR}/gnomad.${capture}.r${GNOMAD_VERSION}.${j}.norm.vcf.gz"
         if [[ -z ${BED_REGIONS} ]]; then
             bed_opt=""
         else
@@ -147,8 +148,8 @@ for capture in "exomes" "genomes"; do
     # skip header on all but first file for pipe to bgzip
     if [[ ! -f ${OUTPUT} ]]; then
         (
-            cat "${BY_CHR[0]}"
-            grep -hv '^#' "${BY_CHR[@]:1}"
+            zcat "${BY_CHR[0]}"
+            zgrep -hv '^#' "${BY_CHR[@]:1}"
         ) | bgzip --threads "${MAX_ZIP_PCT:-${CPU_MAX_PCNT}}" >"${OUTPUT}"
     else
         echo "Merged gzipped ${capture} data already existing, skipping"

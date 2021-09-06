@@ -69,12 +69,13 @@ GSUTIL=$(which gsutil 2>/dev/null || echo)
 if [[ -z ${GSUTIL} ]]; then
     usage "Unable to find gsutil, make sure it is installed, in the PATH and try again"
 fi
+export HOME=/tmp
 
 # set -x
 mkdir -p "${DATA_DIR}"
 MAX_PCNT=${MAX_PCNT:-$(grep -c processor /proc/cpuinfo)}
-mapfile -t GS_FILES <"$(${GSUTIL} ls "gs://gcp-public-data--gnomad/release/${REVISION}/vcf/exomes/gnomad.exomes.r${REVISION}.sites.*.vcf.bgz"* \
-    "gs://gcp-public-data--gnomad/release/${REVISION}/vcf/genomes/gnomad.genomes.r${REVISION}.sites.*.vcf.bgz*")"
+mapfile -t GS_FILES < <(${GSUTIL} ls "gs://gcp-public-data--gnomad/release/${REVISION}/vcf/exomes/gnomad.exomes.r${REVISION}.sites.*.vcf.bgz"* \
+    "gs://gcp-public-data--gnomad/release/${REVISION}/vcf/genomes/gnomad.genomes.r${REVISION}.sites.*.vcf.bgz*")
 
 # go through all the files listed remotely and check for any that already exist locally
 # If filename exists, compare filesize and md5sum (unless set to skip md5 check)
@@ -103,7 +104,7 @@ for gs_file in "${GS_FILES[@]}"; do
 done
 wait
 
-mapfile -t LOCAL_FILES <"$(ls "${DATA_DIR}")"
+mapfile -t LOCAL_FILES < <(ls "${DATA_DIR}")
 for local_file in "${LOCAL_FILES[@]}"; do
     for i in "${!GS_FILES[@]}"; do
         if [[ "$(basename "${GS_FILES[i]}")" == "${local_file}" ]]; then
