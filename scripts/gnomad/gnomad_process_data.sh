@@ -53,6 +53,7 @@ normalize_chrom() {
     local input_file="$2"
     local output_file="$3"
     local bed_opt="$4"
+    # shellcheck disable=SC2086
     tabix -p vcf -h ${bed_opt} "${input_file}" "${chrom}" \
         | python3 "${THIS_DIR}/filter_info.py" \
         | vt normalize -r "${REFERENCE}" -n -w 20000 - \
