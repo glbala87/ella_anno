@@ -22,7 +22,7 @@ Release date: TBD
 - Moved to Pipenv/Pipfile for dependency management and updating packages. 
 - Upgraded Python to v3.9.
 - Upgraded PostgreSQL to version 13.
-- Upgraded Docker base image to Debian 11 (Bullseye)
+- Upgraded Docker base image to Debian 11 (Bullseye).
 <!-- MR !70 (!71) -->
 - Added a development container.
 
@@ -37,6 +37,8 @@ Release date: TBD
 - Removed miRNA from RefSeq data to mitigate [bug in VEP](https://github.com/Ensembl/ensembl-vep/issues/732#issuecomment-610938368).
 <!-- MR !65 -->
 - Upgraded biocommons seqrepo to version 2021-01-29.
+<!-- MR !68 -->
+- Updated UTA to version 20210129.
 <!-- MR !72 -->
 - Updated ClinVar to version 20210826.
 
@@ -47,7 +49,7 @@ Release date: 11.06.2021
 
 #### Codebase
 <!-- MR !67 -->
-- Added force flag to get a clean data folder
+- Added force flag to get a clean data folder.
 
 ## Version 2.2.3
 
