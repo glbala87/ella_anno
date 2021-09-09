@@ -148,6 +148,7 @@
                     "nhemialt_fin",
                     "nhemialt_nfe",
                     "nhemialt_oth",
+                    "nhemialt_sas",
                     "FILTER"
                 ],
                 "names": [
@@ -204,10 +205,12 @@
                     "GNOMAD_EXOMES__Hemi_FIN",
                     "GNOMAD_EXOMES__Hemi_NFE",
                     "GNOMAD_EXOMES__Hemi_OTH",
+                    "GNOMAD_EXOMES__Hemi_SAS",
                     "GNOMAD_EXOMES__AS_FilterStatus"
                 ],
                 "ops": [
                     "flag",
+                    "first",
                     "first",
                     "first",
                     "first",

@@ -38,7 +38,10 @@ def main() -> None:
                 new_fields = {}
                 for ac_key in filtered_fields.keys():
                     if ac_key.startswith("AC_") and ac_key.endswith("_male"):
-                        new_key = "_".join(["nhemialt", ac_key[3:-5]])
+                        if ac_key == "AC_male":
+                            new_key = "nhemialt"
+                        else:
+                            new_key = f"nhemialt_{ac_key[3:-5]}"
                         new_fields[new_key] = filtered_fields[ac_key]
                 filtered_fields = {**filtered_fields, **new_fields}
             fields[VcfField.INFO] = ";".join(["=".join([k, v]) for k, v in filtered_fields.items()])
