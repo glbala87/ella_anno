@@ -213,7 +213,7 @@ def main():
             dataset_ready = data_dir / TOUCHFILE
             if dataset_ready.exists():
                 dataset_metadata = load_yaml(dataset_ready)
-                if dataset_metadata.get("version", "") == dataset_version:
+                if str(dataset_metadata.get("version", "")) == str(dataset_version):
                     logger.info(f"Dataset {dataset_name} already complete, skipping\n")
                     continue
                 else:
