@@ -23,8 +23,8 @@ Release date: TBD
 - Upgraded Python to v3.9.
 - Upgraded PostgreSQL to version 13.
 - Upgraded Docker base image to Debian 11 (Bullseye).
-<!-- MR !70 (!71) -->
-- Added a development container.
+<!-- MR !70 (!71), !76 -->
+- Improvements to code base and dev environment.
 
 #### Data sources
 <!-- MR !62 -->
