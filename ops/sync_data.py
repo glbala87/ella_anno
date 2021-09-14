@@ -213,7 +213,7 @@ def main():
             dataset_ready = data_dir / TOUCHFILE
             if dataset_ready.exists():
                 dataset_metadata = load_yaml(dataset_ready)
-                if dataset_metadata.get("version", "") == dataset_version:
+                if str(dataset_metadata.get("version", "")) == str(dataset_version):
                     logger.info(f"Dataset {dataset_name} already complete, skipping\n")
                     continue
                 else:
@@ -307,7 +307,7 @@ def main():
                 dataset_touchfile = data_dir / TOUCHFILE
                 if dataset_touchfile.is_file():
                     dataset_metadata = load_yaml(dataset_touchfile)
-                    if dataset_metadata["version"] != dataset_version:
+                    if str(dataset_metadata["version"]) != str(dataset_version):
                         message = f"Data already downloaded for {dataset_name} version {dataset_metadata['version']}, but expected {dataset_version}"
                         if args.force:
                             logger.warning(f"{message}. Removing existing data before continuing")
