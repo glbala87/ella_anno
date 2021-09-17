@@ -9,8 +9,8 @@ ROOT_DIR=$(dirname "$(dirname "${THIS_DIR}")")
 DATA_DIR=${ROOT_DIR}/rawdata/gnomad
 
 usage() {
-    if [[ -n $* ]]; then
-        echo "$*"
+    if [[ -n $1 ]]; then
+        echo "$1"
     fi
     echo
     echo "USAGE:"
@@ -24,22 +24,24 @@ log() {
 }
 
 pcnt() {
+    local CNT
     CNT=$(pgrep -P $$ | wc -l)
     echo $((CNT - 1))
 }
 
 rm_on_mismatch() {
-    local_file="$1"
-    remote_hash="$2"
+    local local_file="$1"
+    local remote_hash="$2"
+    local local_hash
     local_hash=$(openssl dgst -md5 -binary "${local_file}" | openssl enc -base64)
     if [[ "${local_hash}" != "${remote_hash}" ]]; then
-        rm "${local_file}" # hash mismatch
+        rm "${local_file}" # (hash mismatch)
     else
         log "Skipping already downloaded file: $(basename "${local_file}")"
     fi
 }
 
-while [[ $# -gt 0 ]]; do
+while [ $# -gt 0 ]; do
     key="$1"
     case "${key}" in
         -r | --revision)
@@ -67,12 +69,14 @@ GSUTIL=$(which gsutil 2>/dev/null || echo)
 if [[ -z ${GSUTIL} ]]; then
     usage "Unable to find gsutil, make sure it is installed, in the PATH and try again"
 fi
+export HOME=/tmp
 
 # set -x
 mkdir -p "${DATA_DIR}"
-MAX_PCNT=${MAX_PCNT:-$(nproc)}
-mapfile -t GS_FILES <"$(${GSUTIL} ls "gs://gnomad-public/release/${REVISION}/vcf/exomes/gnomad.exomes.r${REVISION}.sites.vcf.bgz"* \
-    "gs://gnomad-public/release/${REVISION}/vcf/genomes/gnomad.genomes.r${REVISION}.sites.chr*.vcf.bgz*")"
+MAX_PCNT=${MAX_PCNT:-$(grep -c processor /proc/cpuinfo)}
+mapfile -t GS_FILES < <(${GSUTIL} ls "gs://gcp-public-data--gnomad/release/${REVISION}/vcf/exomes/gnomad.exomes.r${REVISION}.sites.*.vcf.bgz"* \
+    "gs://gcp-public-data--gnomad/release/${REVISION}/vcf/genomes/gnomad.genomes.r${REVISION}.sites.*.vcf.bgz*")
+
 # go through all the files listed remotely and check for any that already exist locally
 # If filename exists, compare filesize and md5sum (unless set to skip md5 check)
 # * If both values match, keep the local file and don't download
@@ -94,13 +98,13 @@ for gs_file in "${GS_FILES[@]}"; do
                 rm_on_mismatch "${local_file}" "${gs_file_hash}" &
             fi
         else
-            rm "${local_file}" # size mismatch
+            rm "${local_file}" # (size mismatch)
         fi
     fi
 done
 wait
 
-mapfile -t LOCAL_FILES <"$(ls "${DATA_DIR}")"
+mapfile -t LOCAL_FILES < <(ls "${DATA_DIR}")
 for local_file in "${LOCAL_FILES[@]}"; do
     for i in "${!GS_FILES[@]}"; do
         if [[ "$(basename "${GS_FILES[i]}")" == "${local_file}" ]]; then
