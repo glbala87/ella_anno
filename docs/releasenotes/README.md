@@ -15,7 +15,7 @@ title: Latest release
 
 ## >> Version 2.3.0
 
-Release date: TBD
+Release date: 17.09.2021
 
 #### Codebase
 <!-- MR !68, !71 -->
