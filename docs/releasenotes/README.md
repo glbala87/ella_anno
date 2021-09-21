@@ -15,7 +15,7 @@ title: Latest release
 
 ## >> Version 2.3.0
 
-Release date: 17.09.2021
+Release date: 21.09.2021
 
 #### Codebase
 <!-- MR !68, !71 -->
@@ -23,7 +23,7 @@ Release date: 17.09.2021
 - Upgraded Python to v3.9.
 - Upgraded PostgreSQL to version 13.
 - Upgraded Docker base image to Debian 11 (Bullseye).
-<!-- MR !70 (!71), !76 -->
+<!-- MR !70 (!71), !76, !77 -->
 - Improvements to code base and dev environment.
 
 #### Data sources
