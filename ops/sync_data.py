@@ -209,6 +209,9 @@ def main():
             format_opts["hash_type"] = dataset["hash"]["type"]
             format_opts["hash_value"] = dataset["hash"]["value"]
 
+        bash_opts = ["pipefail", "errexit"]
+        subp_env = os.environ.copy()
+        subp_env["SHELLOPTS"] = ":".join([subp_env.get("SHELLOPTS", ""), *bash_opts]).lstrip(":")
         if args.generate:
             dataset_ready = data_dir / TOUCHFILE
             if dataset_ready.exists():
@@ -251,11 +254,12 @@ def main():
                     logger.info(f"Running: {step_str}")
                     step_resp = subprocess.run(
                         step_str,
-                        shell=True,
                         cwd=raw_dir,
-                        stdout=h.stream,
-                        stderr=subprocess.PIPE,
+                        env=subp_env,
                         executable="/bin/bash",
+                        shell=True,
+                        stderr=subprocess.PIPE,
+                        stdout=h.stream,
                     )
                     if step_resp.returncode != 0:
                         errs.append(
