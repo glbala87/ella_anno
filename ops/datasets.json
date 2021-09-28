@@ -32,10 +32,10 @@
     },
     "refgene": {
         "description": "refGene database for slicing gnomAD data",
-        "version": "20200319",
+        "version": "20210928",
         "hash": {
             "type": "md5",
-            "value": "1b028ad27b0c66dfdeb1ef73b9e9ddc1"
+            "value": "fda2826bdd878cd3cd2ddb515125975d"
         },
         "vars": {
             "hg_build": "hg19"
@@ -43,12 +43,15 @@
         "destination": "refGene",
         "generate": [
             "wget http://hgdownload.soe.ucsc.edu/goldenPath/{hg_build}/database/refGene.txt.gz",
-            "echo '{hash_value} refGene.txt.gz' | {hash_type}sum -c",
+            "{hash_type}sum -c <(echo '{hash_value} refGene.txt.gz')",
             "LATEST=$({root_dir}/scripts/get_versions -p refgene -l); wget https://ella-anno.fra1.digitaloceanspaces.com/data/{destination}/$LATEST/refGeneHistorical.csv.gz",
             "gunzip refGeneHistorical.csv.gz",
             "DATE=$(date -d \"$(curl -sI http://hgdownload.soe.ucsc.edu/goldenPath/{hg_build}/database/refGene.txt.gz | grep Last-Mod | cut -f2- -d' ')\" +%Y-%m-%d); zcat refGene.txt.gz | sed -e \"s/$/\t$DATE/\" >> refGeneHistorical.csv",
             "gzip refGeneHistorical.csv",
-            "cp refGeneHistorical.csv.gz refgene_{hg_build}_{version}.bed {data_dir}/"
+            "cp refGeneHistorical.csv.gz {data_dir}/",
+            "zcat refGene.txt.gz | cut -f 3,5,6 | sed 's/chr//g' | sort -k1,1V -k2,2n | uniq | bedtools merge > refgene_{version}.bed",
+            "mysql --user=genome --host=genome-mysql.cse.ucsc.edu -A -e 'select chrom, size from {hg_build}.chromInfo' | sed 's/chr//g' > {data_dir}/{hg_build}.genome",
+            "bedtools slop -i refgene_{version}.bed -g {data_dir}/{hg_build}.genome -b 10000 > {data_dir}/refgene_{version}_slop_10k.bed"
         ]
     },
     "refseq": {
