@@ -26,7 +26,7 @@ psutil = "*"
 pyrsistent = "*"
 # Force pysam to use github repo until fix for setuptools makes it to a release
 # ref: https://github.com/pysam-developers/pysam/commit/f31f6dc5f5876957bf9bb1eb393e3344d3e9768b
-pysam = {ref = "92f8a51fa49ab5e8c8d72750ff3adef0bc4a9a48", git = "https://github.com/pysam-developers/pysam.git"}
+pysam = {editable = true, ref = "v0.18.0", git = "https://github.com/pysam-developers/pysam.git"}
 pytest = "*"
 PyYAML = "*"
 supervisor = "*"
