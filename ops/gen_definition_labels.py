@@ -37,13 +37,10 @@ def err(msg: str) -> None:
 
 
 def get_labels(source_image: str, base_label: str) -> str:
-    resp = subprocess.run(
+    resp = subprocess.check_output(
         ["docker", "inspect", source_image],
-        capture_output=True,
     )
-    if resp.returncode != 0:
-        raise RuntimeError(f"Failed to inspect docker image {source_image}: {resp.stderr.decode()}")
-    image_metadata = json.loads(resp.stdout.decode())[0]
+    image_metadata = json.loads(resp.decode())[0]
 
     if not image_metadata["Config"]:
         raise KeyError(f"missing Config key in docker inspect output: {image_metadata}")
