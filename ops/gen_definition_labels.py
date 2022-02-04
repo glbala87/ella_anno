@@ -13,7 +13,7 @@ import click
 class Bootstrap(str, Enum):
     local = "docker-daemon"
     registry = "docker"
-    default = registry
+    default = local
 
     def __str__(self) -> str:
         return self.value
