@@ -123,6 +123,9 @@ any:
 build: ## build Docker image of 'prod' target named $IMAGE_NAME
 	docker build -t $(IMAGE_NAME) $(BUILD_OPTS) --target prod .
 
+build-release:
+	git archive --format tar  $(if $(CI_COMMIT_SHA),$(CI_COMMIT_SHA),$(PROD_TAG)) | docker build -t $(IMAGE_NAME) $(BUILD_OPTS) --target prod -
+
 pull: pull-builder pull-prod ## pull IMAGE_NAME and ANNOBUILDER_IMAGE_NAME from registry, requires USE_REGISTRY
 
 pull-prod: ## pull IMAGE_NAME from registry, requires USE_REGISTRY
@@ -437,7 +440,7 @@ singularity-untar-data: ## untar
 ##---------------------------------------------
 
 ci-build-docker:
-	$(MAKE) build BUILD_OPTS="--cache-from=$(IMAGE_NAME) --cache-from=$(ANNOBUILDER_IMAGE_NAME)"
+	$(MAKE) build-release BUILD_OPTS="--cache-from=$(IMAGE_NAME) --cache-from=$(ANNOBUILDER_IMAGE_NAME)"
 	$(MAKE) build-annobuilder BUILD_OPTS="--cache-from=$(ANNOBUILDER_IMAGE_NAME) --cache-from=$(IMAGE_NAME)"
 
 ci-build-devcontainer:
