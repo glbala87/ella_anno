@@ -202,11 +202,9 @@ ifeq ($(CI),)
 # running locally, use interactive/tty
 TERM_OPTS := -it
 BASH_I = -i
-SUDO = sudo -E
 else
 BASH_I :=
 TERM_OPTS :=
-SUDO =
 endif
 
 # ensure $ANNO_DATA exists so it's not created as root owned by docker
