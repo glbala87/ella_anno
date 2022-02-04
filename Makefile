@@ -344,7 +344,7 @@ pipenv-check: ## uses pipenv to check for package vulnerabilities
 .PHONY: singularity-test singularity-shell singularity-start singularity-stop
 
 singularity-build:
-	singularity build $(SINGULARITY_IMAGE_NAME) $(IMAGE_NAME)
+	singularity build $(SINGULARITY_IMAGE_NAME) docker-daemon://$(IMAGE_NAME)
 
 # creates additional directories necessary when using read-only Singularity image
 ensure-singularity-dirs:
