@@ -17,8 +17,10 @@ ANNO_RAWDATA ?= $(PWD)/rawdata
 # set USE_REGISTRY to use the gitlab registry image names
 ifeq ($(USE_REGISTRY),)
 BASE_IMAGE = local/ella-anno
+DOCKER_PREFIX = docker-daemon://
 else
 BASE_IMAGE = registry.gitlab.com/alleles/ella-anno
+DOCKER_PREFIX = docker://
 endif
 
 # Docker/Singularity labels should follow OCI standard
@@ -344,7 +346,7 @@ pipenv-check: ## uses pipenv to check for package vulnerabilities
 .PHONY: singularity-test singularity-shell singularity-start singularity-stop
 
 singularity-build:
-	singularity build $(SINGULARITY_IMAGE_NAME) docker-daemon://$(IMAGE_NAME)
+	singularity build $(SINGULARITY_IMAGE_NAME) $(DOCKER_PREFIX)$(IMAGE_NAME)
 
 # creates additional directories necessary when using read-only Singularity image
 ensure-singularity-dirs:
