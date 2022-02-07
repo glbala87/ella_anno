@@ -123,6 +123,9 @@ any:
 build: ## build Docker image of 'prod' target named $IMAGE_NAME
 	docker build -t $(IMAGE_NAME) $(BUILD_OPTS) --target prod .
 
+build-release:
+	git archive --format tar  $(if $(CI_COMMIT_SHA),$(CI_COMMIT_SHA),$(PROD_TAG)) | docker build -t $(IMAGE_NAME) $(BUILD_OPTS) --target prod -
+
 pull: pull-builder pull-prod ## pull IMAGE_NAME and ANNOBUILDER_IMAGE_NAME from registry, requires USE_REGISTRY
 
 pull-prod: ## pull IMAGE_NAME from registry, requires USE_REGISTRY
@@ -199,11 +202,9 @@ ifeq ($(CI),)
 # running locally, use interactive/tty
 TERM_OPTS := -it
 BASH_I = -i
-SUDO = sudo -E
 else
 BASH_I :=
 TERM_OPTS :=
-SUDO =
 endif
 
 # ensure $ANNO_DATA exists so it's not created as root owned by docker
@@ -342,29 +343,8 @@ pipenv-check: ## uses pipenv to check for package vulnerabilities
 ##---------------------------------------------------------------------
 .PHONY: singularity-test singularity-shell singularity-start singularity-stop
 
-# Singularity supports using labels in the definition file, but ignores any existing that already
-# exist on the images they're built off of. This is dumb, but due to be fixed in v3.9. So here we
-# generate a simple definition file just to get the metadata we bake into the docker images.
-# DEF_FILE: the name of the generated Singularity definition file
-# DEF_LABEL: string used as base for new labels
-# DEF_FORCE: non-empty to automatically overwrite an existing 
-# DEF_BOOTSTRAP: bootstrap method to use in the definition file
-DEF_SOURCE ?= $(IMAGE_NAME)
-DEF_FILE ?= Singularity
-DEF_LABEL ?= $(ANNO_BASE_LABEL)
-DEF_FORCE ?=
-DEF_BOOTSTRAP ?=
-PYTHON3 := $(shell command -v python3)
-_generate_definition:
-	$(eval _DEF_ARGS = -i '$(DEF_SOURCE)' -o '$(DEF_FILE)' -l $(DEF_LABEL))
-	$(if $(DEF_FORCE),$(eval _DEF_ARGS += --force))
-	$(if $(DEF_BOOTSTRAP),$(eval _DEF_ARGS +=  -b $(DEF_BOOTSTRAP)))
-	$(PYTHON3) ops/gen_definition_labels.py $(_DEF_ARGS)
-
-# NOTE: if building locally and it fails trying to extract the labels from the source Docker image
-#   you need to either build or pull the Docker image
-singularity-build: _generate_definition ## builds a singularity image from the Docker image $IMAGE_NAME
-	$(SUDO) singularity build $(SINGULARITY_IMAGE_NAME) $(DEF_FILE)
+singularity-build:
+	singularity build $(SINGULARITY_IMAGE_NAME) docker-daemon://$(IMAGE_NAME)
 
 # creates additional directories necessary when using read-only Singularity image
 ensure-singularity-dirs:
@@ -405,12 +385,6 @@ singularity-errlog:
 singularity-log:
 	cat $(SINGULARITY_LOG_STDOUT) | $(PAGER)
 
-# Sandbox dev options so don't have to rebuild the image all the time
-# Still uses same SINGULARITY_INSTANCE_NAME, so -stop, -test, -shell all still work
-singularity-build-dev: gen-singularityfile
-	$(SUDO) singularity build --sandbox $(SINGULARITY_SANDBOX_PATH) $(SINGULARITY_DEF_FILE)
-	$(SUDO) chown -R $(USER). $(SINGULARITY_SANDBOX_PATH)
-
 singularity-start-dev:
 	[ -d $(SINGULARITY_DATA) ] || mkdir -p $(SINGULARITY_DATA)
 	singularity -v instance start \
@@ -437,7 +411,7 @@ singularity-untar-data: ## untar
 ##---------------------------------------------
 
 ci-build-docker:
-	$(MAKE) build BUILD_OPTS="--cache-from=$(IMAGE_NAME) --cache-from=$(ANNOBUILDER_IMAGE_NAME)"
+	$(MAKE) build-release BUILD_OPTS="--cache-from=$(IMAGE_NAME) --cache-from=$(ANNOBUILDER_IMAGE_NAME)"
 	$(MAKE) build-annobuilder BUILD_OPTS="--cache-from=$(ANNOBUILDER_IMAGE_NAME) --cache-from=$(IMAGE_NAME)"
 
 ci-build-devcontainer:

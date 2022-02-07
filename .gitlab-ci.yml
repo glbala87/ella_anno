@@ -82,6 +82,7 @@ check_pipenv:
         - make pull-builder pipenv-check
     tags:
         - bastion
+    allow_failure: true
 
 shellcheck:
     extends: .test_setup
