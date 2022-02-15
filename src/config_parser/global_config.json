@@ -1,0 +1,36 @@
+[
+    {
+        "comment": "all.default",
+        "regexes": {
+            "SAMPLE_ID": ".*",
+            "GP_NAME": ".*",
+            "GP_VERSION": ".*",
+            "TYPE": ".*",
+            "CAPTUREKIT": ".*"
+        },
+        "config": {
+            "tracks": true,
+            "cnv": false
+        }
+    },
+    {
+        "comment": "cnv=true, case 1: All EKG samples should include CNV",
+        "regexes": {
+            "SAMPLE_ID": ".*EKG.*"
+        },
+        "config": {
+            "cnv": true
+        }
+    },
+    {
+        "comment": "cnv=true, case 2: single WGS samples on limited gene panels should include CNV",
+        "regexes": {
+            "SAMPLE_ID": ".*wgs.*",
+            "GP_NAME": "^(Barnekreft|Netthinne|NETumor|Hyperpara)$",
+            "TYPE": "^single$"
+        },
+        "config": {
+            "cnv": true
+        }
+    }
+]
