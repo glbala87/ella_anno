@@ -1,11 +1,6 @@
-import argparse
-import json
 import logging
-import os
 import re
-from pathlib import Path
 from typing import Any, Dict, List, Optional
-
 from pydantic import BaseModel, Extra, FilePath, BaseSettings
 
 logging.basicConfig(level=logging.DEBUG)
@@ -14,7 +9,7 @@ log = logging.getLogger(__name__)
 # Settings
 class Settings(BaseSettings):
     """
-    required uenvironment variables
+    required environment variables
     """
     GLOBAL_CONFIG_PATH: FilePath = 'global_config.json'
     SAMPLE_ID: str
