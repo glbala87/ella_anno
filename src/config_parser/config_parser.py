@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     class Config:
         case_sensitive = True
         fields = {
-            'global_config_path': {
+            'GLOBAL_CONFIG_PATH': {
                 'env': 'ANNO_GLOBAL_CONFIG_PATH'  # external environment var name
             }
         }
