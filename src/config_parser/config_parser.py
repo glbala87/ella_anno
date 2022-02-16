@@ -1,10 +1,13 @@
 import logging
 import re
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Extra, FilePath, BaseSettings
 
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
+
+PARSED_CONFIG_FILE = 'task_config.json'
 
 # Settings
 class Settings(BaseSettings):
@@ -60,12 +63,13 @@ class ParsedConfig(BaseModel):
 
 # Parser
 def parse_config(settings: Settings) -> ParsedConfig:
+    # load and validate global config
     global_config = GlobalConfig.parse_file(settings.GLOBAL_CONFIG_PATH)
 
     accumulate_config = {}
 
     for subconfig in global_config:
-        log.info('checking %s ...', subconfig.comment)
+        log.info(' checking %s ...', subconfig.comment)
         for environment_key, regex in subconfig.regexes.items():
             env_value = settings[environment_key]
             log.debug('checking %s "%s" against regex "%s" ...', environment_key, env_value, regex)
@@ -76,9 +80,10 @@ def parse_config(settings: Settings) -> ParsedConfig:
             else:
                 log.debug('matched')
         else:
-            log.info('all regexes matched, update config with %s', subconfig.config)
+            log.info(' all regexes matched, update config with %s', subconfig.config)
             accumulate_config.update(subconfig.config)
 
+    # validate parsed config
     parsed_config = ParsedConfig.parse_obj(accumulate_config)
 
     return parsed_config
@@ -87,7 +92,13 @@ def parse_config(settings: Settings) -> ParsedConfig:
 def main():
     settings = Settings()
     parsed_config = parse_config(settings)
-    print(parsed_config.json(indent=4))
+    config_json = parsed_config.json(indent=4)
+    log.info('\nFor inputs:\n%s\nParsed config:\n%s',
+             settings.json(indent=4),
+             config_json)
+
+    outfile = Path(PARSED_CONFIG_FILE)
+    outfile.write_text(config_json)
 
 
 if __name__ == "__main__":
