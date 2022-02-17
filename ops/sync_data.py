@@ -364,8 +364,9 @@ def main():
     if errs:
         logger.error(f"Encountered errors with the following datasets:")
         for err_entry in errs:
-            print(" --- ".join([str(x) for x in err_entry]))
-            print(" ---\n")
+            err_message = " --- ".join([str(x) for x in err_entry]) + " ---\n"
+            logger.error(err_message)
+            print(err_message)
 
 
 def load_yaml(file: Path):
