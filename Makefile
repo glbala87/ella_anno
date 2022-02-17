@@ -226,7 +226,8 @@ $(if $(FASTA_PATH),
 )
 $(if
 	$(and $(FASTA_PATH),$(FASTA_EXISTS)),
-	$(eval override ANNOBUILDER_OPTS += -v $(FASTA_PATH):/fasta.fa -e FASTA=/fasta.fa)
+	$(eval override ANNOBUILDER_OPTS += -v $(FASTA_PATH):/anno/data/FASTA/custom.fasta)
+	$(eval override ANNOBUILDER_OPTS += -e FASTA=/anno/data/FASTA/custom.fasta)
 )
 docker run --rm $(TERM_OPTS) \
 	$(ANNOBUILDER_OPTS) \
