@@ -1,20 +1,8 @@
-""" 
-This script collects following environment variables(case sensitive):
-- ANNO_GLOBAL_CONFIG_PATH: path to global configuration json file
-- SAMPLE_ID: id with project and sample id, e.g. Diag-wgs123-12345678901 
-- GP_NAME: genepanel name
-- GP_VERSION: genepanel version
-- TYPE: joint analysis type, e.g. "single", "trio"
-- CAPTUREKIT: capturekit
-
-All environment variables must be set except ANNO_GLOBAL_CONFIG_PATH which
-defaults to global_config.json in current directory.
-
-This scipts parse and validate the global configuration json file and generate
-a specific configuration json file by matching environment variable values
-against the global configuration.
 """
-
+This scipts parse and validate a configuration file and generate a json file by
+matching environment variable values to regexes in the configuration file.
+"""
+import os
 import logging
 import re
 from pathlib import Path
@@ -30,25 +18,9 @@ PARSED_CONFIG_FILE = 'task_config.json'
 # Settings
 class Settings(BaseSettings):
     """
-    required environment variables
+    path to configuration file
     """
-    GLOBAL_CONFIG_PATH: FilePath = 'global_config.json'
-    SAMPLE_ID: str
-    GP_NAME: str
-    GP_VERSION: str
-    TYPE: str
-    CAPTUREKIT: str
-
-    class Config:
-        case_sensitive = True
-        fields = {
-            'GLOBAL_CONFIG_PATH': {
-                'env': 'ANNO_GLOBAL_CONFIG_PATH'  # external environment var name
-            }
-        }
-
-    def __getitem__(self, item):
-        return self.dict()[item]
+    CONFIG_PATH: FilePath
 
 
 # Schemas of global config
@@ -85,14 +57,16 @@ class ParsedConfig(BaseModel):
 # Parser
 def parse_config(settings: Settings) -> ParsedConfig:
     # load and validate global config
-    global_config = GlobalConfig.parse_file(settings.GLOBAL_CONFIG_PATH)
+    global_config = GlobalConfig.parse_file(settings.CONFIG_PATH)
 
     accumulate_config = {}
 
     for subconfig in global_config:
         log.info(' checking %s ...', subconfig.comment)
         for environment_key, regex in subconfig.regexes.items():
-            env_value = settings[environment_key]
+            if environment_key not in os.environ:
+                raise RuntimeError(f'environment variable "{environment_key}" not set')
+            env_value = os.environ[environment_key]
             log.debug('checking %s "%s" against regex "%s" ...', environment_key, env_value, regex)
             if not re.match(regex, env_value):
                 log.debug('not matching, skip %s', subconfig.comment)
