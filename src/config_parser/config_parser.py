@@ -1,3 +1,20 @@
+""" 
+This script collects following environment variables(case sensitive):
+- ANNO_GLOBAL_CONFIG_PATH: path to global configuration json file
+- SAMPLE_ID: id with project and sample id, e.g. Diag-wgs123-12345678901 
+- GP_NAME: genepanel name
+- GP_VERSION: genepanel version
+- TYPE: joint analysis type, e.g. "single", "trio"
+- CAPTUREKIT: capturekit
+
+All environment variables must be set except ANNO_GLOBAL_CONFIG_PATH which
+defaults to global_config.json in current directory.
+
+This scipts parse and validate the global configuration json file and generate
+a specific configuration json file by matching environment variable values
+against the global configuration.
+"""
+
 import logging
 import re
 from pathlib import Path
@@ -8,6 +25,7 @@ logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
 PARSED_CONFIG_FILE = 'task_config.json'
+
 
 # Settings
 class Settings(BaseSettings):
@@ -60,6 +78,9 @@ class GlobalConfig(BaseModel):
 class ParsedConfig(BaseModel):
     __root__: Dict[str, bool]
 
+    def __getitem__(self, item):
+        return self.__root__[item]
+
 
 # Parser
 def parse_config(settings: Settings) -> ParsedConfig:
@@ -93,7 +114,7 @@ def main():
     settings = Settings()
     parsed_config = parse_config(settings)
     config_json = parsed_config.json(indent=4)
-    log.info('\nFor inputs:\n%s\nParsed config:\n%s',
+    log.info('\nenvironment variables:\n%s\noutput config:\n%s',
              settings.json(indent=4),
              config_json)
 
