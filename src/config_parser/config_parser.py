@@ -55,7 +55,7 @@ class ParsedConfig(BaseModel):
 
 
 # Parser
-def parse_config(settings: Settings) -> ParsedConfig:
+def parse_config(settings: Settings, environment: Dict[str, str]) -> ParsedConfig:
     # load and validate global config
     global_config = GlobalConfig.parse_file(settings.CONFIG_PATH)
 
@@ -64,9 +64,9 @@ def parse_config(settings: Settings) -> ParsedConfig:
     for subconfig in global_config:
         log.info(' checking %s ...', subconfig.comment)
         for environment_key, regex in subconfig.regexes.items():
-            if environment_key not in os.environ:
+            if environment_key not in environment:
                 raise RuntimeError(f'environment variable "{environment_key}" not set')
-            env_value = os.environ[environment_key]
+            env_value = environment[environment_key]
             log.debug('checking %s "%s" against regex "%s" ...', environment_key, env_value, regex)
             if not re.match(regex, env_value):
                 log.debug('not matching, skip %s', subconfig.comment)
@@ -86,7 +86,8 @@ def parse_config(settings: Settings) -> ParsedConfig:
 
 def main():
     settings = Settings()
-    parsed_config = parse_config(settings)
+    environment = os.environ
+    parsed_config = parse_config(settings, environment)
     config_json = parsed_config.json(indent=4)
     log.info('\nenvironment variables:\n%s\noutput config:\n%s',
              settings.json(indent=4),
