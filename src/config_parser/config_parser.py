@@ -27,7 +27,7 @@ class Settings(BaseSettings):
 class GlobalConfigItem(BaseModel):
     comment: str
     regexes: Dict[str, str]
-    config: Dict[str, bool]
+    config: Dict[str, Any]
 
     class Config:
         extra = Extra.forbid
@@ -48,7 +48,7 @@ class GlobalConfig(BaseModel):
 
 # Schemas of parsed config
 class ParsedConfig(BaseModel):
-    __root__: Dict[str, bool]
+    __root__: Dict[str, Any]
 
     def __getitem__(self, item):
         return self.__root__[item]
@@ -89,7 +89,7 @@ def main():
     environment = os.environ
     parsed_config = parse_config(settings, environment)
     config_json = parsed_config.json(indent=4)
-    log.info('\nenvironment variables:\n%s\noutput config:\n%s',
+    log.info('\nsettings:\n%s\noutput config:\n%s',
              settings.json(indent=4),
              config_json)
 
