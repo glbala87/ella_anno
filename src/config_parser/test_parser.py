@@ -3,38 +3,9 @@ import pytest
 from pydantic import ValidationError
 from .config_parser import Settings, parse_config
 
-
-# TEST MISSING ENVIRONMENT VARIABLE
-REQUIRED_ENVS = Settings.schema()['required']
+# global settings
 settings = Settings()
 
-def remove_os_env_var(env_var):
-    """
-    remove the environment variable if exists
-    """
-    if env_var in os.environ:
-        del os.environ[env_var]
-
-@pytest.fixture
-def all_envs():
-    envs = {}
-    for name in REQUIRED_ENVS:
-        envs[name] = ''
-
-    return envs
-
-@pytest.mark.parametrize('missing_env', REQUIRED_ENVS)
-def test_missing_env(all_envs, missing_env):
-
-    remove_os_env_var(missing_env)
-
-    del all_envs[missing_env]
-
-    with pytest.raises(ValidationError) as exeinfo:
-        settings = Settings(**all_envs)
-
-
-# TEST EXPECTED CONFIG
 # test 'tracks'
 class TestConfig_tracks:
     def test_tracks_all_samples(self):
@@ -76,7 +47,7 @@ class TestConfig_single_wgs_cnv_panels:
 
         assert expected_config['cnv'] == parsed_config['cnv']
 
-@pytest.mark.parametrize('no_cnv_genepanels', ['foo', 'bar'])
+@pytest.mark.parametrize('no_cnv_genepanels', ['foo', 'bar', 'Netthinne2'])
 class TestConfig_single_wgs_no_cnv_panels:
     # single wgs samples with panels other than those in cnv_genepanels should NOT have cnv
     def test_cnv_single_wgs_other_panels(self, no_cnv_genepanels):

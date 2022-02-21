@@ -1,8 +1,14 @@
 """
-This scipts parse and validate a configuration file and generate a json file by
-matching environment variable values to regexes in the configuration file.
+This scipts gets a configuration file and optionally, an input
+schema(validator), generates a new configuration json file by matching
+environment variable values to regexes in the configuration file.  
+
+If no input schema(validator) is supplied, environmental variables will be
+passed as they are.
 """
+
 import os
+import sys
 import logging
 import re
 from pathlib import Path
@@ -15,12 +21,19 @@ log = logging.getLogger(__name__)
 PARSED_CONFIG_FILE = 'task_config.json'
 
 
-# Settings
+# config parser settings
 class Settings(BaseSettings):
     """
-    path to configuration file
+    :CONFIG_PATH: Required. Path to config file.
+    :INPUT_SCHEMA: Optional. Path to a python script defining a class named
+                    'ParserInputs' inheriting pydantic BaseSettings.
     """
     CONFIG_PATH: FilePath
+    INPUT_SCHEMA: Optional[FilePath] = None
+
+    class Config:
+        case_sensitive = True
+        env_prefix = 'ANNO_'  # prefix ANNO_ to avoid conflicts
 
 
 # Schemas of global config
@@ -84,9 +97,7 @@ def parse_config(settings: Settings, environment: Dict[str, str]) -> ParsedConfi
     return parsed_config
 
 
-def main():
-    settings = Settings()
-    environment = os.environ
+def main(settings, environment):
     parsed_config = parse_config(settings, environment)
     config_json = parsed_config.json(indent=4)
     log.info('\nsettings:\n%s\noutput config:\n%s',
@@ -98,4 +109,23 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    settings = Settings()
+
+    if settings.INPUT_SCHEMA:
+        # collect and validate required environmental variables according to given schema
+        import importlib.util
+        schema = settings.INPUT_SCHEMA
+        module_name = schema.stem + '_for_anno_parser'
+        spec = importlib.util.spec_from_file_location(module_name, settings.INPUT_SCHEMA)
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = mod
+        spec.loader.exec_module(mod)
+        ParserInputs = getattr(mod, 'ParserInputs')
+
+        environment = ParserInputs().dict()
+    else:
+        # pass all environmental variables to parser; no validation
+        environment = os.environ
+
+
+    main(settings, environment)
