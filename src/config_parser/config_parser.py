@@ -1,10 +1,10 @@
 """
-This scipts gets a configuration file and optionally, an input
-schema(validator), generates a new configuration json file by matching
+This script receives a configuration file and optionally, an input
+schema(validator), then generates a configuration json file by matching
 environment variable values to regexes in the configuration file.  
 
-If no input schema(validator) is supplied, environmental variables will be
-passed as they are.
+If no input schema(validator) is supplied, environmental variable values will
+be used as they are.
 """
 
 import os
