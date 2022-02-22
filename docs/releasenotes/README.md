@@ -6,12 +6,43 @@ title: Latest release
 
 |Major versions|Minor versions|
 |:--|:--|
-[v2.3.0](#version-2-3-0)|
+[v2.3.0](#version-2-3-0)| [v2.3.1](#version-2-3-1), [v2.3.2](#version-2-3-2)
 [v2.2](#version-2-2)|[v2.2.1](#version-2-2-1), [v2.2.1a](#version-2-2-1a), [v2.2.2](#version-2-2-2), [v2.2.3](#version-2-2-3), [v2.2.4](#version-2-2-4)
 [v2.1](#version-2-1)|[v2.1.1](#version-2-1-1), [v2.1.2](#version-2-1-2)
 [v2.0](#version-2-0)|[v2.0.1](#version-2-0-1), [v2.0.2](#version-2-0-2), [v2.0.3](#version-2-0-3)
 
 <!-- See [older releases](/releasenotes/olderreleases.md) for earlier versions.-->
+
+## >> Version 2.3.2
+
+Release date: 23.02.2022
+
+#### Codebase
+<!-- MR !86 -->
+- Error log output is truncated in `ops/sync_data.py
+<!-- MR !83 -->
+- Various minor build fixes
+
+#### Data sources
+<!-- MR !78 -->
+- Updated RefSeq to version 20201022.
+<!-- MR !82 -->
+- Updated Clinvar to version 20220126.
+
+## >> Version 2.3.1
+
+Release date: 12.02.2022
+
+#### Codebase
+<!-- MR !84 -->
+- Use docker:// when USE_REGISTRY is set
+<!-- MR !88 -->
+- Trouble with permissions when indexing `FASTA` in container root folder
+
+#### Data sources
+<!-- MR !90 -->
+- Updated Clinvar to version 20220126.
+
 
 ## >> Version 2.3.0
 
