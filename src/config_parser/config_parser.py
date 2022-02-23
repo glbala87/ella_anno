@@ -11,6 +11,7 @@ import os
 import sys
 import logging
 import re
+import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Extra, FilePath, BaseSettings
@@ -72,6 +73,7 @@ def parse_config(settings: Settings, environment: Dict[str, str]) -> ParsedConfi
     # load and validate global config
     global_config = GlobalConfig.parse_file(settings.CONFIG_PATH)
 
+    used_inputs = {}
     accumulate_config = {}
 
     for subconfig in global_config:
@@ -80,7 +82,8 @@ def parse_config(settings: Settings, environment: Dict[str, str]) -> ParsedConfi
             if environment_key not in environment:
                 raise RuntimeError(f'environment variable "{environment_key}" not set')
             env_value = environment[environment_key]
-            log.debug('checking %s "%s" against regex "%s" ...', environment_key, env_value, regex)
+            used_inputs[environment_key] = env_value
+            log.debug('checking %s="%s" against regex "%s" ...', environment_key, env_value, regex)
             if not re.match(regex, env_value):
                 log.debug('not matching, skip %s', subconfig.comment)
                 # only when all regexes match, is its config used
@@ -94,14 +97,15 @@ def parse_config(settings: Settings, environment: Dict[str, str]) -> ParsedConfi
     # validate parsed config
     parsed_config = ParsedConfig.parse_obj(accumulate_config)
 
-    return parsed_config
+    return parsed_config, used_inputs
 
 
 def main(settings, environment):
-    parsed_config = parse_config(settings, environment)
+    (parsed_config, used_inputs) = parse_config(settings, environment)
     config_json = parsed_config.json(indent=4)
-    log.info('\nsettings:\n%s\noutput config:\n%s',
+    log.info('\nsettings:\n%s\nvariables used:\n%s\noutput config:\n%s',
              settings.json(indent=4),
+             json.dumps(used_inputs, indent=4),
              config_json)
 
     outfile = Path(PARSED_CONFIG_FILE)

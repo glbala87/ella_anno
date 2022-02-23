@@ -21,7 +21,7 @@ class TestConfig_tracks:
             'tracks': True
         }
 
-        parsed_config = parse_config(settings, envs)
+        parsed_config = parse_config(settings, envs)[0]
 
         assert expected_config['tracks'] == parsed_config['tracks']
 
@@ -43,7 +43,7 @@ class TestConfig_single_wgs_cnv_panels:
             'cnv': True,
         }
 
-        parsed_config = parse_config(settings, envs)
+        parsed_config = parse_config(settings, envs)[0]
 
         assert expected_config['cnv'] == parsed_config['cnv']
 
@@ -63,7 +63,7 @@ class TestConfig_single_wgs_no_cnv_panels:
             'cnv': False,
         }
 
-        parsed_config = parse_config(settings, envs)
+        parsed_config = parse_config(settings, envs)[0]
 
         assert expected_config['cnv'] == parsed_config['cnv']
 
@@ -83,7 +83,7 @@ class TestConfig_others_cnv:
             'cnv': True
         }
 
-        parsed_config = parse_config(settings, envs)
+        parsed_config = parse_config(settings, envs)[0]
 
         assert expected_config['cnv'] == parsed_config['cnv']
 
@@ -101,7 +101,7 @@ class TestConfig_others_cnv:
             'cnv': False,
         }
 
-        parsed_config = parse_config(settings, envs)
+        parsed_config = parse_config(settings, envs)[0]
 
         assert expected_config['cnv'] == parsed_config['cnv']
 
@@ -119,6 +119,6 @@ class TestConfig_others_cnv:
             'cnv': False,
         }
 
-        parsed_config = parse_config(settings, envs)
+        parsed_config = parse_config(settings, envs)[0]
 
         assert expected_config['cnv'] == parsed_config['cnv']
