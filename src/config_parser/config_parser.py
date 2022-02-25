@@ -110,6 +110,7 @@ def main(settings, environment):
 
     outfile = Path(PARSED_CONFIG_FILE)
     outfile.write_text(config_json)
+    log.info('task config file generated at %s', outfile.absolute())
 
 
 if __name__ == "__main__":
