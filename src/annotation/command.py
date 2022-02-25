@@ -10,13 +10,21 @@ COMMAND_TEMPLATE = """
 
 set -euf -o pipefail
 
+####
+# parse task config
+####
+{% if target %}
+    # TARGET VARIABLES
+    source {{ task_dir }}/target.source
+    pushd {{ task_dir }}
+    parse_config > task_config.log 2>&1
+{% endif %}
+
 if [[ -f "${TARGETS}/targets/preprocess/{{ target }}" ]]; then
     ####
     # Preprocess for target: {{ target }}
     ####
     echo -e "$(date '+%Y-%m-%d %H:%M:%S.%N')\t{{ target|upper }} (PREPROCESS) \tSTARTED" | tee -a {{ status_file }}
-    # TARGET VARIABLES
-    source {{ task_dir }}/target.source
 
     mkdir -p {{ task_dir }}/{{ target }}
     pushd {{ task_dir }}/{{ target }}
@@ -52,8 +60,6 @@ annotate \\
 
 {% if target %}
 # Run targets
-# TARGET VARIABLES
-source {{ task_dir }}/target.source
 
 ####
 # Target: {{ target }}
