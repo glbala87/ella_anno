@@ -1,8 +1,10 @@
 #!/bin/bash
+set -euf -o pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # parse configs
+echo parsing task config ...
 python "${DIR}"/../src/config_parser/config_parser.py
 
 "${DIR}/../src/annotation/annotate.sh" "$@"
