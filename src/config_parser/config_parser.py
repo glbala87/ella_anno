@@ -1,7 +1,7 @@
 """
 This script receives a configuration file and optionally, an input
 schema(validator), then generates a configuration json file by matching
-environment variable values to regexes in the configuration file.  
+environment variable values to regexes in the configuration file.
 
 If no input schema(validator) is supplied, environmental variable values will
 be used as they are.
@@ -77,21 +77,23 @@ def parse_config(settings: Settings, environment: Dict[str, str]) -> ParsedConfi
     accumulate_config = {}
 
     for subconfig in global_config:
-        log.info(' checking %s ...', subconfig.comment)
+        log.info(' CHECKING [ %s ] ...', subconfig.comment)
         for environment_key, regex in subconfig.regexes.items():
             if environment_key not in environment:
                 raise RuntimeError(f'environment variable "{environment_key}" not set')
             env_value = environment[environment_key]
             used_inputs[environment_key] = env_value
-            log.debug('checking %s="%s" against regex "%s" ...', environment_key, env_value, regex)
+            log.debug('checking %s="%s" against regex "%s"', environment_key, env_value, regex)
             if not re.match(regex, env_value):
-                log.debug('not matching, skip %s', subconfig.comment)
+                log.debug('not matched')
+                log.info(' NOT ALL REGEXES MATCHED, SKIP [ %s ]', subconfig.comment)
                 # only when all regexes match, is its config used
                 break
             else:
                 log.debug('matched')
         else:
-            log.info(' all regexes matched, update config with %s', subconfig.config)
+            log.info(' ALL REGEXES MATCHED, UPDATE TASK CONFIG WITH:\n%s',
+                     json.dumps(subconfig.config, indent=4))
             accumulate_config.update(subconfig.config)
 
     # validate parsed config
@@ -103,7 +105,7 @@ def parse_config(settings: Settings, environment: Dict[str, str]) -> ParsedConfi
 def main(settings, environment):
     (parsed_config, used_inputs) = parse_config(settings, environment)
     config_json = parsed_config.json(indent=4)
-    log.info('\nsettings:\n%s\nvariables used:\n%s\noutput config:\n%s',
+    log.info('SUMMARY\nsettings:\n%s\nvariables used:\n%s\ntask config:\n%s',
              settings.json(indent=4),
              json.dumps(used_inputs, indent=4),
              config_json)
@@ -131,6 +133,5 @@ if __name__ == "__main__":
     else:
         # pass all environmental variables to parser; no validation
         environment = os.environ
-
 
     main(settings, environment)
