@@ -11,7 +11,7 @@ class ParserInputs(BaseSettings):
     """
     required environmental variables
     """
-    SAMPLE_ID: constr(regex=r'(?i).*(wgs|EKG|excap).*')
+    SAMPLE_ID: constr(regex=r'.*(wgs|EKG|excap).*')
     GP_NAME: str
     GP_VERSION: str
     TYPE: Literal['single', 'trio']
