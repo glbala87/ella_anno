@@ -13,7 +13,7 @@ import logging
 import re
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from pydantic import BaseModel, Extra, FilePath, BaseSettings
 
 logging.basicConfig(level=logging.DEBUG)
@@ -69,7 +69,7 @@ class ParsedConfig(BaseModel):
 
 
 # Parser
-def parse_config(settings: Settings, environment: Dict[str, str]) -> ParsedConfig:
+def parse_config(settings: Settings, environment: Dict[str, str]) -> Tuple[ParsedConfig, Dict[str, Any]]:
     # load and validate global config
     global_config = GlobalConfig.parse_file(settings.CONFIG_PATH)
 
