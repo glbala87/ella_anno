@@ -39,6 +39,7 @@ crcmod = "*"
 jsonschema = "*"
 lxml = "*"
 pyfaidx = "*"
+pydantic = "*"
 
 [dev-packages]
 # set black version explicitly so we can avoid allow_prerelease = true
