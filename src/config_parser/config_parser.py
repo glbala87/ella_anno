@@ -1,10 +1,13 @@
 """
-This script receives a configuration file and optionally, an input
-schema(validator), then generates a configuration json file by matching
-environment variable values to regexes in the configuration file.
+This script receives a configuration json file and, optionally, an inputs
+parser Python script which defines a "ParserInputs" class inheriting Pydantic
+BaseSettings. 
 
-If no input schema(validator) is supplied, environmental variable values will
-be used as they are.
+This script outputs a task specific configuration json file by matching
+environment variable values to regexes defined in the configuration file.
+
+If no input parser script is given, environmental variable values will be used
+as they are.
 """
 
 import os
