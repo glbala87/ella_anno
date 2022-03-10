@@ -14,7 +14,7 @@ title: Latest release
 
 <!-- See [older releases](/releasenotes/olderreleases.md) for earlier versions.-->
 
-## >> Version 2.4.0
+## >> Version 2.4
 
 Release date: 18.03.2022
 
@@ -27,7 +27,7 @@ Release date: 18.03.2022
 - Updated Clinvar to version 20220303.
 
 
-## >> Version 2.3.2
+## Version 2.3.2
 
 Release date: 23.02.2022
 
@@ -43,7 +43,7 @@ Release date: 23.02.2022
 - Updated Clinvar to version 20220203.
 
 
-## >> Version 2.3.1
+## Version 2.3.1
 
 Release date: 12.02.2022
 
@@ -59,7 +59,7 @@ Release date: 12.02.2022
 <!-- MR !82 -->
 - Updated Clinvar to version 20220106.
 
-## >> Version 2.3.0
+## >> Version 2.3
 
 Release date: 21.09.2021
 

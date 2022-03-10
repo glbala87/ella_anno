@@ -7,7 +7,7 @@ sidebar: false
 		<img width="350px;" src="./anno-docs_blue.svg">
 	</div>
 	<br>
-	<div style="font-size: 80%;">v2.3.0 | 21.09.2021</div>
+	<div style="font-size: 80%;">v2.3.2 | 08.03.2022</div>
 </div>
 
 These pages describe ELLA's annotation service, which is required by ELLA to import variants and analyses. For documentation about the ELLA application itself, see [allel.es/docs](http://allel.es/docs).
