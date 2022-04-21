@@ -174,7 +174,7 @@ kill: ## forcibly stop and remove $CONTAINER_NAME
 test: ## run tests with $IMAGE_NAME named $CONTAINER_NAME, requires all current data
 	docker run --rm -t \
 	-v $(ANNO_DATA):/anno/data \
-	--tmpfs /pg_uta \
+	-v /pg_uta \
 	--name $(CONTAINER_NAME)-test \
 	$(IMAGE_NAME) /anno/ops/run_tests.sh
 
