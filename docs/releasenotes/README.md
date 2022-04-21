@@ -6,13 +6,24 @@ title: Latest release
 
 |Major versions|Minor versions|
 |:--|:--|
-[v2.4](#version-2-4-0)| 
+[v2.4](#version-2-4-0)| [v2.4.1](#version-2-4-1)
 [v2.3](#version-2-3-0)| [v2.3.1](#version-2-3-1), [v2.3.2](#version-2-3-2)
 [v2.2](#version-2-2)|[v2.2.1](#version-2-2-1), [v2.2.1a](#version-2-2-1a), [v2.2.2](#version-2-2-2), [v2.2.3](#version-2-2-3), [v2.2.4](#version-2-2-4)
 [v2.1](#version-2-1)|[v2.1.1](#version-2-1-1), [v2.1.2](#version-2-1-2)
 [v2.0](#version-2-0)|[v2.0.1](#version-2-0-1), [v2.0.2](#version-2-0-2), [v2.0.3](#version-2-0-3)
 
 <!-- See [older releases](/releasenotes/olderreleases.md) for earlier versions.-->
+## Version 2.4.1
+
+Release date: 25.04.2022
+
+#### Codebase
+<!-- MR !94 -->
+- release history documentation update
+
+#### Data sources
+<!-- MR !96 -->
+- Updated Clinvar to version 20220407
 
 ## >> Version 2.4
 
