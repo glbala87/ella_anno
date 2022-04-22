@@ -262,6 +262,10 @@ annobuilder-exec: ## run a single command in $ANNOBUILDER_CONTAINER_NAME
 	@$(call check_defined, RUN_CMD, 'Use RUN_CMD="python3 something.py opt1 ..." to specify command to run')
 	$(annobuilder-template)
 
+show-data-size: ## prints out the size of the datasets
+	$(eval RUN_CMD := /anno/scripts/data_size.sh -s)
+	$(annobuilder-template)
+
 download-data: ## download all datasets from DigitalOcean
 	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --download)
 	$(annobuilder-template)
