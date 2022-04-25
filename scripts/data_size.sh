@@ -11,10 +11,11 @@ usage() {
     echo "Optional:"
     echo " -s                Include the total size of the package(s) at the end"
     echo " -p PKG_NAME       Print the size of a specific package"
-    echo " -v PKG_VERSION    Check the size of specific version instead of the current. Only used with -p"
+    echo " -v PKG_VERSION    Check the size of a specific version instead of the current. Only used"
+    echo "                   with -p"
     echo " -q                Don't print any log messages, just sizes"
     echo
-    echo " -h                   Show this help message"
+    echo " -h                Show this help message"
     echo
     exit 1
 }
@@ -71,7 +72,10 @@ get_size() {
 pprint() {
     local size=$1
     local unit=${2:-MB}
-    perl -le '%u = (GB => 2**30, MB => 2**20, KB => 2**10); printf qq/%0.2f $ARGV[1]\n/, $ARGV[0] / $u{$ARGV[1]}' "${size}" "${unit}"
+    perl -le '
+        %u = (GB => 2**30, MB => 2**20, KB => 2**10);
+        printf qq/%0.2f $ARGV[1]\n/, $ARGV[0] / $u{$ARGV[1]};
+    ' "${size}" "${unit}"
 }
 
 THIS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -86,7 +90,7 @@ for fname in "${REQ_FILES[@]}"; do
     fi
 done
 
-REQ_BINS=(xpath jq wget)
+REQ_BINS=(jq wget xpath)
 for bname in "${REQ_BINS[@]}"; do
     if ! command -v "${bname}" &>/dev/null; then
         bail "${bname} not installed or not in path"
@@ -95,6 +99,7 @@ done
 
 mapfile -t VALID_PACKAGES < <(jq -rS 'keys[]' "${DATASETS}")
 LS_PKGS=("${VALID_PACKAGES[@]}")
+
 while getopts ":p:v:sqh" opt; do
     case "${opt}" in
         p)
@@ -136,7 +141,12 @@ for pkg_name in "${LS_PKGS[@]}"; do
 
     if [[ ${pkg_name} == "vep" && -z ${PKG_VER} ]]; then
         # vep is "special" aka annoying
-        pkg_ver=$(PYTHONPATH="${ROOT_DIR}/ops" python -c 'import install_thirdparty; print(install_thirdparty.thirdparty_packages["vep"]["version"])')
+        pkg_ver=$(
+            PYTHONPATH="${ROOT_DIR}/ops" python -c '
+                import install_thirdparty
+                print(install_thirdparty.thirdparty_packages["vep"]["version"])
+            '
+        )
     else
         pkg_ver=${PKG_VER:-$(jq -r ".${pkg_name}.version" "${DATASETS}")}
     fi
