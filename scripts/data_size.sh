@@ -29,6 +29,8 @@ bail() {
     exit 1
 }
 
+# API details: https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjects.html
+# ListObjectsV2 not supported on DigitalOcean Spaces
 _list_objects() {
     local prefix=$1
     local marker=$2
