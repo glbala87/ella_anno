@@ -6,13 +6,13 @@ usage() {
         echo "$*"
     fi
     echo
-    echo "    Usage: $0 -p PACKAGE_NAME [ -v PACKAGE_VERSION ] | -s"
+    echo "    Usage: $(basename "${BASH_SOURCE[0]}") [ -p PKG_NAME -v PKG_VERSION -s -q ]"
     echo
     echo "Optional:"
-    echo " -s                   Print only the total size of the package(s)"
-    echo " -p PACKAGE_NAME      Print the size of a specific package"
-    echo " -v PACKAGE_VERSION   Check the size of specific version instead of the current. Only used with -p"
-    echo " -q                   Don't print any log messages, just sizes"
+    echo " -s                Include the total size of the package(s) at the end"
+    echo " -p PKG_NAME       Print the size of a specific package"
+    echo " -v PKG_VERSION    Check the size of specific version instead of the current. Only used with -p"
+    echo " -q                Don't print any log messages, just sizes"
     echo
     echo " -h                   Show this help message"
     echo
