@@ -94,15 +94,10 @@ shellcheck:
 run_pytest:
     extends: .test_setup
     script:
-        - df -h /
         - make pull
-        - df -h /
         - make download-data RUN_CMD_ARGS="--skip-validation --force"
-        - df -h /
         - make test
-        - df -h /
         - make test-ops
-        - df -h /
     tags:
         - do-large
     rules:
