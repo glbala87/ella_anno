@@ -333,7 +333,7 @@ pipenv-update: ## updates Pipfile.lock using $IMAGE_NAME, under development
 	docker run --rm -it \
 		-u anno-user \
 		-v $(PWD):/local_anno \
-		$(IMAGE_NAME) \
+		$(ANNOBUILDER_IMAGE_NAME) \
 		/anno/ops/update_pipfile.sh
 
 # uses annobuilder image to check dev and prod dependencies

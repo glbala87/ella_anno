@@ -64,7 +64,6 @@ build_docker:
     extends: .base_setup
     script:
         - make ci-build-docker
-    after_script:
         - make ci-push-docker
     tags:
         - bastion
