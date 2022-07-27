@@ -13,7 +13,7 @@ wheel = "*"
 argparse = "*"
 blinker = "*"
 Cython = "*"
-data-spaces = {editable = true, ref = "5c0801810903674a8f31a8dda249854a5fb7580a", git = "https://gitlab.com/ousamg/data-spaces.git"}
+data-spaces = {editable = true, ref = "v0.1.1", git = "https://gitlab.com/ousamg/data-spaces.git"}
 flake8 = "*"
 Flask = "*"
 Flask-RESTful = "*"
@@ -24,9 +24,7 @@ MarkupSafe = "*"
 pdbpp = "*"
 psutil = "*"
 pyrsistent = "*"
-# Force pysam to use github repo until fix for setuptools makes it to a release
-# ref: https://github.com/pysam-developers/pysam/commit/f31f6dc5f5876957bf9bb1eb393e3344d3e9768b
-pysam = {editable = true, ref = "v0.18.0", git = "https://github.com/pysam-developers/pysam.git"}
+pysam = "*"
 pytest = "*"
 PyYAML = "*"
 supervisor = "*"
@@ -42,8 +40,7 @@ pyfaidx = "*"
 pydantic = "*"
 
 [dev-packages]
-# set black version explicitly so we can avoid allow_prerelease = true
-black = "==21.6b0"
+black = "*"
 flake8 = "*"
 ipython = "*"
 pytest = "*"

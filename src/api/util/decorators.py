@@ -9,9 +9,10 @@ def parse_request(required, special):
         def inner(*args, **kwargs):
             # Parse json
             data = {"variables": {}, "files": {}}
-            json_data = request.get_json()
-            if json_data:
-                data["variables"] = json_data
+            if request.headers.get("content-type", "").lower() == "application/json":
+                json_data = request.get_json()
+                if json_data:
+                    data["variables"] = json_data
 
             # Fetch files
 

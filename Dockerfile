@@ -64,7 +64,7 @@ RUN apt-get update && \
 ENV ANNO_USER=anno-user
 RUN useradd -ms /bin/bash ${ANNO_USER}
 
-ARG pipenv_version=2021.5.29
+ARG pipenv_version=2022.7.4
 RUN pip3 install pipenv==${pipenv_version}
 
 # create default ANNO_DATA / ANNO_RAWDATA dirs and set permissions to let data actions be run without root

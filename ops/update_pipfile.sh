@@ -9,19 +9,13 @@ LOCAL_PIPFILE=/local_anno/Pipfile
 # if mounted in Pipfile doesn't match the image's Pipfile, use the local
 # one instead. Useful when there isn't a branch image available.
 update_pipfile() {
-    if ! diff -q "${LOCAL_PIPFILE}" "${PIPENV_PIPFILE}" >/dev/null 2>&1; then
+    if ! diff -q "${LOCAL_PIPFILE}" "${PIPENV_PIPFILE}" &>/dev/null; then
         cp "${LOCAL_PIPFILE}" "${PIPENV_PIPFILE}"
     fi
 }
 
-check_packages() {
-    if pipenv update --outdated --dev; then
-        echo "No packages to update"
-        return 1
-    fi
-}
-
 do_update() {
+    local VENV_DIR
     # save the existing venv in case we want to compare
     VENV_DIR=$(readlink -f "$(pipenv --venv)")
     if [[ -d "${VENV_DIR}" ]]; then
@@ -31,6 +25,7 @@ do_update() {
     # nuke the existing lockfile and start fresh
     mv "${PIPENV_PIPFILE}.lock" "${PIPENV_PIPFILE}.lock.old"
 
+    # unset VIRTUAL_ENV for install or it will try to use python binaries that are not there anymore
     VIRTUAL_ENV="" pipenv lock --dev
 
     # copy to locally mounted
@@ -38,5 +33,4 @@ do_update() {
 }
 
 update_pipfile
-check_packages
 do_update

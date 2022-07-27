@@ -3,7 +3,6 @@ import sys
 import logging
 import time
 from flask import jsonify
-
 from flask_restful import Api
 from api import app
 from api.v1 import ApiV1
@@ -28,7 +27,7 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
-class ApiErrorHandling(Api):
+class ApiWithErrorHandling(Api):
     def handle_error(self, e):
         code = e.code if hasattr(e, "code") else 500
         msg = str(code) + " " + e.__class__.__name__ + ": "
@@ -45,7 +44,7 @@ class ApiErrorHandling(Api):
         return jsonify({"message": msg}), code
 
 
-api = ApiErrorHandling(app, catch_all_404s=True)
+api = ApiWithErrorHandling(app, catch_all_404s=True)
 
 
 # Setup resources for v1
