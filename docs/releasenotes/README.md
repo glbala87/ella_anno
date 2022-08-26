@@ -6,6 +6,8 @@ title: Latest release
 
 |Major versions|Minor versions|
 |:--|:--|
+[v2.6](#version-2-6-0)| [v2.6.0](#version-2-6-0), [v2.6.0a](#version-2-6-0a)
+[v2.5](#version-2-5-0)| [v2.5.0](#version-2-5-0)
 [v2.4](#version-2-4-0)| [v2.4.1](#version-2-4-1)
 [v2.3](#version-2-3-0)| [v2.3.1](#version-2-3-1), [v2.3.2](#version-2-3-2)
 [v2.2](#version-2-2)|[v2.2.1](#version-2-2-1), [v2.2.1a](#version-2-2-1a), [v2.2.2](#version-2-2-2), [v2.2.3](#version-2-2-3), [v2.2.4](#version-2-2-4)
@@ -13,6 +15,39 @@ title: Latest release
 [v2.0](#version-2-0)|[v2.0.1](#version-2-0-1), [v2.0.2](#version-2-0-2), [v2.0.3](#version-2-0-3)
 
 <!-- See [older releases](/releasenotes/olderreleases.md) for earlier versions.-->
+## Version 2.6.0a
+
+Release date: 18.08.2022
+
+#### Data sources
+<!-- MR !106 -->
+- Updated Clinvar to version 20220804.
+
+## >> Version 2.6
+
+Release date: not released
+
+#### Codebase
+<!-- MR !102 -->
+- Update the pipenv lock file
+
+#### Data sources
+<!-- MR !103 -->
+- Updated Clinvar to version 20220707.
+
+## >> Version 2.5
+
+Release date: 20.06.2022
+
+#### Codebase
+<!-- MR !98 -->
+- Show size of annotation data before downloading
+
+#### Data sources
+<!-- MR !99 -->
+- Updated Clinvar to version 20220505.
+
+
 ## Version 2.4.1
 
 Release date: 25.04.2022
