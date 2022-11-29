@@ -94,7 +94,7 @@ run_pytest:
     extends: .test_setup
     script:
         - make pull
-        - make download-data RUN_CMD_ARGS="--skip-validation --force"
+        - TMP_DIR="/scratch" make download-data RUN_CMD_ARGS="--skip-validation --force"
         - make test
         - make test-ops
     tags:
