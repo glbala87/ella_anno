@@ -267,7 +267,7 @@ show-data-size: ## prints out the size of the datasets
 	$(annobuilder-template)
 
 download-data: ## download all datasets from DigitalOcean
-	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --download)
+	$(eval RUN_CMD := df -ih;df -h;python3 /anno/ops/sync_data.py --download)
 	$(annobuilder-template)
 
 download-package: ## download the dataset for $PKG_NAME
