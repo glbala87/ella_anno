@@ -94,13 +94,11 @@ run_pytest:
     extends: .test_setup
     script:
         - make pull
-        - df -h
-        - df -ih
-        - TMP_DIR="/scratch" make download-data RUN_CMD_ARGS="--skip-validation --force"
+        - make download-data RUN_CMD_ARGS="--skip-validation --force"
         - make test
         - make test-ops
     tags:
-        - tomato
+        - do-large
     rules:
         # manual trigger if commit starts with skip-test, otherwise always
         - if: '$CI_COMMIT_TITLE =~ /^skip-test\b/'
