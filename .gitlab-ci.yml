@@ -100,7 +100,7 @@ run_pytest:
         - make test
         - make test-ops
     tags:
-        - do-large
+        - tomato
     rules:
         # manual trigger if commit starts with skip-test, otherwise always
         - if: '$CI_COMMIT_TITLE =~ /^skip-test\b/'
