@@ -11,7 +11,7 @@ API_PORT ?= 6000-6100
 TARGETS_FOLDER ?= $(PWD)/anno-targets
 TARGETS_OUT ?= $(PWD)/anno-targets-out
 SAMPLE_REPO ?= $(PWD)/sample-repo
-ANNO_DATA ?= $(PWD)/data
+ANNO_DATA ?= /scratch
 ANNO_RAWDATA ?= $(PWD)/rawdata
 
 # set USE_REGISTRY to use the gitlab registry image names
@@ -267,7 +267,7 @@ show-data-size: ## prints out the size of the datasets
 	$(annobuilder-template)
 
 download-data: ## download all datasets from DigitalOcean
-	$(eval RUN_CMD := python3 /anno/ops/sync_data.py --download)
+	$(eval RUN_CMD := df -ih;df -h;python3 /anno/ops/sync_data.py --download)
 	$(annobuilder-template)
 
 download-package: ## download the dataset for $PKG_NAME
