@@ -47,7 +47,7 @@ Installation process:
 
 Start the container:
 
-- _Docker:_ `make anno`
+- _Docker:_ `make run`
 - _Singularity:_ `make singularity-start`
 
 ## Annotate options
