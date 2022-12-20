@@ -2,7 +2,7 @@
 title: Setup
 ---
 
-# Setup
+## Setup
 
 ::: warning NOTE
 This documentation is a work in progress and is incomplete.
@@ -16,20 +16,20 @@ This page describes the setup process of ELLA anno.
 
 ## Requirements
 
--   [Docker](https://docs.docker.com/install/)
--   make (`apt install make`, `yum install make`, `apk add make`, _etc._)
+- [Docker](https://docs.docker.com/install/)
+- make (`apt install make`, `yum install make`, `apk add make`, _etc._)
 
 ### Optional requirements
 
--   [Singularity](https://github.com/sylabs/singularity)
--   [Buildkit](https://github.com/moby/buildkit)
--   [Supervisor](https://github.com/Supervisor/supervisor)
+- [Singularity](https://github.com/sylabs/singularity)
+- [Buildkit](https://github.com/moby/buildkit)
+- [Supervisor](https://github.com/Supervisor/supervisor)
 
 ## Installation
 
 ELLA anno is available in both Docker and Singularity containers. It can also be set up to be used locally, but a container is recommended. We also recommend using [buildkit](https://github.com/moby/buildkit) for faster docker builds. You may see a warning about unconsumed arguments if you build the docker images without buildkit installed/enabled, but it doesn't negatively impact the images in any way.
 
-Installation process: 
+Installation process:
 
 1. Clone the repo
     - `git clone git@gitlab.com:alleles/ella-anno`
@@ -46,6 +46,7 @@ Installation process:
 ## Running ELLA anno
 
 Start the container:
+
 - _Docker:_ `make anno`
 - _Singularity:_ `make singularity-start`
 
@@ -53,8 +54,8 @@ Start the container:
 
 Options in `/src/annotation/annotate.sh`
 
-Option	|	Explanation
-:---	|	:---
+Option | Explanation
+:---|:---
 `--vcf [vcf]` | Input VCF
 `--hgvsc [hgvsc]` | Input HGVSC
 `--regions [regions]` | Regions to slice input on
