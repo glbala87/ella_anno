@@ -11,7 +11,7 @@ API_PORT ?= 6000-6100
 TARGETS_FOLDER ?= $(PWD)/anno-targets
 TARGETS_OUT ?= $(PWD)/anno-targets-out
 SAMPLE_REPO ?= $(PWD)/sample-repo
-ANNO_DATA ?= /scratch
+ANNO_DATA ?= $(PWD)/data
 ANNO_RAWDATA ?= $(PWD)/rawdata
 
 # set USE_REGISTRY to use the gitlab registry image names
