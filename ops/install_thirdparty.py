@@ -56,8 +56,8 @@ thirdparty_packages = {
     },
     "vep": {
         "url": "https://github.com/Ensembl/ensembl-vep",
-        "version": "104.3",
-        "sha256": "4e6c7af5162ebb2a463f78366aab0b40dc4de05884f83e50e3f4198384dfaa68",
+        "version": "108.2",
+        "sha256": "73184667649e3867518c855aedd406880afe1e06d70599d5c03f70543da662d3",
         "url_prefix": "archive/release",
         "filename": "{version}.tar.gz",
         "src_dir": "ensembl-vep-release-{version}",
