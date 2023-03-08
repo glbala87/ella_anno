@@ -27,11 +27,11 @@ logger = logging.getLogger(__name__)
 atexit.register(logging.shutdown)
 
 this_dir = Path(__file__).parent.absolute()
-default_base_dir = this_dir.parent
-# check for ANNO_DATA env variable, otherwise use {default_base_dir}/data
-default_data_dir = Path(os.getenv("ANNO_DATA", default_base_dir / "data"))
-default_rawdata_dir = default_base_dir / "rawdata"
-default_thirdparty_dir = default_base_dir / "thirdparty"
+root_dir = this_dir.parent
+# check for ANNO_DATA env variable, otherwise use {root_dir}/data
+default_data_dir = Path(os.getenv("ANNO_DATA", root_dir / "data"))
+default_rawdata_dir = root_dir / "rawdata"
+default_thirdparty_dir = root_dir / "thirdparty"
 default_dataset_file = this_dir / "datasets.json"
 default_spaces_config = this_dir / "spaces_config.json"
 # get available CPUs, in case of restricted run environment
@@ -176,8 +176,8 @@ def main():
     errs = list()
     for dataset_name, dataset in sync_datasets.items():
         logger.info(f"{verb} dataset {dataset_name}")
-        raw_dir: Path = args.rawdata_dir.absolute() / dataset_name
         data_dir: Path = args.data_dir.absolute() / dataset.get("destination", dataset_name)
+        rawdata_dir: Path = args.rawdata_dir.absolute() / dataset_name
         thirdparty_dir: Path = args.thirdparty_dir.absolute() / dataset.get(
             "thirdparty-name", dataset_name
         )
@@ -189,7 +189,7 @@ def main():
 
         format_opts: dict[str, str] = {
             # directory paths, all absolute
-            "root_dir": str(default_base_dir),
+            "root_dir": str(root_dir),
             "base_data_dir": str(args.data_dir.absolute()),
             "data_dir": str(data_dir),
             "thirdparty": str(thirdparty_dir),
@@ -223,19 +223,24 @@ def main():
                     message = f"Found existing {dataset_name} version {dataset_metadata['version']}, but trying to generate version {dataset_version}"
                     if args.force:
                         logger.warning(
-                            f"{message}. Deleting {data_dir.relative_to(default_base_dir)}."
+                            f"{message}. Deleting existing "
+                            f"data directory '{data_dir.relative_to(root_dir)}' and "
+                            f"raw data directory '{rawdata_dir.relative_to(root_dir)}' before "
+                            "continuing.."
                         )
                         shutil.rmtree(data_dir)
+                        shutil.rmtree(rawdata_dir, ignore_errors=True)
                     else:
                         raise RuntimeError(
-                            f"{message}. Please delete {data_dir.relative_to(default_base_dir)} and try again."
+                            f"{message}. Please delete directory "
+                            f"'{data_dir.relative_to(root_dir)}' and try again."
                         )
 
             elif not data_dir.exists():
                 data_dir.mkdir(parents=True)
 
-            if not raw_dir.exists():
-                raw_dir.mkdir(parents=True)
+            if not rawdata_dir.exists():
+                rawdata_dir.mkdir(parents=True)
 
             assert (
                 len(dataset["generate"]) > 0
@@ -254,7 +259,7 @@ def main():
                     logger.info(f"Running: {step_str}")
                     step_resp = subprocess.run(
                         step_str,
-                        cwd=raw_dir,
+                        cwd=rawdata_dir,
                         env=subp_env,
                         executable="/bin/bash",
                         shell=True,
@@ -302,10 +307,10 @@ def main():
                 dump_yaml(sources_data, dataset_ready)
 
             if args.cleanup:
-                shutil.rmtree(raw_dir)
+                shutil.rmtree(rawdata_dir)
         elif args.download or args.upload or args.verify_remote:
             mgr = DataManager(**spaces_config)
-            cmd_args = [dataset_name, dataset_version, data_dir.relative_to(default_base_dir)]
+            cmd_args = [dataset_name, dataset_version, data_dir.relative_to(root_dir)]
             if args.download:
                 should_download = True
                 dataset_touchfile = data_dir / TOUCHFILE
@@ -314,10 +319,19 @@ def main():
                     if str(dataset_metadata["version"]) != str(dataset_version):
                         message = f"Data already downloaded for {dataset_name} version {dataset_metadata['version']}, but expected {dataset_version}"
                         if args.force:
-                            logger.warning(f"{message}. Removing existing data before continuing")
+                            logger.warning(
+                                f"{message}. Deleting existing "
+                                f"data directory '{data_dir.relative_to(root_dir)}' and "
+                                f"raw data directory '{rawdata_dir.relative_to(root_dir)}' before "
+                                "continuing.."
+                            )
                             shutil.rmtree(data_dir)
+                            shutil.rmtree(rawdata_dir, ignore_errors=True)
                         else:
-                            raise RuntimeError(message)
+                            raise RuntimeError(
+                                f"{message}. Please delete directory "
+                                f"'{data_dir.relative_to(root_dir)}' and try again."
+                            )
                     else:
                         should_download = False
 
