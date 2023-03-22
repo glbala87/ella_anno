@@ -1,7 +1,7 @@
 """
 This script receives a configuration json file and, optionally, an inputs
 parser Python script which defines a "ParserInputs" class inheriting Pydantic
-BaseSettings. 
+BaseSettings.
 
 This script outputs a task specific configuration json file by matching
 environment variable values to regexes defined in the configuration file.
@@ -28,9 +28,11 @@ PARSED_CONFIG_FILE = 'task_config.json'
 # config parser settings
 class Settings(BaseSettings):
     """
-    :CONFIG_PATH: Required. Path to config file.
-    :INPUT_SCHEMA: Optional. Path to a python script defining a class named
-                    'ParserInputs' inheriting pydantic BaseSettings.
+    :CONFIG_PATH:   Required. Path to config file.
+    :INPUT_SCHEMA:  Optional. Path to a python module defining a class named 'ParserInputs'
+                              inheriting from `pydantic.BaseSettings`. Undefined attributes of
+                              `pydantic.BaseSettings` instances are implicitly assigned default
+                              values from any matching environment variables.
     """
     CONFIG_PATH: FilePath
     INPUT_SCHEMA: Optional[FilePath] = None
@@ -119,6 +121,8 @@ def main(settings, environment):
 
 
 if __name__ == "__main__":
+    # NOTE: plain `Settings` class instantiation results in fallback to matching environment
+    #       variables (prefixed by `env_prefix`)
     settings = Settings()
 
     if settings.INPUT_SCHEMA:
@@ -126,12 +130,16 @@ if __name__ == "__main__":
         import importlib.util
         schema = settings.INPUT_SCHEMA
         module_name = schema.stem + '_for_anno_parser'
+        log.info(f"reading custom configuration module specifications from '{schema}'..")
         spec = importlib.util.spec_from_file_location(module_name, settings.INPUT_SCHEMA)
+        log.info(f"creating custom configuration module '{module_name}'..")
         mod = importlib.util.module_from_spec(spec)
         sys.modules[module_name] = mod
         spec.loader.exec_module(mod)
+        log.info("fetching custom configuration parser..")
         ParserInputs = getattr(mod, 'ParserInputs')
 
+        log.info("setting custom configuration environment..")
         environment = ParserInputs().dict()
     else:
         # pass all environmental variables to parser; no validation
