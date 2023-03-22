@@ -28,9 +28,11 @@ PARSED_CONFIG_FILE = 'task_config.json'
 # config parser settings
 class Settings(BaseSettings):
     """
-    :CONFIG_PATH: Required. Path to config file.
-    :INPUT_SCHEMA: Optional. Path to a python script defining a class named
-                    'ParserInputs' inheriting pydantic BaseSettings.
+    :CONFIG_PATH:   Required. Path to config file.
+    :INPUT_SCHEMA:  Optional. Path to a python module defining a class named 'ParserInputs'
+                              inheriting from `pydantic.BaseSettings`. Undefined attributes of
+                              `pydantic.BaseSettings` instances are implicitly assigned default
+                              values from any matching environment variables.
     """
     CONFIG_PATH: FilePath
     INPUT_SCHEMA: Optional[FilePath] = None
@@ -119,6 +121,8 @@ def main(settings, environment):
 
 
 if __name__ == "__main__":
+    # NOTE: plain `Settings` class instantiation results in fallback to matching environment
+    #       variables (prefixed by `env_prefix`)
     settings = Settings()
 
     if settings.INPUT_SCHEMA:
