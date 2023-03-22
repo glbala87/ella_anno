@@ -130,12 +130,16 @@ if __name__ == "__main__":
         import importlib.util
         schema = settings.INPUT_SCHEMA
         module_name = schema.stem + '_for_anno_parser'
+        log.info(f"reading custom configuration module specifications from '{schema}'..")
         spec = importlib.util.spec_from_file_location(module_name, settings.INPUT_SCHEMA)
+        log.info(f"creating custom configuration module '{module_name}'..")
         mod = importlib.util.module_from_spec(spec)
         sys.modules[module_name] = mod
         spec.loader.exec_module(mod)
+        log.info("fetching custom configuration parser..")
         ParserInputs = getattr(mod, 'ParserInputs')
 
+        log.info("setting custom configuration environment..")
         environment = ParserInputs().dict()
     else:
         # pass all environmental variables to parser; no validation
