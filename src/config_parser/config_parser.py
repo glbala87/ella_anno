@@ -1,7 +1,7 @@
 """
 This script receives a configuration json file and, optionally, an inputs
 parser Python script which defines a "ParserInputs" class inheriting Pydantic
-BaseSettings. 
+BaseSettings.
 
 This script outputs a task specific configuration json file by matching
 environment variable values to regexes defined in the configuration file.

@@ -17,7 +17,7 @@ set -euf -o pipefail
     # TARGET VARIABLES
     source {{ task_dir }}/target.source
     pushd {{ task_dir }}
-    parse_config > task_config.log 2>&1
+    parse_config |& tee task_config.log
 {% endif %}
 
 if [[ -f "${TARGETS}/targets/preprocess/{{ target }}" ]]; then
