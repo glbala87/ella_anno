@@ -105,13 +105,11 @@ run_pytest:
 
 release_singularity:
     stage: release
-    image:
-        name: $SID_SLUG
-        entrypoint: ['']
     variables:
         RELEASE_TAG: $CI_COMMIT_REF_NAME
     before_script:
-        - make ci-release-init
+        - apk add --update make git python3 py3-click docker-cli bash
+        - apk add singularity --repository=https://dl-cdn.alpinelinux.org/alpine/edge/testing
     script:
         - make ci-release
     artifacts:
