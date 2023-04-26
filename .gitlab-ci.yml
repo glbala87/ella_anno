@@ -7,21 +7,18 @@ workflow:
         - if: $CI_MERGE_REQUEST_IID
         - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
-image: docker:20.10.7
-services:
-    - docker:20.10.7-dind
 
 variables:
     BRANCH: $CI_COMMIT_REF_NAME
     # Use TLS https://docs.gitlab.com/ee/ci/docker/using_docker_build.html#tls-enabled
     # CERTDIR used by dind
-    DOCKER_TLS_CERTDIR: /certs
+    # DOCKER_TLS_CERTDIR: /certs
     # CERT_PATH and TLS_VERIFY needed by docker client in release_singularity
-    DOCKER_CERT_PATH: /certs/client
-    DOCKER_TLS_VERIFY: 1
+    # DOCKER_CERT_PATH: /certs/client
+    # DOCKER_TLS_VERIFY: 1
     DOCKER_BUILDKIT: 1
-    DOCKER_DRIVER: overlay2
-    DOCKER_HOST: tcp://docker:2376
+    # DOCKER_DRIVER: overlay2
+    # DOCKER_HOST: tcp://docker:2376
     # show useful build info
     BUILDKIT_PROGRESS: plain
 
