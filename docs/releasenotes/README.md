@@ -6,7 +6,8 @@ title: Latest release
 
 |Major versions|Minor versions|
 |:--|:--|
-[v2.6](#version-2-6-0)| [v2.6.0](#version-2-6-0), [v2.6.0a](#version-2-6-0a), [v2.6.0b](#version-2-6-0b), [v2.6.0c](#version-2-6-0c), [v2.6.0d](#version-2-6-0d), [v2.6.0e](#version-2-6-0e), [v2.6.0f](#version-2-6-0f)
+[v2.7](#version-2-7-0)| [v2.7.0](#version-2-7-0), [v2.7.0a](#version-2-7-0a)
+[v2.6](#version-2-6-0)| [v2.6.0](#version-2-6-0), [v2.6.0a](#version-2-6-0a), [v2.6.0b](#version-2-6-0b), [v2.6.0c](#version-2-6-0c), [v2.6.0d](#version-2-6-0d), [v2.6.0e](#version-2-6-0e), [v2.6.0f](#version-2-6-0f), [v2.6.0g](#version-2-6-0g)
 [v2.5](#version-2-5-0)| [v2.5.0](#version-2-5-0)
 [v2.4](#version-2-4-0)| [v2.4.1](#version-2-4-1)
 [v2.3](#version-2-3-0)| [v2.3.1](#version-2-3-1), [v2.3.2](#version-2-3-2)
@@ -15,6 +16,44 @@ title: Latest release
 [v2.0](#version-2-0)|[v2.0.1](#version-2-0-1), [v2.0.2](#version-2-0-2), [v2.0.3](#version-2-0-3)
 
 <!-- See [older releases](/releasenotes/olderreleases.md) for earlier versions.-->
+
+## Version 2.7.0a
+
+Release date: 27.04.2023
+
+#### Codebase
+<!-- MR !127 -->
+- release history documentation update
+
+#### Data sources
+<!-- MR !127 -->
+- Updated Clinvar to version 20230406
+
+## Version 2.7.0
+
+Release date: 23.03.2023
+
+#### Codebase
+
+<!-- MR !125 -->
+- Errors in configuration parsing are hard to trace
+<!-- MR !118 -->
+- Update VEP to 108.2
+<!-- MR !123 -->
+- Remove existing rawdata directories when sync_data.py called with --force
+
+#### Data sources
+<!-- MR !124 -->
+- Updated Clinvar to version 20230302.
+
+## Version 2.6.0g
+
+Release date: 20.02.2023
+
+#### Data sources
+<!-- MR !121 -->
+- Updated Clinvar to version 20230202.
+
 ## Version 2.6.0f
 
 Release date: 24.01.2023
