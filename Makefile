@@ -86,6 +86,17 @@ override ANNOBUILDER_OPTS += --env-file $(shell realpath $(DO_CREDS))
 endif
 endif
 
+# if SPACES_CONFIG is set, the file should be mounted into the docker container
+ifneq ($(SPACES_CONFIG),)
+ifeq ($(shell realpath $(SPACES_CONFIG)),)
+$(error File SPACES_CONFIG="$(SPACES_CONFIG)" does not exist)
+else
+override ANNOBUILDER_OPTS += -v $(shell realpath $(SPACES_CONFIG)):/anno/ops/spaces_config.json
+endif
+endif
+
+
+
 # Check that given variables are set and all have non-empty values,
 # die with an error otherwise.
 #
