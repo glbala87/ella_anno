@@ -55,10 +55,10 @@
     },
     "refseq": {
         "description": "RefSeq identifiers suitable for VEP annotation. More up to date and fixes alignment not handled by VEP refseq cache",
-        "version": "20201022",
+        "version": "20220307",
         "hash": {
             "type": "md5",
-            "value": "c797c01ea47325096924ef9997f1129f"
+            "value": "b3f379fc76cd11abf0511f1ec1633251"
         },
         "destination": "RefSeq",
         "generate": [
