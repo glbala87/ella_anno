@@ -6,7 +6,7 @@ title: Latest release
 
 |Major versions|Minor versions|
 |:--|:--|
-[v2.7](#version-2-7-0)| [v2.7.0](#version-2-7-0), [v2.7.0a](#version-2-7-0a)
+[v2.7](#version-2-7-0)| [v2.7.0](#version-2-7-0), [v2.7.0a](#version-2-7-0a), [v2.7.1](#version-2-7-1), [v2.7.1a](#version-2-7-1a)
 [v2.6](#version-2-6-0)| [v2.6.0](#version-2-6-0), [v2.6.0a](#version-2-6-0a), [v2.6.0b](#version-2-6-0b), [v2.6.0c](#version-2-6-0c), [v2.6.0d](#version-2-6-0d), [v2.6.0e](#version-2-6-0e), [v2.6.0f](#version-2-6-0f), [v2.6.0g](#version-2-6-0g)
 [v2.5](#version-2-5-0)| [v2.5.0](#version-2-5-0)
 [v2.4](#version-2-4-0)| [v2.4.1](#version-2-4-1)
@@ -17,6 +17,30 @@ title: Latest release
 
 <!-- See [older releases](/releasenotes/olderreleases.md) for earlier versions.-->
 
+## Version 2.7.1a
+
+Release date: 02.06.2023
+
+#### Codebase
+<!-- MR !134 -->
+- Change license from MIT to GNU GPL v3 license
+
+#### Data sources
+<!-- MR !135 -->
+- Updated Clinvar to version 20230504
+<!-- MR !136 -->
+- Update RefSeq GFF to 20220307
+
+
+## Version 2.7.1
+
+Release date: 03.05.2023
+
+#### Codebase
+
+<!-- MR !131 -->
+- Sync data improvements
+
 ## Version 2.7.0a
 
 Release date: 27.04.2023
@@ -24,6 +48,10 @@ Release date: 27.04.2023
 #### Codebase
 <!-- MR !127 -->
 - release history documentation update
+<!-- MR !128 -->
+- Remove unwanted variables
+<!-- MR !129 -->
+- Test release_singularity
 
 #### Data sources
 <!-- MR !127 -->
